@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+:root {
+    --line: #5b5b5b;
+      /* لون الخط العمودي والوصلة الافتراضي */
+      --accent: #BD036B;
+      /* اللون الوردي الغامق */
+      --pill-start: #F9C7DC;
+      /* تدرج حبّة عند الهوفر - بداية */
+      --pill-end: #FDE9F3;
+      /* تدرج حبّة عند الهوفر - نهاية */
+  --background: #ffffff;
+  --foreground: #171717;
+}
+@font-face {
+  font-family: "Tajawal";
+  src: url("/fonts/Tajawal-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@theme {
+  /* يولّد لك class جاهزة: font-tajawal */
+  --font-tajawal: "Tajawal", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  /* (اختياري) خلّيها هي الخط الافتراضي للسنس */
+  --font-sans: var(--font-tajawal);
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  
+  font-family: Arial, Helvetica, sans-serif;
+}
+html[dir="rtl"] body {
+  font-family: var(--font-tajawal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* ====== Firefox ====== */
+* {
+  /* حجم الشريط: auto | thin | none */
+  scrollbar-width: thin;
+  /* الترتيب: لون الـ thumb ثم لون الـ track */
+  scrollbar-color: #6F013F #f3e8f3;
+}
+
+/* ====== Chrome / Edge / Safari (WebKit) ====== */
+*::-webkit-scrollbar {
+  width: 10px;
+  /* عرض شريط التمرير العمودي */
+  height: 10px;
+  /* ارتفاع شريط التمرير الأفقي */
+}
+
+*::-webkit-scrollbar-track {
+  background: #f3e8f3;
+  /* لون المسار الخلفي */
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #6F013F;
+  /* لون مقبض التمرير */
+  border-radius: 8px;
+  /* استدارة الحواف */
+  border: 2px solid #f3e8f3;
+  /* فراغ بصري حول الـ thumb */
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  /* درجة أغمق عند التحويم لتحسين التباين */
+  background-color: #5a0132;
+}
+
+
+.cal.react-calendar {
+  width: min(92vw, 320px);
+  background: #fff;
+  
+  border-radius: 14px;
+  padding: 10px 10px 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  font-family: inherit;
+}
+
+/* شريط التنقل (عنوان الشهر + الأسهم) */
+.cal .react-calendar__navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cal .react-calendar__navigation__label {
+  font-weight: 600;
+  font-size: clamp(12px, 1.6vw, 14px);
+  color: #111827;
+  /* gray-900 */
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.cal .react-calendar__navigation button {
+  min-width: auto;
+  height: clamp(18px, 2.2vw, 22px);
+  width: clamp(18px, 2.2vw, 22px);
+  border-radius: 999px;
+  border: 1px solid rgba(123, 0, 70, 0.35);
+  color: #7b0046;
+  background: #fff;
+  line-height: 1;
+  padding: 0;
+}
+
+.cal .react-calendar__navigation button:enabled:hover {
+  background: rgba(123, 0, 70, 0.08);
+}
+
+/* رأس الأسبوع (Sun Mon Tue...) */
+.cal .react-calendar__month-view__weekdays {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.cal .react-calendar__month-view__weekdays__weekday {
+  padding: 6px 0;
+  font-weight: 500;
+  color: #6b7280;
+  /* gray-500 */
+  font-size: clamp(11px, 1.5vw, 13px);
+}
+
+.cal .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+  /* يشيل الخط */
+}
+
+/* حجم خلايا الأيام */
+.cal .react-calendar__tile {
+  height: clamp(32px, 5.5vw, 42px);
+  padding: 0;
+  border-radius: 10px;
+  position: relative;
+  font-size: clamp(12px, 1.6vw, 14px);
+  color: #374151;
+  /* gray-700 */
+}
+
+.cal .react-calendar__tile:enabled:hover {
+  background: #f3f4f6;
+  /* gray-100 */
+}
+
+/* اليوم الحالي (today) إطار خفيف */
+.cal .react-calendar__tile--now {
+  outline: 2px solid rgba(212, 0, 120, 0.25);
+  outline-offset: 0;
+  background: transparent;
+}
+
+/* اليوم الـ active (المحدد) — التدرّج العمودي */
+.cal .react-calendar__tile--active,
+.cal .react-calendar__tile--active:enabled:hover {
+  color: #fff !important;
+  background: linear-gradient(180deg, #c01779 0%, #8f0d6d 50%, #5c0b64 100%) !important;
+}
+
+/* أيام من خارج الشهر الحالي */
+.cal .react-calendar__month-view__days__day--neighboringMonth {
+  color: #9ca3af;
+  /* gray-400 */
+}
+
+/* إزالة حدود الجدول الافتراضية */
+.cal .react-calendar__month-view,
+.cal .react-calendar__viewContainer {
+  border: 0;
+}
+
+.cal .react-calendar__tile:disabled {
+  background: transparent;
+  color: #d1d5db;
+  /* gray-300 */
+}

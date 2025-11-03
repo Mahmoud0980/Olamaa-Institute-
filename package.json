@@ -1,0 +1,35 @@
+{
+  "name": "olamaa-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@reduxjs/toolkit": "^2.9.0",
+    "apexcharts": "^5.3.5",
+    "awesome-phonenumber": "^7.5.0",
+    "axios": "^1.12.2",
+    "country-calling-code": "^0.0.3",
+    "date-fns": "^4.1.0",
+    "google-libphonenumber": "^3.2.43",
+    "libphonenumber-js": "^1.12.18",
+    "lucide-react": "^0.545.0",
+    "next": "15.5.3",
+    "react": "19.1.0",
+    "react-apexcharts": "^1.8.0",
+    "react-calendar": "^6.0.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.63.0",
+    "react-redux": "^9.2.0",
+    "recharts": "^3.3.0",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4"
+  }
+}
