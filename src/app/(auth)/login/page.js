@@ -5,7 +5,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isLoggedIn, setAuth } from "@/lib/helpers/auth";
 
-const API_URL = "http://james90-001-site1.mtempurl.com/api/login";
+//const API_URL = "http://james90-001-site1.mtempurl.com/api/login";
+const API_URL = "https://olamaa-institute.onrender.com/api/login";
 
 export default function LoginPage() {
   const router = useRouter();
