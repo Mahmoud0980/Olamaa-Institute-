@@ -2,7 +2,8 @@ import axios from "axios";
 import { getToken, clearAuth } from "../helpers/auth"; // استيراد من lib/auth
 
 const api = axios.create({
-  baseURL: "http://james90-001-site1.mtempurl.com/api",
+  //baseURL: "http://james90-001-site1.mtempurl.com/api",
+  baseURL: "https://olamaa-institute.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },
