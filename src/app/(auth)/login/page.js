@@ -58,7 +58,7 @@ export default function LoginPage() {
       setAuth({ token, user });
 
       // روح على الصفحة الرئيسية (الداشبورد)
-      router.replace("/dashboard");
+      router.replace("/");
     } catch (e) {
       setErr(e.message || "حدث خطأ غير متوقع");
     } finally {
