@@ -92,8 +92,6 @@ export default function Menu() {
 
   return (
     <div className="w-full flex flex-col text-right font-medium">
-      {/* ====== العنوان العلوي ====== */}
-
       {/* ====== القوائم ====== */}
       <nav className="mt-4 flex flex-col gap-1 px-3">
         {menuItems.map((group) => (
