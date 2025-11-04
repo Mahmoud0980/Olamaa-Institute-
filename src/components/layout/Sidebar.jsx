@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Menu as MenuIcon, X } from "lucide-react";
@@ -25,23 +25,39 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         <MenuIcon className="w-6 h-6 text-white" />
       </button>
 
-      {/* السايدبار الثابت للشاشات الكبيرة */}
-      <aside className="hidden md:flex md:flex-col w-56 lg:w-60 xl:w-64 shrink-0 bg-[#F2F2F3]">
-        <div className="p-4 flex">
-          <Image src={"/logo.svg"} width={50} height={50} alt="logo" />
+      {/* السايدبار الثابت للشاشات المتوسطة والكبيرة */}
+      <aside
+        className="
+          hidden md:flex md:flex-col shrink-0
+          bg-[#F2F2F3]
+          w-[300px] lg:w-[340px] xl:w-[360px]
+          shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.2)]
+          transition-all duration-300
+        "
+      >
+        {/* ====== شعار المعهد ====== */}
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e0e0]">
+          <Image src="/logo.svg" alt="logo" width={45} height={45} />
           <Link
             href="/"
-            className="flex items-center justify-center lg:justify-center gap-2 text-lg md:text-3xl text-[#6F013F]"
+            className="flex items-center gap-2 text-[#6F013F] font-semibold 
+                       text-[16px] sm:text-[18px] md:text-[20px] lg:text-[22px]"
           >
-            <span className="lg:block font-semibold">معهد العلماء</span>
+            معهد العلماء
           </Link>
         </div>
-        <div className="p-4">
-          <Menu />
+
+        {/* ====== القائمة ====== */}
+        <div
+          className="flex-1 overflow-y-auto p-4 
+                     text-[14px] sm:text-[15px] md:text-[16px]
+                     transition-all duration-300"
+        >
+          <Menu activeColor="#AD164C" />
         </div>
       </aside>
 
-      {/* خلفية معتمة عند فتح السايدبار على الموبايل */}
+      {/* الخلفية المعتمة عند فتح السايدبار على الموبايل */}
       <div
         className={`md:hidden fixed inset-0 z-40 bg-black/40 transition-opacity ${
           sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -51,26 +67,30 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
       {/* السايدبار المنزلق للموبايل */}
       <aside
-        className={`md:hidden fixed inset-y-0 right-0 z-50 w-[76%] max-w-[300px]
-                    bg-[#F2F2F3] shadow-xl border-l transition-transform duration-300 overflow-y-auto
-                    ${sidebarOpen ? "translate-x-0" : "translate-x-full"}`}
-        style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+        className={`
+          md:hidden fixed inset-y-0 right-0 z-50
+          w-[80%] max-w-[320px]
+          bg-[#F2F2F3]
+          shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.25)]
+          border-l transition-transform duration-300 overflow-y-auto
+          ${sidebarOpen ? "translate-x-0" : "translate-x-full"}
+        `}
         aria-hidden={!sidebarOpen}
       >
-        <div className="flex items-center justify-between p-3">
-          <Link href="/" className="font-semibold">
+        <div className="flex items-center justify-between p-4 border-b border-[#e0e0e0]">
+          <Link href="/" className="font-semibold text-[#6F013F] text-[18px]">
             معهد العلماء
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-2 rounded-full hover:bg-gray-100"
+            className="p-2 rounded-full hover:bg-gray-200"
             aria-label="أغلق"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 text-[#6F013F]" />
           </button>
         </div>
-        <div className="p-4">
-          <Menu />
+        <div className="p-4 text-[15px]">
+          <Menu activeColor="#AD164C" />
         </div>
       </aside>
     </>
