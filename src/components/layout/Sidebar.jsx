@@ -43,7 +43,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           className="absolute z-50 top-[485px] left-[236px]"
         />
         {/* ====== شعار المعهد ====== */}
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e0e0]">
+        <div className="flex items-center gap-2 px-5 py-4">
           <Image src="/logo.svg" alt="logo" width={45} height={45} />
           <Link
             href="/"
