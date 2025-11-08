@@ -86,7 +86,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         aria-hidden={!sidebarOpen}
       >
         <img
-          src="/icons/star2.png"
+          src="/icons/Star2.png"
           alt="sidebar-bg"
           className="absolute z-50  top-[485px] left-[236px]"
         />

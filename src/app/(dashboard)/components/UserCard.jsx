@@ -82,7 +82,7 @@ export default function HighlightCards() {
               {/* النجمة تظهر فقط عند الهوفر */}
               {isActive && (
                 <Image
-                  src="/icons/group13.png"
+                  src="/icons/Group13.png"
                   width={36}
                   height={36}
                   alt="star"
