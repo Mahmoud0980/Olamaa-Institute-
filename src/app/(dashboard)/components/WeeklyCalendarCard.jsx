@@ -13,10 +13,10 @@ import {
   isSameDay,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
+
 import Image from "next/image";
 
-// أسبوع من الإثنين للسبت (6 أيام مثل التصميم)
-const WEEK_START = 1; // Monday
+const WEEK_START = 6; // Sat
 
 export default function WeeklyCalendarCard() {
   const [anchor, setAnchor] = useState(new Date());
@@ -105,21 +105,40 @@ export default function WeeklyCalendarCard() {
           </div>
 
           <div className="flex flex-col items-end gap-2 min-w-0">
-            {/* Month picker */}
-
-            <button
-              type="button"
-              onClick={() => setOpenCal((v) => !v)}
-              className="flex items-center gap-2 rounded-md border border-gray-200 px-2.5 py-0.5 h-[clamp(30px,4vw,30px)] text-[clamp(11px,1.5vw,14px)] text-[#444] bg-transparent min-w-0"
-              title="اختيار الشهر"
-            >
-              <span aria-hidden>
-                <Image src={"/arow.svg"} width={15} height={15} alt="arow" />
-              </span>
-              <span className="truncate">
-                {format(anchor, "MMMM yyyy", { locale: enUS })}
-              </span>
-            </button>
+            {/* Month dropdown with icon */}
+            <div className="flex flex-row-reverse items-center gap-2 rounded-md border border-gray-200 px-2.5 py-0.5 h-[clamp(30px,4vw,30px)] text-[clamp(11px,1.5vw,14px)] text-[#444] bg-transparent min-w-0 cursor-pointer">
+              <Image
+                src="/calendar.svg" // ضع الأيقونة داخل مجلد public
+                width={16}
+                height={16}
+                alt="calendar icon"
+              />
+              <select
+                dir="ltr"
+                value={format(anchor, "MMMM yyyy")}
+                onChange={(e) => {
+                  const [monthName, year] = e.target.value.split(" ");
+                  const newDate = new Date(`${monthName} 1, ${year}`);
+                  setAnchor(newDate);
+                  setSelected(newDate);
+                }}
+                className="rounded-md border-none cursor-pointer focus:outline-none"
+                title="اختيار الشهر"
+              >
+                {Array.from({ length: 12 }, (_, i) => {
+                  const monthDate = new Date(anchor.getFullYear(), i, 1);
+                  return (
+                    <option
+                      key={i}
+                      value={format(monthDate, "MMMM yyyy")}
+                      className="text-black border-none"
+                    >
+                      {format(monthDate, "MMMM yyyy", { locale: enUS })}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
             {/* arrows */}
             <div className="flex items-end gap-2" dir="ltr">
@@ -141,31 +160,13 @@ export default function WeeklyCalendarCard() {
               </button>
             </div>
           </div>
-
-          {/* popover react-calendar */}
-          {openCal && (
-            // داخل الكارد بدل الـ absolute:
-            <div className="mt-2" dir="ltr">
-              <div className="absolute z-50 rounded-xl p-1 shadow-lg bg-white border">
-                <Calendar
-                  className="cal"
-                  onChange={handlePickDate}
-                  value={anchor}
-                  view="month"
-                  locale="en-US"
-                  next2Label={null}
-                  prev2Label={null}
-                  showNeighboringMonth
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Week strip — 6 أعمدة ثابتة، بدون إعادة تموضع */}
         <div className="mt-4" dir="ltr">
           <div className="grid grid-cols-6 gap-2 sm:gap-3">
             {days.map((d) => {
+              const isOtherMonth = d.getMonth() !== anchor.getMonth();
               const active = isSameDay(d, selected);
               const today = isToday(d);
               const highlight = today && !active;
@@ -180,6 +181,11 @@ export default function WeeklyCalendarCard() {
                     "relative flex flex-col items-center justify-center rounded-lg",
                     "h-[clamp(54px,13vw,74px)] px-2",
                     "text-[clamp(11px,1.6vw,14px)]",
+                    active
+                      ? "text-white"
+                      : isOtherMonth
+                      ? "text-gray-400" // 👈 فضي للأيام خارج الشهر الحالي
+                      : "text-gray-700",
                   ].join(" ")}
                   style={
                     active
@@ -197,19 +203,14 @@ export default function WeeklyCalendarCard() {
 
                   <span
                     className={
-                      active ? "font-medium text-white" : "text-gray-500"
+                      active ? "font-medium text-white" : "font-medium"
                     }
                   >
                     {format(d, "EEE", { locale: enUS })}
                   </span>
-                  <span className={active ? "text-white" : "text-current"}>
+                  <span className={active ? "text-white" : ""}>
                     {format(d, "dd")}
                   </span>
-
-                  {/* إطار داخلي منحني مثل اللقطة للأيام غير المفعلة */}
-                  {!active && (
-                    <span className="pointer-events-none absolute inset-0 rounded-2xl" />
-                  )}
                 </button>
               );
             })}

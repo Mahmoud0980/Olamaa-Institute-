@@ -19,18 +19,18 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       {/* زر للموبايل */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="md:hidden fixed top-3 right-3 z-50 p-2 rounded-xl bg-[#6F013F] shadow"
+        className="xl:hidden fixed top-3 right-3 z-50 p-2 rounded-xl bg-[#6F013F] shadow"
         aria-label="افتح القائمة"
       >
         <MenuIcon className="w-6 h-6 text-white" />
       </button>
 
-      {/* السايدبار الثابت للشاشات المتوسطة والكبيرة */}
+      {/* السايدبار الثابت للشاشات الكبيرة فقط (xl وفوق) */}
       <aside
         className="
-          hidden md:flex md:flex-col shrink-0
+          hidden xl:flex xl:flex-col shrink-0
           bg-[#F2F2F3]
-          w-[300px] lg:w-[340px] xl:w-[360px]
+          w-[250px] 2xl:w-[300px]
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.2)]
           transition-all duration-300
         "
@@ -53,13 +53,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                      text-[14px] sm:text-[15px] md:text-[16px]
                      transition-all duration-300"
         >
-          <Menu activeColor="#AD164C" />
+          <Menu
+            activeColor="#AD164C"
+            onLinkClick={() => setSidebarOpen(false)}
+          />
         </div>
       </aside>
 
       {/* الخلفية المعتمة عند فتح السايدبار على الموبايل */}
       <div
-        className={`md:hidden fixed inset-0 z-40 bg-black/40 transition-opacity ${
+        className={`xl:hidden fixed inset-0 z-40 bg-black/40 transition-opacity ${
           sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setSidebarOpen(false)}
@@ -68,7 +71,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       {/* السايدبار المنزلق للموبايل */}
       <aside
         className={`
-          md:hidden fixed inset-y-0 right-0 z-50
+          xl:hidden fixed inset-y-0 right-0 z-50
           w-[80%] max-w-[320px]
           bg-[#F2F2F3]
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.25)]

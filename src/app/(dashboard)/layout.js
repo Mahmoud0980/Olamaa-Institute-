@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import "../globals.css";
+
 import Navbar from "../../components/layout/Navbar";
 import Sidebar from "../../components/layout/Sidebar";
 import { fetchBranches } from "../../redux/Slices/instituteBranchesSlice";
-
+import "../globals.css";
 export default function DashbaordLayout({ children }) {
   const { list } = useSelector((state) => state.branches);
   const [selectedBranchId, setSelectedBranchId] = useState("");

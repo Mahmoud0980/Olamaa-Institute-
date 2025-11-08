@@ -1,87 +1,8 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown, ChevronUp } from "lucide-react";
-
-const role = "admin";
-
-const menuItems = [
-  {
-    title: "الصفحة الرئيسية",
-    iconSrc: "/icons/ChartLine.png",
-    items: [],
-  },
-  {
-    title: "الجداول الرئيسية",
-    iconSrc: "/icons/CirclesFour.png",
-    items: [
-      { label: "الصفوف", href: "/classes", visible: ["admin", "teacher"] },
-      { label: "المواد", href: "/subjects", visible: ["admin", "teacher"] },
-      { label: "القاعات", href: "/rooms", visible: ["admin", "teacher"] },
-    ],
-  },
-  {
-    title: "الدفعات",
-    iconSrc: "/icons/HandCoins.png",
-    items: [
-      { label: "عرض الدفعات", href: "/payments", visible: ["admin"] },
-      { label: "إضافة دفعة", href: "/payments/add", visible: ["admin"] },
-    ],
-  },
-  {
-    title: "المدرسون",
-    iconSrc: "/icons/UsersThree.png",
-    items: [
-      { label: "عرض الدفعات", href: "/payments", visible: ["admin"] },
-      { label: "إضافة دفعة", href: "/payments/add", visible: ["admin"] },
-    ],
-  },
-  {
-    title: "الموظفون",
-    iconSrc: "/icons/HeadCircuit.png",
-    items: [
-      { label: "عرض الدفعات", href: "/payments", visible: ["admin"] },
-      { label: "إضافة دفعة", href: "/payments/add", visible: ["admin"] },
-    ],
-  },
-  {
-    title: "الطلاب",
-    iconSrc: "/icons/Student.png",
-    items: [
-      { label: "عرض الدفعات", href: "/payments", visible: ["admin"] },
-      { label: "إضافة دفعة", href: "/payments/add", visible: ["admin"] },
-    ],
-  },
-  {
-    title: "المذاكرات",
-    iconSrc: "/icons/EyeSlash.png",
-    items: [
-      { label: "عرض الدفعات", href: "/payments", visible: ["admin"] },
-      { label: "إضافة دفعة", href: "/payments/add", visible: ["admin"] },
-    ],
-  },
-  {
-    title: "الدورات",
-    iconSrc: "/icons/Export.png",
-    items: [
-      { label: "عرض الدفعات", href: "/payments", visible: ["admin"] },
-      { label: "إضافة دفعة", href: "/payments/add", visible: ["admin"] },
-    ],
-  },
-  {
-    title: "التقارير",
-    iconSrc: "/icons/ChartBar.png",
-    items: [
-      { label: "تقارير الطلاب", href: "/reports/students", visible: ["admin"] },
-      {
-        label: "تقارير الموظفين",
-        href: "/reports/employees",
-        visible: ["admin"],
-      },
-    ],
-  },
-];
+import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 
 export default function Menu() {
   const [openMenu, setOpenMenu] = useState(null);
@@ -90,72 +11,149 @@ export default function Menu() {
     setOpenMenu(openMenu === title ? null : title);
   };
 
+  const menuItems = [
+    {
+      title: "الصفحة الرئيسية",
+      icon: "/icons/ChartLine.svg",
+      href: "/",
+    },
+    {
+      title: "الجداول الرئيسية",
+      icon: "/icons/CirclesFour.svg",
+      sub: [
+        { name: "الصفوف", href: "/classes" },
+        { name: "المواد", href: "/subjects" },
+        { name: "القاعات", href: "/rooms" },
+      ],
+    },
+    {
+      title: "الدفعات",
+      icon: "/icons/HandCoins.svg",
+      sub: [
+        { name: "عرض الدفعات", href: "/payments" },
+        { name: "إضافة دفعة", href: "/payments/add" },
+      ],
+    },
+    {
+      title: "المدرسون",
+      icon: "/icons/UsersThree.svg",
+      sub: [
+        { name: "قائمة المدرسين", href: "/teachers" },
+        { name: "إضافة مدرس", href: "/teachers/add" },
+      ],
+    },
+    {
+      title: "الموظفون",
+      icon: "/icons/HeadCircuit.svg",
+      sub: [
+        { name: "قائمة الموظفين", href: "/employees" },
+        { name: "إضافة موظف", href: "/employees/add" },
+      ],
+    },
+    {
+      title: "الطلاب",
+      icon: "/icons/Student.svg",
+      sub: [
+        { name: "قائمة الطلاب", href: "/students" },
+        { name: "إضافة طالب", href: "/students/add" },
+      ],
+    },
+    {
+      title: "المذاكرات",
+      icon: "/icons/EyeSlash.svg",
+      sub: [
+        { name: "قائمة المذاكرات", href: "/notes" },
+        { name: "إضافة مذاكرة", href: "/notes/add" },
+      ],
+    },
+    {
+      title: "الدورات",
+      icon: "/icons/Export.svg",
+      sub: [
+        { name: "قائمة الدورات", href: "/courses" },
+        { name: "إضافة دورة", href: "/courses/add" },
+      ],
+    },
+    {
+      title: "التقارير",
+      icon: "/icons/ChartBar.svg",
+      sub: [
+        { name: "تقارير الطلاب", href: "/reports/students" },
+        { name: "تقارير الموظفين", href: "/reports/employees" },
+      ],
+    },
+  ];
+
   return (
-    <div className="w-full flex flex-col text-right font-medium">
-      {/* ====== القوائم ====== */}
-      <nav className="mt-4 flex flex-col gap-1 px-3">
-        {menuItems.map((group) => (
-          <div key={group.title} className="mb-1">
+    <div className="w-full text-right font-medium mt-4 px-3">
+      {menuItems.map((menu) => {
+        const isOpen = openMenu === menu.title;
+
+        return (
+          <div key={menu.title} className="mb-1">
+            {/* الزر الرئيسي */}
             <button
-              onClick={() => toggleMenu(group.title)}
-              className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#F2D9E6] transition-colors duration-200"
+              onClick={() => toggleMenu(menu.title)}
+              className="group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
             >
               <div className="flex items-center gap-2">
-                {group.iconSrc && (
-                  <Image
-                    src={group.iconSrc}
-                    alt=""
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                  />
-                )}
-                <span className="text-[20px]">{group.title}</span>
+                <Image
+                  src={menu.icon}
+                  alt=""
+                  width={22}
+                  height={22}
+                  className="object-contain transition group-hover:brightness-0 group-hover:invert"
+                />
+                <span>{menu.title}</span>
               </div>
-              {group.items?.length > 0 &&
-                (openMenu === group.title ? (
-                  <ChevronUp className="w-4 h-4 text-[#4D4D4D]" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-[#4D4D4D]" />
-                ))}
+              {menu.sub && (
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-300 ${
+                    isOpen ? "rotate-180" : ""
+                  } group-hover:text-white`}
+                />
+              )}
             </button>
 
-            {openMenu === group.title && group.items?.length > 0 && (
-              <div className="pl-4 pr-6 py-2 flex flex-col gap-1 border-r-2 border-[#B7699D]">
-                {group.items.map(
-                  (item) =>
-                    item.visible.includes(role) && (
+            {/* القوائم الفرعية */}
+            {menu.sub && (
+              <div
+                className={`overflow-hidden transition-all duration-300 ${
+                  isOpen ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0"
+                }`}
+              >
+                <ul className="">
+                  {menu.sub.map((item) => (
+                    <li key={item.name}>
                       <Link
-                        key={item.label}
                         href={item.href}
-                        className="block text-[#4D4D4D] text-[14px] hover:text-[#A5164C] hover:font-semibold transition-all duration-150"
+                        className="block px-2 py-1 rounded-md hover:bg-[#F7CBE3] hover:font-semibold hover:text-black transition"
                       >
-                        {item.label}
+                        {item.name}
                       </Link>
-                    )
-                )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
-        ))}
-      </nav>
+        );
+      })}
 
-      {/* ====== زر تسجيل الخروج ====== */}
-      <div className="mt-6 px-3 py-4">
-        <Link
-          href="/logout"
-          className="flex items-center gap-2 text-[#7B0046] hover:opacity-80 transition"
-        >
-          <Image
-            src="/icons/SignOut.png"
-            alt=""
-            width={20}
-            height={20}
-            className="object-contain"
-          />
-          <span>تسجيل الخروج</span>
-        </Link>
-      </div>
+      {/* زر تسجيل الخروج */}
+      <Link
+        href="/logout"
+        className="group flex items-center gap-2 text-[#7B0046] hover:bg-[#AD164C] hover:text-white rounded-lg px-3 py-2 mt-6 transition"
+      >
+        <Image
+          src="/icons/SignOut.svg"
+          alt="logout"
+          width={20}
+          height={20}
+          className="transition group-hover:brightness-0 group-hover:invert"
+        />
+        <span>تسجيل الخروج</span>
+      </Link>
     </div>
   );
 }
