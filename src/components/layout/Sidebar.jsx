@@ -37,8 +37,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       >
         <Image
           src="/icons/Star2.png"
-          width={100}
-          height={100}
+          width={60}
+          height={60}
           alt="sidebar-bg"
           className="absolute z-50 top-[485px] left-[236px]"
         />
