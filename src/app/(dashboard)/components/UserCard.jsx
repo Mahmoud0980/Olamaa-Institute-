@@ -39,6 +39,7 @@ export default function HighlightCards() {
       resetTimerRef.current = null;
     }
   };
+
   const scheduleResetToDefault = () => {
     clearResetTimer();
     resetTimerRef.current = setTimeout(() => {
@@ -47,7 +48,6 @@ export default function HighlightCards() {
     }, 100);
   };
 
-  // نفس التخطيط بكل المقاسات: صف واحد، تمركز عمودي، ارتفاع ثابت
   const baseCard =
     "group relative w-full md:w-[261px] h-[127px] rounded-2xl shadow-md overflow-hidden " +
     "flex flex-row items-center justify-between p-4 " +
@@ -60,7 +60,6 @@ export default function HighlightCards() {
 
   return (
     <div dir="rtl" className="w-full p-4 sm:p-6">
-      {/* تحت md مرن عمود واحد، من md وفوق أعمدة 261px */}
       <div
         className="
         grid gap-6 justify-around mx-auto
@@ -80,13 +79,17 @@ export default function HighlightCards() {
               onMouseLeave={scheduleResetToDefault}
               className={`${baseCard} ${isActive ? activeCard : plainCard}`}
             >
-              {/* <Image
-                src={"/star.svg"}
-                width={30}
-                height={30}
-                alt="star"
-                className="absolute "
-              /> */}
+              {/* النجمة تظهر فقط عند الهوفر */}
+              {isActive && (
+                <Image
+                  src="/icons/group13.png"
+                  width={36}
+                  height={36}
+                  alt="star"
+                  className="absolute bottom-2 right-0 opacity-0 animate-fadeIn"
+                />
+              )}
+
               {/* النص (يمين) */}
               <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 text-right">
                 <div
@@ -115,9 +118,7 @@ export default function HighlightCards() {
                     alt=""
                     fill
                     sizes="44px"
-                    className={`object-contain transition ${
-                      isActive ? "invert brightness-0" : ""
-                    }`}
+                    className="object-contain transition" // بدون invert أو brightness-0
                     priority={i === 0}
                   />
                 </div>

@@ -28,13 +28,18 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       {/* السايدبار الثابت للشاشات الكبيرة فقط (xl وفوق) */}
       <aside
         className="
-          hidden xl:flex xl:flex-col shrink-0
+          relative hidden xl:flex xl:flex-col shrink-0
           bg-[#F2F2F3]
           w-[250px] 2xl:w-[300px]
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.2)]
           transition-all duration-300
         "
       >
+        <img
+          src="/icons/star2.png"
+          alt="sidebar-bg"
+          className="absolute z-50  top-[485px] left-[236px]"
+        />
         {/* ====== شعار المعهد ====== */}
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e0e0]">
           <Image src="/logo.svg" alt="logo" width={45} height={45} />
@@ -80,6 +85,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         `}
         aria-hidden={!sidebarOpen}
       >
+        <img
+          src="/icons/star2.png"
+          alt="sidebar-bg"
+          className="absolute z-50  top-[485px] left-[236px]"
+        />
         <div className="flex items-center justify-between p-4 border-b border-[#e0e0e0]">
           <Link href="/" className="font-semibold text-[#6F013F] text-[18px]">
             معهد العلماء

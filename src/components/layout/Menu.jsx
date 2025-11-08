@@ -143,7 +143,7 @@ export default function Menu() {
       {/* زر تسجيل الخروج */}
       <Link
         href="/logout"
-        className="group flex items-center gap-2 text-[#7B0046] hover:bg-[#AD164C] hover:text-white rounded-lg px-3 py-2 mt-6 transition"
+        className="group flex items-center gap-2 text-[#7B0046] hover:bg-[#AD164C] hover:text-white rounded-lg px-3 py-2 mt-12 transition"
       >
         <Image
           src="/icons/SignOut.svg"
