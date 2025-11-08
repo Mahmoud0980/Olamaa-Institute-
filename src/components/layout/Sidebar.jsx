@@ -35,10 +35,12 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           transition-all duration-300
         "
       >
-        <img
-          src="/icons/star2.png"
+        <Image
+          src="/icons/Star2.png"
+          width={100}
+          height={100}
           alt="sidebar-bg"
-          className="absolute z-50  top-[485px] left-[236px]"
+          className="absolute z-50 top-[485px] left-[236px]"
         />
         {/* ====== شعار المعهد ====== */}
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e0e0]">
