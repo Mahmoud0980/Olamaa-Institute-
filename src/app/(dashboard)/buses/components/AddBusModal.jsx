@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
+import SelectInput from "@/components/common/SelectInput";
 
 import {
   useAddBusMutation,
@@ -27,19 +28,19 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
     capacity: "",
     driver_name: "",
     route_description: "",
-    is_active: true,
+    is_active: "true", // انتبه: لازم string
   });
 
-  // ⭐ إعادة ضبط النموذج عند الفتح
+  // ⭐ عند فتح المودال → جهّز البيانات
   useEffect(() => {
     if (isOpen) {
       if (bus) {
         setForm({
           name: bus.name ?? "",
-          capacity: bus.capacity ?? "",
+          capacity: String(bus.capacity ?? ""),
           driver_name: bus.driver_name ?? "",
           route_description: bus.route_description ?? "",
-          is_active: bus.is_active ?? true,
+          is_active: bus.is_active ? "true" : "false",
         });
       } else {
         setForm({
@@ -47,7 +48,7 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
           capacity: "",
           driver_name: "",
           route_description: "",
-          is_active: true,
+          is_active: "true",
         });
       }
     }
@@ -61,27 +62,33 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
     }
 
     if (!form.capacity || form.capacity <= 0) {
-      toast.error("السعة مطلوبة ويجب أن تكون رقمًا أكبر من الصفر");
+      toast.error("السعة مطلوبة ويجب أن تكون أكبر من 0");
       return;
     }
 
     try {
       setLoading(true);
 
+      const payload = {
+        ...form,
+        capacity: Number(form.capacity),
+        is_active: form.is_active === "true",
+      };
+
       if (bus) {
-        await updateBus({ id: bus.id, ...form }).unwrap();
+        await updateBus({ id: bus.id, ...payload }).unwrap();
         toast.success("تم تعديل بيانات الباص");
       } else {
-        await addBus(form).unwrap();
-        toast.success("تم إضافة الباص بنجاح");
+        await addBus(payload).unwrap();
+        toast.success("تم إضافة باص جديد");
       }
 
-      onClose();
       setLoading(false);
+      onClose();
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ أثناء الحفظ");
       setLoading(false);
+      toast.error("حدث خطأ أثناء الحفظ");
     }
   };
 
@@ -106,6 +113,7 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
         <Stepper current={step} total={total} />
 
         <div className="mt-6 space-y-5">
+          {/* اسم الباص */}
           <FormInput
             label="اسم الباص"
             required
@@ -117,16 +125,19 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
             error={!form.name ? "اسم الباص مطلوب" : ""}
           />
 
+          {/* السعة */}
           <FormInput
             label="السعة"
-            required
             type="number"
+            required
             placeholder="مثال: 40"
             value={form.capacity}
             register={{
               onChange: (e) => setForm({ ...form, capacity: e.target.value }),
             }}
           />
+
+          {/* اسم السائق */}
           <FormInput
             label="اسم السائق"
             placeholder="مثال: John Doe"
@@ -137,6 +148,7 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
             }}
           />
 
+          {/* وصف الطريق */}
           <FormInput
             label="وصف الطريق"
             placeholder="مثال: الطريق من A إلى B"
@@ -147,19 +159,18 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
             }}
           />
 
-          <div className="flex flex-col">
-            <label className="text-sm text-gray-700 mb-1">الحالة</label>
-            <select
-              value={form.is_active}
-              onChange={(e) =>
-                setForm({ ...form, is_active: e.target.value === "true" })
-              }
-              className="border border-gray-300 p-2 rounded"
-            >
-              <option value="true">نشط</option>
-              <option value="false">غير نشط</option>
-            </select>
-          </div>
+          {/* الحالة باستخدام SelectInput */}
+          <SelectInput
+            label="الحالة"
+            required
+            value={form.is_active}
+            onChange={(e) => setForm({ ...form, is_active: e.target.value })}
+            options={[
+              { value: "true", label: "نشط" },
+              { value: "false", label: "غير نشط" },
+            ]}
+            placeholder="اختر الحالة"
+          />
 
           <StepButtonsSmart
             step={step}
