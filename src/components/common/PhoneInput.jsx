@@ -1,13 +1,29 @@
 "use client";
 import { useState, useMemo } from "react";
-import { phoneLengths } from "../lib/phoneLengths";
 import { PhoneNumberUtil } from "google-libphonenumber";
+import { phoneLengths } from "@/lib/helpers/phoneLengths";
 
 const phoneUtil = PhoneNumberUtil.getInstance();
 
-export default function PhoneInput({ value, onChange, register, error, name }) {
-  const [selectedCountry, setSelectedCountry] = useState("SY");
-  const [phoneValue, setPhoneValue] = useState(value || "");
+/**
+ * مكون رقم الهاتف — متكامل مع RHF بدون Zod
+ * -----------------------------------------
+ * Props:
+ * - name: اسم الحقل (مثلاً: "father_phone")
+ * - register: من useForm
+ * - setValue: لتحديث قيمة الحقل داخل RHF
+ * - error: رسالة الخطأ إن وجدت
+ * - defaultCountry: رمز الدولة الافتراضي (SY مثلاً)
+ */
+export default function PhoneInput({
+  name,
+  register,
+  setValue,
+  error,
+  defaultCountry = "SY",
+}) {
+  const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
+  const [phoneValue, setPhoneValue] = useState("");
 
   const maxLen = phoneLengths[selectedCountry] || 20;
 
@@ -15,9 +31,7 @@ export default function PhoneInput({ value, onChange, register, error, name }) {
     let val = e.target.value.replace(/\D/g, "");
     if (val.length > maxLen) val = val.slice(0, maxLen);
     setPhoneValue(val);
-
-    // أرسل القيمة مباشرة للأب
-    onChange && onChange(val, selectedCountry);
+    setValue(name, val);
   };
 
   const options = useMemo(() => {
@@ -34,17 +48,20 @@ export default function PhoneInput({ value, onChange, register, error, name }) {
   }, []);
 
   return (
-    <div>
-      <label className="block text-sm font-medium mb-1">رقم الهاتف</label>
-      <div className="flex">
+    <div className="flex flex-col gap-1 text-right">
+      <label className="text-sm text-gray-700 font-medium">رقم الهاتف</label>
+
+      <div className="flex" dir="rtl">
+        {/* اختيار الدولة */}
         <select
           value={selectedCountry}
           onChange={(e) => {
-            setSelectedCountry(e.target.value);
+            const newCountry = e.target.value;
+            setSelectedCountry(newCountry);
             setPhoneValue("");
-            onChange && onChange("", e.target.value);
+            setValue(name, ""); // إعادة ضبط رقم الهاتف
           }}
-          className="border rounded-l-md p-2 bg-gray-100"
+          className="border border-gray-200 rounded-r-lg p-2 bg-gray-50 text-sm focus:ring-1 focus:ring-pink-200 focus:border-pink-400 outline-none"
         >
           {options.map(({ iso, calling }) => (
             <option key={iso} value={iso}>
@@ -53,18 +70,26 @@ export default function PhoneInput({ value, onChange, register, error, name }) {
           ))}
         </select>
 
+        {/* إدخال الرقم */}
         <input
           type="tel"
           placeholder={`أدخل رقم الهاتف (حتى ${maxLen} أرقام)`}
-          {...register(name)}
+          {...register(name, {
+            required: "رقم الهاتف مطلوب",
+            minLength: {
+              value: 5,
+              message: "الرقم قصير جدًا",
+            },
+          })}
           value={phoneValue}
           onChange={handleChange}
-          className="flex-1 border rounded-r-md p-2"
           maxLength={maxLen}
+          className="flex-1 border border-gray-200 rounded-l-lg p-2 text-sm focus:ring-1 focus:ring-pink-200 focus:border-pink-400 outline-none text-right"
         />
       </div>
 
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+      {/* رسالة الخطأ */}
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
   );
 }

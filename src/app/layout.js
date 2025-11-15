@@ -1,5 +1,6 @@
 import "./globals.css";
-import { Providers } from "../store";
+import Providers from "./Providers";
+import { Toaster } from "react-hot-toast";
 
 export const metadata = {
   title: "Create Next App",
@@ -16,6 +17,15 @@ export default function RootLayout({ children }) {
     <html lang="en" dir="rtl">
       <body>
         <Providers>{children}</Providers>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              fontSize: "14px",
+              direction: "rtl",
+            },
+          }}
+        />
       </body>
     </html>
   );

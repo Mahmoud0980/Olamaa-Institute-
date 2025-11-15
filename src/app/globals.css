@@ -100,3 +100,13 @@ html[dir="rtl"] body {
 .animate-fadeIn {
   animation: fadeIn 0.4s ease-out forwards;
 }
+
+thead tr:first-child th:first-child {
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+thead tr:first-child th:last-child {
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+}

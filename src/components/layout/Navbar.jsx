@@ -5,9 +5,7 @@ import { ChevronDown } from "lucide-react";
 
 export default function Navbar({ branches }) {
   const dispatch = useDispatch();
-  const selectedBranchId = useSelector(
-    (state) => state.branches.selectedBranchId
-  );
+  //const selectedBranchId = useSelector( (state) => state.branches.selectedBranchId );
   return (
     <div className="flex items-center justify-between p-4">
       <div className="hidden lg:flex items-center gap-2 text-xl rounded-lg shadow-md bg-[#F3F3F3] px-2">
@@ -56,7 +54,7 @@ export default function Navbar({ branches }) {
   "
             dir="rtl" // تأكد من RTL
           >
-            <select
+            {/* <select
               className="
       w-full bg-transparent outline-none text-sm
       appearance-none pr-5 pl-2 text-right
@@ -74,7 +72,7 @@ export default function Navbar({ branches }) {
                   {b.name}
                 </option>
               ))}
-            </select>
+            </select> */}
 
             <ChevronDown
               className="

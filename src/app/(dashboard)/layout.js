@@ -7,7 +7,7 @@ import Sidebar from "../../components/layout/Sidebar";
 import { fetchBranches } from "../../redux/Slices/instituteBranchesSlice";
 import "../globals.css";
 export default function DashbaordLayout({ children }) {
-  const { list } = useSelector((state) => state.branches);
+  //const { list } = useSelector((state) => state.branches);
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dispatch = useDispatch();
@@ -24,7 +24,7 @@ export default function DashbaordLayout({ children }) {
       {/* المحتوى */}
       <div className="flex-1 flex flex-col min-h-screen pr-5 pl-5">
         <Navbar
-          branches={list}
+          //  branches={list}
           selectedBranchId={selectedBranchId}
           setSelectedBranchId={setSelectedBranchId}
         />

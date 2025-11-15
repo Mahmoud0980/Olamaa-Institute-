@@ -21,6 +21,9 @@ export default function Menu() {
       title: "الجداول الرئيسية",
       icon: "/icons/CirclesFour.svg",
       sub: [
+        { name: "الشعب", href: "/batches" },
+        { name: "المدن", href: "/cities" },
+        { name: "الباصات", href: "/buses" },
         { name: "الصفوف", href: "/classes" },
         { name: "المواد", href: "/subjects" },
         { name: "القاعات", href: "/rooms" },
@@ -91,29 +94,45 @@ export default function Menu() {
 
         return (
           <div key={menu.title} className="mb-1">
-            {/* الزر الرئيسي */}
-            <button
-              onClick={() => toggleMenu(menu.title)}
-              className="group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
-            >
-              <div className="flex items-center gap-2">
-                <Image
-                  src={menu.icon}
-                  alt=""
-                  width={22}
-                  height={22}
-                  className="object-contain transition group-hover:brightness-0 group-hover:invert"
-                />
-                <span>{menu.title}</span>
-              </div>
-              {menu.sub && (
+            {/* الزر أو الرابط الرئيسي */}
+            {menu.sub ? (
+              <button
+                onClick={() => toggleMenu(menu.title)}
+                className="cursor-pointer group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
+              >
+                <div className="flex items-center gap-2">
+                  <Image
+                    src={menu.icon}
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="object-contain transition group-hover:brightness-0 group-hover:invert"
+                  />
+                  <span>{menu.title}</span>
+                </div>
                 <ChevronDown
                   className={`w-4 h-4 transition-transform duration-300 ${
                     isOpen ? "rotate-180" : ""
                   } group-hover:text-white`}
                 />
-              )}
-            </button>
+              </button>
+            ) : (
+              <Link
+                href={menu.href}
+                className="group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
+              >
+                <div className="flex items-center gap-2">
+                  <Image
+                    src={menu.icon}
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="object-contain transition group-hover:brightness-0 group-hover:invert"
+                  />
+                  <span>{menu.title}</span>
+                </div>
+              </Link>
+            )}
 
             {/* القوائم الفرعية */}
             {menu.sub && (
@@ -122,7 +141,7 @@ export default function Menu() {
                   isOpen ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0"
                 }`}
               >
-                <ul className="">
+                <ul>
                   {menu.sub.map((item) => (
                     <li key={item.name}>
                       <Link

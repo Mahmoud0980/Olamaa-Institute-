@@ -68,7 +68,96 @@ ____________________________________________
 ____________________________________________
 ____________________________________________
 */
-export const guardianSchema1 = z.object({
+
+/* ─────────────────────────────
+   🔹 مساعدات بسيطة لإعادة الاستخدام
+───────────────────────────── */
+const optionalString = z
+  .string()
+  .trim()
+  .optional()
+  .transform((val) => (val === "" ? undefined : val));
+
+const optionalNumber = z.preprocess(
+  (v) => (v === "" ? undefined : Number(v)),
+  z.number().int().optional()
+);
+
+const optionalDate = z
+  .string()
+  .optional()
+  .refine((val) => !val || !isNaN(Date.parse(val)), {
+    message: "التاريخ غير صالح",
+  });
+
+/* ─────────────────────────────
+   👨‍🎓 مخطط بيانات الطالب
+───────────────────────────── */
+export const studentSchema = z.object({
+  institute_branch_id: z.string().nonempty("يرجى اختيار فرع المعهد"),
+  branch_id: z.string().nonempty("الفرع الدراسي للطالب مطلوب"),
+  user_id: optionalNumber,
+
+  first_name: z
+    .string()
+    .trim()
+    .nonempty("يرجى إدخال الاسم")
+    .min(2, "الاسم قصير جدًا"),
+  last_name: z
+    .string()
+    .trim()
+    .nonempty("يرجى إدخال الكنية")
+    .min(2, "الكنية قصيرة جدًا"),
+
+  date_of_birth: z
+    .string()
+    .nonempty("يرجى إدخال تاريخ الميلاد")
+    .refine((val) => !isNaN(Date.parse(val)), {
+      message: "تاريخ الميلاد غير صالح",
+    }),
+
+  birth_place: optionalString,
+
+  enrollment_date: z
+    .string()
+    .nonempty("تاريخ التسجيل مطلوب")
+    .refine((val) => !isNaN(Date.parse(val)), {
+      message: "تاريخ التسجيل غير صالح",
+    }),
+
+  start_attendance_date: z
+    .string()
+    .nonempty("تاريخ بدء الحضور مطلوب")
+    .refine((val) => !isNaN(Date.parse(val)), {
+      message: "تاريخ بدء الحضور غير صالح",
+    }),
+
+  gender: z.enum(["male", "female"]).optional(),
+
+  national_id: optionalString,
+  previous_school_name: optionalString,
+  how_know_institute: optionalString,
+  notes: optionalString,
+
+  bus_id: optionalString,
+  status_id: optionalString,
+  city_id: optionalString,
+
+  profile_photo: z
+    .any()
+    .optional()
+    .refine((file) => !file || file.length <= 1, "يرجى اختيار صورة واحدة فقط"),
+
+  id_card_photo: z
+    .any()
+    .optional()
+    .refine((file) => !file || file.length <= 1, "يرجى اختيار صورة واحدة فقط"),
+});
+
+/* ─────────────────────────────
+   👨‍👩‍👧 بيانات أولياء الأمور
+───────────────────────────── */
+export const guardiansSchema = z.object({
   father_first_name: z
     .string()
     .trim()
@@ -79,6 +168,10 @@ export const guardianSchema1 = z.object({
     .trim()
     .nonempty("كنية الأب مطلوبة")
     .min(2, "كنية الأب قصيرة جدًا"),
+  father_national_id: optionalString,
+  father_occupation: optionalString,
+  father_address: optionalString,
+
   mother_first_name: z
     .string()
     .trim()
@@ -89,77 +182,27 @@ export const guardianSchema1 = z.object({
     .trim()
     .nonempty("كنية الأم مطلوبة")
     .min(2, "كنية الأم قصيرة جدًا"),
+  mother_national_id: optionalString,
+  mother_occupation: optionalString,
+  mother_address: optionalString,
 });
 
-/* ===== الطالب (حقول النموذج) ===== */
-export const studentSchema = z.object({
-  // فرع المعهد (مطلوب)
-  institute_branch_id: z.string().nonempty("يرجى اختيار فرع المعهد"),
-
-  // الفرع الدراسي (مطلوب) — السيرفر يطلبه: student.branch_id
-  branch_id: z.string().nonempty("الفرع الدراسي للطالب مطلوب"),
-
-  // user_id اختياري Number
-  user_id: z.preprocess(
-    (v) => (v === "" ? undefined : Number(v)),
-    z.number().int().optional()
-  ),
-
-  // أساسي
-  first_name: z.string().nonempty("يرجى ادخال الاسم").min(2, "الاسم قصير جداً"),
-  last_name: z
-    .string()
-    .nonempty("يرجى داخال الكنية")
-    .min(2, "الكنية قصيرة جداً"),
-
-  // تاريخ الميلاد كنص صالح
-  date_of_birth: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "تاريخ الميلاد غير صالح",
-  }),
-
-  birth_place: z.string().optional(),
-
-  profile_photo: z
-    .any()
-    .refine((file) => !file || file.length === 1, "يرجى اختيار صورة واحدة")
-    .optional(),
-  id_card_photo: z
-    .any()
-    .refine((file) => !file || file.length === 1, "يرجى اختيار صورة واحدة")
-    .optional(),
-
-  // تواريخ التسجيل والدوام كنصوص صالحة
-  enrollment_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "تاريخ التسجيل غير صالح",
-  }),
-  start_attendance_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "تاريخ بدء الدوام غير صالح",
-  }),
-
-  // حقول اختيارية تتحول "" -> undefined كي لا تفشل
-  gender: emptyToUndefined(z.enum(["male", "female"]).optional()),
-  // previous_school_name: z.string().optional(),
-  // national_id: z.string().min(9).max(15).optional(),
-  //how_know_institute: z.string().optional(),
-  bus_id: optionalNonEmptyString("رقم الباص غير صالح"),
-  notes: z.string().optional(),
-  status_id: optionalNonEmptyString("الحالة غير صالحة"),
-  city_id: optionalNonEmptyString("المدينة غير صالحة"),
-});
-
-/* ===== سكّيما النموذج الكامل: طالب + أولياء + شرط التاريخ ===== */
+/* ─────────────────────────────
+   🧩 النموذج الكامل (التحقق النهائي)
+───────────────────────────── */
 export const studentFormSchema = studentSchema
-  .extend(guardianSchema1.shape)
+  .merge(guardiansSchema)
   .refine(
-    (v) =>
-      !v.enrollment_date ||
-      !v.start_attendance_date ||
-      String(v.start_attendance_date) >= String(v.enrollment_date),
+    (data) =>
+      !data.enrollment_date ||
+      !data.start_attendance_date ||
+      new Date(data.start_attendance_date) >= new Date(data.enrollment_date),
     {
       path: ["start_attendance_date"],
       message: "تاريخ بدء الحضور يجب أن يكون بعد أو يساوي تاريخ التسجيل",
     }
   );
+
 /*
 ____________________________________________
 ____________________________________________
