@@ -24,7 +24,7 @@ export default function Menu() {
         { name: "الشعب", href: "/batches" },
         { name: "المدن", href: "/cities" },
         { name: "الباصات", href: "/buses" },
-        { name: "الصفوف", href: "/classes" },
+        { name: "السجلات الاكاديمية", href: "/academicBranches" },
         { name: "المواد", href: "/subjects" },
         { name: "القاعات", href: "/rooms" },
       ],

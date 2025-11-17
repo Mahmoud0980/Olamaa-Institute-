@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
-import BusesTableSkeleton from "./BusesTableSkeleton";
+import AcademicBranchesSkeleton from "./AcademicBranchesSkeleton";
 
-export default function BusesTable({
-  buses,
+export default function AcademicBranchesTable({
+  branches,
   isLoading,
   search,
   onEdit,
@@ -15,99 +15,76 @@ export default function BusesTable({
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
-  // حماية لمنع undefined
-  const safeBuses = Array.isArray(buses) ? buses : [];
+  const safeBranches = Array.isArray(branches) ? branches : [];
 
-  // البحث
-  const filtered = safeBuses.filter((b) =>
-    b.name?.toLowerCase().includes(search.toLowerCase())
+  const filtered = safeBranches.filter((b) =>
+    (b?.name ?? "").toLowerCase().includes((search ?? "").toLowerCase())
   );
 
-  // حساب عدد الصفحات
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
 
-  // ⭐️ حل مشكلة حذف كل عناصر الصفحة الثانية:
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  /* ----------------------------------------
+     🔥 FIX: رجوع تلقائي للصفحة 1 بعد الحذف
+  ---------------------------------------- */
   useEffect(() => {
-    if (page > totalPages && totalPages > 0) {
+    if (page > totalPages) {
       setPage(1);
     }
   }, [totalPages]);
 
-  // الصفوف الحالية
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
-      {/* Skeleton */}
       {isLoading ? (
-        <div className="py-10 text-center text-gray-500">
-          <BusesTableSkeleton />
-        </div>
+        <AcademicBranchesSkeleton />
       ) : !paginated.length ? (
         <div className="py-10 text-center text-gray-400">لا توجد بيانات.</div>
       ) : (
         <>
-          {/* Desktop Table */}
+          {/* DESKTOP */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
               <thead>
                 <tr className="bg-pink-50 text-gray-700">
                   <th className="p-3 rounded-r-xl">#</th>
-                  <th className="p-3">اسم الباص</th>
-                  <th className="p-3">السعة</th>
-                  <th className="p-3">اسم السائق</th>
-                  <th className="p-3">وصف الطريق</th>
-                  <th className="p-3">الحالة</th>
+                  <th className="p-3">اسم الفرع</th>
+                  <th className="p-3">الوصف</th>
                   <th className="p-3 text-center rounded-l-xl">الإجراءات</th>
                 </tr>
               </thead>
 
               <tbody>
-                {paginated.map((bus, index) => (
+                {paginated.map((branch, index) => (
                   <tr
-                    key={bus.id}
+                    key={branch.id}
                     className="bg-white hover:bg-pink-50 transition"
                   >
                     <td className="p-3 rounded-r-xl">
                       {(page - 1) * pageSize + index + 1}
                     </td>
 
-                    <td className="p-3 font-medium">{bus.name}</td>
+                    <td className="p-3 font-medium">{branch?.name ?? "—"}</td>
 
-                    <td className="p-3">{bus.capacity}</td>
-
-                    <td className="p-3">{bus.driver_name || "—"}</td>
-
-                    <td className="p-3">{bus.route_description || "—"}</td>
-
-                    <td className="p-3">
-                      {bus.is_active ? (
-                        <span className="px-3 py-1 text-xs rounded-xl bg-green-100 text-green-700">
-                          نشط
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 text-xs rounded-xl bg-red-100 text-red-700">
-                          غير نشط
-                        </span>
-                      )}
-                    </td>
+                    <td className="p-3">{branch?.description ?? "—"}</td>
 
                     <td className="p-3 rounded-l-xl text-center">
                       <div className="flex items-center justify-center gap-4">
-                        <button onClick={() => onDelete(bus.id)}>
-                          <Image
-                            src="/icons/Trash.png"
-                            width={18}
-                            height={18}
-                            alt="Trash"
-                          />
-                        </button>
-                        <button onClick={() => onEdit(bus.id)}>
+                        <button onClick={() => onEdit(branch.id)}>
                           <Image
                             src="/icons/Edit.png"
                             width={18}
                             height={18}
-                            alt="Edit"
+                            alt="edit"
+                          />
+                        </button>
+
+                        <button onClick={() => onDelete(branch.id)}>
+                          <Image
+                            src="/icons/Trash.png"
+                            width={18}
+                            height={18}
+                            alt="delete"
                           />
                         </button>
                       </div>
@@ -118,46 +95,39 @@ export default function BusesTable({
             </table>
           </div>
 
-          {/* Mobile Cards */}
+          {/* MOBILE */}
           <div className="md:hidden space-y-4">
-            {paginated.map((bus, index) => (
+            {paginated.map((branch) => (
               <div
-                key={bus.id}
+                key={branch.id}
                 className="border border-gray-200 rounded-xl p-4 shadow-sm"
               >
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-500">#</span>
-                  <span className="font-semibold">
-                    {(page - 1) * pageSize + index + 1}
-                  </span>
+                <div className="row">
+                  <span>الاسم:</span>
+                  <span>{branch?.name ?? "—"}</span>
                 </div>
 
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-500">اسم الباص:</span>
-                  <span className="font-semibold">{bus.name}</span>
-                </div>
-
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-500">السعة:</span>
-                  <span className="font-semibold">{bus.capacity}</span>
+                <div className="row">
+                  <span>الوصف:</span>
+                  <span>{branch?.description ?? "—"}</span>
                 </div>
 
                 <div className="flex justify-center gap-6 mt-3">
-                  <button onClick={() => onEdit(bus.id)}>
-                    <Image
-                      src="/icons/Edit.png"
-                      width={20}
-                      height={20}
-                      alt="editBus"
-                    />
-                  </button>
-
-                  <button onClick={() => onDelete(bus.id)}>
+                  <button onClick={() => onDelete(branch.id)}>
                     <Image
                       src="/icons/Trash.png"
                       width={20}
                       height={20}
-                      alt="deleteBus"
+                      alt="delete"
+                    />
+                  </button>
+
+                  <button onClick={() => onEdit(branch.id)}>
+                    <Image
+                      src="/icons/Edit.png"
+                      width={20}
+                      height={20}
+                      alt="edit"
                     />
                   </button>
                 </div>

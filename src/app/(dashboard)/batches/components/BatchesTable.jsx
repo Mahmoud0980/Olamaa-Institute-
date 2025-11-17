@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BatchesTableSkeleton from "./BatchesTableSkeleton";
 
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
@@ -38,6 +38,13 @@ export default function BatchesTable({
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  // ⭐ حل مشكلة حذف آخر عنصر في الصفحة الثانية
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(1);
+    }
+  }, [totalPages, page]);
 
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
@@ -165,6 +172,7 @@ export default function BatchesTable({
                   <span>النهاية:</span>
                   <span>{batch.end_date}</span>
                 </div>
+
                 <div className="flex justify-center gap-6 mt-3">
                   <button onClick={() => onDelete(batch.id)}>
                     <Image

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CitiesTableSkeleton from "./CitiesTableSkeleton";
 
 export default function CitiesTable({
@@ -15,28 +15,50 @@ export default function CitiesTable({
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
+  /* --------------------------
+      الفلترة
+  --------------------------- */
   const filtered = cities.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  /* --------------------------
+      Pagination
+  --------------------------- */
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const truncate = (txt, len = 25) =>
     txt?.length > len ? txt.substring(0, len) + "..." : txt;
 
+  /* -------------------------------------------------
+      نفس منطق صفحة الباصات و الشعب 100%
+      Adjust page when items deleted or filtered
+  -------------------------------------------------- */
+  useEffect(() => {
+    // 1) إذا الصفحة الحالية أكبر من عدد الصفحات الجديد → روح لآخر صفحة
+    if (page > totalPages) {
+      setPage(totalPages);
+      return;
+    }
+
+    // 2) إذا الصفحة الحالية صارت فاضية بعد الحذف → ارجع صفحة
+    if (paginated.length === 0 && page > 1) {
+      setPage(page - 1);
+    }
+  }, [filtered.length, totalPages, paginated.length, page]);
+
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
+      {/* حالة التحميل */}
       {isLoading ? (
-        <div className="py-10 text-center text-gray-500">
-          <CitiesTableSkeleton />
-        </div>
+        <CitiesTableSkeleton />
       ) : !paginated.length ? (
         <div className="py-10 text-center text-gray-400">لا توجد بيانات.</div>
       ) : (
         <>
-          {/* -------------- TABLE for large screens -------------- */}
+          {/* ------------------ TABLE (for desktop) ------------------ */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
               <thead>
@@ -110,7 +132,7 @@ export default function CitiesTable({
             </table>
           </div>
 
-          {/* -------------- CARD view for mobile screens -------------- */}
+          {/* ------------------ CARD VIEW (for mobile) ------------------ */}
           <div className="md:hidden space-y-4">
             {paginated.map((city, index) => (
               <div
@@ -178,7 +200,7 @@ export default function CitiesTable({
             ))}
           </div>
 
-          {/* Pagination */}
+          {/* ------------------ Pagination ------------------ */}
           <div className="flex justify-center items-center gap-4 mt-4">
             <button
               disabled={page === 1}
