@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isLoggedIn } from "@/lib/helpers/auth";
@@ -9,13 +11,16 @@ export default function AuthGate({ children }) {
   useEffect(() => {
     if (!isLoggedIn()) {
       router.replace("/login");
-      return;
+    } else {
+      setReady(true);
     }
-    setReady(true);
   }, [router]);
 
-  // فيك تحط سبلاش/لودر بسيط هون بدل null
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div className="w-full h-dvh flex items-center justify-center text-gray-500"></div>
+    );
+  }
 
   return children;
 }
