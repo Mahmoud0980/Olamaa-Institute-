@@ -9,9 +9,9 @@ import { saveAs } from "file-saver";
 import useStudentData from "./hooks/useStudentData";
 
 import StudentCard from "./components/StudentCard";
-import StudentInfoTab from "./components/Tabs/StudentInfoTab";
-import AttendanceTab from "./components/Tabs/AttendanceTab";
-import PaymentsTab from "./components/Tabs/PaymentsTab";
+import StudentInfoTab from "./components/tabs/StudentInfoTab";
+import AttendanceTab from "./components/tabs/AttendanceTab";
+import PaymentsTab from "./components/tabs/PaymentsTab";
 import EditAttendanceModal from "./components/EditAttendanceModal";
 import StudentShortdataSkeleton from "./components/StudentShortdataSkeleton";
 
