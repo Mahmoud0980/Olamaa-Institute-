@@ -1,4 +1,3 @@
-// lib/auth.js
 export function getAuth() {
   if (typeof window === "undefined") return null;
   try {

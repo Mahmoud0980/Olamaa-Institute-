@@ -4,7 +4,7 @@ import Skeleton from "@/components/common/Skeleton";
 
 export default function AcademicBranchesSkeleton() {
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
       {/* MOBILE */}
       <div className="md:hidden space-y-4">
         {[1, 2, 3].map((_, i) => (

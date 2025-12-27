@@ -1,88 +1,209 @@
+"use client";
+
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedBranchId } from "../../redux/Slices/instituteBranchesSlice";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-export default function Navbar({ branches }) {
+import QRModal from "../common/QRModal";
+import { setSearchValue } from "@/store/slices/searchSlice";
+import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
+
+/* ===============================
+   Helpers
+   =============================== */
+const isDesktopDevice = () => {
+  if (typeof navigator === "undefined") return false;
+  return !/Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+};
+
+export default function Navbar() {
   const dispatch = useDispatch();
-  //const selectedBranchId = useSelector( (state) => state.branches.selectedBranchId );
+  const pathname = usePathname();
+
+  const [openQR, setOpenQR] = useState(false);
+  const [canUseQR, setCanUseQR] = useState(false);
+
+  /* ===============================
+     🔑 تحديد مفتاح البحث حسب الصفحة
+     =============================== */
+  const searchKey = pathname.startsWith("/employees")
+    ? "employees"
+    : pathname.startsWith("/batches")
+    ? "batches"
+    : pathname.startsWith("/students")
+    ? "students"
+    : pathname.startsWith("/knowWays")
+    ? "knowWays"
+    : pathname.startsWith("/classRooms")
+    ? "classRooms"
+    : pathname.startsWith("/academic-branches") ||
+      pathname.startsWith("/academicBranches")
+    ? "academicBranches"
+    : pathname.startsWith("/instituteBranches")
+    ? "instituteBranches"
+    : pathname.startsWith("/cities")
+    ? "cities"
+    : pathname.startsWith("/buses")
+    ? "buses"
+    : "employees";
+
+  /* ===============================
+     🔎 البحث
+     =============================== */
+  const search = useSelector((state) => state.search.values[searchKey]);
+
+  /* ===============================
+     🏢 الفروع
+     =============================== */
+  const branchId = useSelector((state) => state.search.values.branch);
+  const { data } = useGetInstituteBranchesQuery();
+  const branches = data?.data || [];
+
+  /* ===============================
+     ⭐ قيمة افتراضية للفرع
+     =============================== */
+  useEffect(() => {
+    if (branchId === undefined) {
+      dispatch(
+        setSearchValue({
+          key: "branch",
+          value: "",
+        })
+      );
+    }
+  }, [branchId, dispatch]);
+
+  /* ===============================
+     📷 فحص الكاميرا + الجهاز
+     =============================== */
+  useEffect(() => {
+    const checkCamera = async () => {
+      if (!isDesktopDevice()) {
+        setCanUseQR(false);
+        return;
+      }
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasCamera = devices.some((d) => d.kind === "videoinput");
+        setCanUseQR(hasCamera);
+      } catch {
+        setCanUseQR(false);
+      }
+    };
+
+    checkCamera();
+  }, []);
+
   return (
-    <div className="flex items-center justify-between p-4">
-      <div className="hidden lg:flex items-center gap-2 text-xl rounded-lg shadow-md bg-[#F3F3F3] px-2">
-        <Image
-          src={"/search.svg"}
-          width={24}
-          height={24}
-          alt=""
-          priority
-          quality={80}
-          className="bg-[#F3F3F3]"
-        />
-        <input
-          type="text"
-          placeholder="البحث"
-          className="w-[231px] xl:w-[446px] h-[50px] p-2 outline-none text-[20px] bg-[#F3F3F3]"
-        />
-      </div>
-      <div className="flex items-center gap-6 justify-end w-full">
-        <div className="rounded-full w-7 h-7 flex items-center justify-center cursor-pointer">
-          <Image src={"/notification.svg"} width={24} height={25} alt="" />
-        </div>
-        <div className="rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative">
-          <Image src={"/message.svg"} width={20} height={20} alt="" />
-          {/* <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 text-white rounded-full text-xs">
-            1
-          </div> */}
+    <>
+      <div className="flex items-center justify-between px-6 py-4 bg-white">
+        {/* ================= SEARCH ================= */}
+        <div className="hidden lg:flex items-center gap-3 rounded-lg bg-[#F3F3F3] px-3 w-[231px] xl:w-[446px] h-[50px]">
+          <Image
+            src="/search.svg"
+            width={20}
+            height={20}
+            alt="search"
+            className="opacity-60"
+          />
+          <input
+            type="text"
+            placeholder="البحث عن ..."
+            value={search ?? ""}
+            onChange={(e) =>
+              dispatch(
+                setSearchValue({
+                  key: searchKey,
+                  value: e.target.value,
+                })
+              )
+            }
+            className="w-full h-full bg-transparent outline-none text-[16px] text-gray-700"
+          />
         </div>
 
-        <Image
-          src={"/avatar.svg"}
-          width={55}
-          height={55}
-          className="rounded-full"
-          alt=""
-        />
-        <div className="flex flex-col">
-          <span className="text-[13px] md:text-[16px] leading-3 font-[500px]]">
-            {" "}
-            المشرفة راما الأحمد
-          </span>
+        {/* ================= RIGHT SIDE ================= */}
+        <div className="flex items-center gap-5">
+          {/* 🔔 Notifications */}
+          <IconBox icon="/icons/notification.png" />
+
+          {/* 💬 Messages */}
+          <IconBox icon="/icons/message.png" />
+
+          {/* 📱 QR */}
           <div
-            className="
-    relative flex items-center gap-2 text-sm
-    ring-gray-300 px-2 py-1 shrink-0 text-[#999999]
-  "
-            dir="rtl" // تأكد من RTL
+            className={`w-10 h-10 flex items-center justify-center rounded-full
+              ${
+                canUseQR
+                  ? "bg-gray-100 cursor-pointer hover:bg-gray-200"
+                  : "bg-gray-200 cursor-not-allowed opacity-50"
+              }`}
+            onClick={() => {
+              if (canUseQR) setOpenQR(true);
+            }}
+            title={canUseQR ? "مسح QR" : "QR يعمل فقط على الكمبيوتر مع كاميرا"}
           >
-            {/* <select
-              className="
-      w-full bg-transparent outline-none text-sm
-      appearance-none pr-5 pl-2 text-right
-    "
-              value={selectedBranchId}
-              onChange={(e) =>
-                dispatch(setSelectedBranchId(Number(e.target.value) || ""))
-              }
-            >
-              <option value="" className="bg-[#F3F3F3] border-none">
-                كل الفروع
-              </option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id} className="bg-[#F3F3F3]">
-                  {b.name}
-                </option>
-              ))}
-            </select> */}
+            <Image src="/icons/QR.png" width={22} height={22} alt="qr" />
+          </div>
 
-            <ChevronDown
-              className="
-      pointer-events-none absolute right top-1/2 -translate-y-1/2
-      w-4 h-4 text-[#999999]
-    "
-            />
+          {/* 👤 Avatar */}
+          <Image
+            src="/avatar.svg"
+            width={44}
+            height={44}
+            className="rounded-full"
+            alt="avatar"
+          />
+
+          {/* 👩‍💼 Name + Branch */}
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-[14px] md:text-[16px] font-semibold text-gray-800">
+              المشرفة راما الأحمد
+            </span>
+
+            <div className="relative">
+              <select
+                value={branchId ?? ""}
+                onChange={(e) =>
+                  dispatch(
+                    setSearchValue({
+                      key: "branch",
+                      value: e.target.value,
+                    })
+                  )
+                }
+                className="appearance-none bg-transparent pr-5 text-[12px] text-gray-400 outline-none cursor-pointer"
+              >
+                <option value="">كل الفروع</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+
+              <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* ================= QR MODAL ================= */}
+      {openQR && <QRModal onClose={() => setOpenQR(false)} />}
+    </>
+  );
+}
+
+/* ===============================
+   Small Components
+   =============================== */
+function IconBox({ icon }) {
+  return (
+    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 cursor-pointer hover:bg-gray-200">
+      <Image src={icon} width={22} height={22} alt="icon" />
     </div>
   );
 }

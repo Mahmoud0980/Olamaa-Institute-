@@ -20,11 +20,13 @@ export default function SelectInput({
         value={value}
         onChange={onChange}
         className={`
-          w-full border border-gray-200 rounded-xl shadow-sm py-2.5 px-3
-          text-sm text-gray-700 outline-none transition
-          focus:border-[#D40078] focus:ring-1 focus:ring-[#F3C3D9]
-          ${error ? "border-red-400" : ""}
-        `}
+    w-full border border-gray-200 rounded-xl shadow-sm
+    py-2.5 px-3 pl-10
+    text-sm text-gray-700 outline-none transition
+    focus:border-[#D40078] focus:ring-1 focus:ring-[#F3C3D9]
+    bg-[position:0.75rem_center]
+    ${error ? "border-red-400" : ""}
+  `}
       >
         {/* Placeholder */}
         <option value="" disabled>

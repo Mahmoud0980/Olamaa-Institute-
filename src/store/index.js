@@ -11,6 +11,18 @@ import { citiesApi } from "./services/citiesApi";
 import { studentStatusesApi } from "./services/studentStatusesApi";
 import { academicRecordsApi } from "./services/academicRecordsApi";
 import { contactsApi } from "./services/contactsApi";
+import { subjectsApi } from "./services/subjectsApi";
+import { employeesApi } from "./services/employeesApi";
+import { studentDetailsApi } from "./services/studentDetailsApi";
+import { studentAttendanceApi } from "./services/studentAttendanceApi";
+import { knowWaysApi } from "./services/knowWaysApi";
+import searchReducer from "./slices/searchSlice";
+import { classRoomsApi } from "./services/classRoomsApi";
+import { studentPaymentsApi } from "./services/studentPaymentsApi";
+import { qrApi } from "./services/qrApi";
+import { batcheSubjectsApi } from "./services/batcheSubjectsApi";
+import { teachersApi } from "./services/teachersApi";
+import { subjectsTeachersApi } from "./services/subjectsTeachersApi";
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +36,18 @@ export const store = configureStore({
     [studentStatusesApi.reducerPath]: studentStatusesApi.reducer,
     [academicRecordsApi.reducerPath]: academicRecordsApi.reducer,
     [contactsApi.reducerPath]: contactsApi.reducer,
+    [employeesApi.reducerPath]: employeesApi.reducer,
+    [studentDetailsApi.reducerPath]: studentDetailsApi.reducer,
+    [studentAttendanceApi.reducerPath]: studentAttendanceApi.reducer,
+    [subjectsApi.reducerPath]: subjectsApi.reducer,
+    [knowWaysApi.reducerPath]: knowWaysApi.reducer,
+    [classRoomsApi.reducerPath]: classRoomsApi.reducer,
+    [studentPaymentsApi.reducerPath]: studentPaymentsApi.reducer,
+    [qrApi.reducerPath]: qrApi.reducer,
+    [batcheSubjectsApi.reducerPath]: batcheSubjectsApi.reducer,
+    [teachersApi.reducerPath]: teachersApi.reducer,
+    [subjectsTeachersApi.reducerPath]: subjectsTeachersApi.reducer,
+    search: searchReducer,
   },
 
   middleware: (getDefaultMiddleware) =>
@@ -37,5 +61,16 @@ export const store = configureStore({
       .concat(citiesApi.middleware)
       .concat(studentStatusesApi.middleware)
       .concat(academicRecordsApi.middleware)
-      .concat(contactsApi.middleware),
+      .concat(contactsApi.middleware)
+      .concat(employeesApi.middleware)
+      .concat(studentDetailsApi.middleware)
+      .concat(studentAttendanceApi.middleware)
+      .concat(subjectsApi.middleware)
+      .concat(knowWaysApi.middleware)
+      .concat(classRoomsApi.middleware)
+      .concat(studentPaymentsApi.middleware)
+      .concat(qrApi.middleware)
+      .concat(batcheSubjectsApi.middleware)
+      .concat(teachersApi.middleware)
+      .concat(subjectsTeachersApi.middleware),
 });

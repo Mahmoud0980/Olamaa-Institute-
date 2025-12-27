@@ -12,7 +12,7 @@ export default function DashboardButton({
   const styles = {
     pink: "bg-[#F9E8F0] text-[#6F013F] hover:bg-[#f4d3e3]",
     green: "bg-[#E5F5E9] text-[#2F8F46] hover:bg-[#D8F0DE]",
-    gray: "bg-gray-100 text-gray-700 hover:bg-gray-200",
+    gray: "bg-[#F6E5FF] text-gray-700 hover:bg-[#D993FF]",
   };
 
   return (

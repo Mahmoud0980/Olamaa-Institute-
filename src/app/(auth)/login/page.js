@@ -1,66 +1,61 @@
-// app/login/page.js
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+
+import api from "@/lib/config/axiosConfig";
 import { isLoggedIn, setAuth } from "@/lib/helpers/auth";
 
-const API_URL = "https://james90-001-site1.mtempurl.com/api/login";
-//const API_URL = "https://olamaa-institute.onrender.com/api/login";
+import InputField from "@/components/common/InputField";
+import GradientButton from "@/components/common/GradientButton";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [idOrEmail, setIdOrEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
 
-  // إذا مسجل دخول، روح على الداشبورد
+  // redirect إذا مسجل
   useEffect(() => {
     if (isLoggedIn()) router.replace("/");
   }, [router]);
 
   async function onSubmit(e) {
     e.preventDefault();
-    setErr("");
+
+    if (!idOrEmail || !password) {
+      toast.error("يرجى إدخال جميع الحقول");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        // منبعت email و unique_id مع بعض بالإضافة لكلمة السر
-        body: JSON.stringify({
-          email: idOrEmail,
-          unique_id: idOrEmail,
-          password,
-        }),
+      const res = await api.post("auth/login", {
+        email: idOrEmail,
+        unique_id: idOrEmail,
+        password,
       });
 
-      const data = await res.json();
+      const data = res.data;
 
-      if (!res.ok || !data?.status) {
+      if (!data?.status) {
         throw new Error(data?.message || "فشل تسجيل الدخول");
       }
 
-      const token = data?.data?.token;
-      const user = data?.data?.user;
+      setAuth({
+        token: data.data.token,
+        user: data.data.user,
+      });
 
-      if (!token || !user) {
-        throw new Error("استجابة غير متوقعة من الخادم");
-      }
-
-      // خزن باللوكل ستوريج
-      setAuth({ token, user });
-
-      // روح على الصفحة الرئيسية (الداشبورد)
+      toast.success("تم تسجيل الدخول بنجاح");
       router.replace("/");
-    } catch (e) {
-      setErr(e.message || "حدث خطأ غير متوقع");
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message || error?.message || "حدث خطأ غير متوقع";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -75,55 +70,36 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="block mb-1 font-medium">
-              البريد أو رقم المعرّف
-            </label>
-            <input
-              type="text"
-              value={idOrEmail}
-              onChange={(e) => setIdOrEmail(e.target.value)}
-              className="w-full h-11 rounded-xl border border-gray-200 px-3 outline-none focus:ring-2 focus:ring-purple-400"
-              placeholder="example@mail.com أو OAD-00001"
-              required
-            />
-          </div>
+          <InputField
+            label="البريد أو رقم المعرّف"
+            placeholder="example@mail.com أو OAD-00001"
+            required
+            value={idOrEmail}
+            register={{
+              value: idOrEmail,
+              onChange: (e) => setIdOrEmail(e.target.value),
+            }}
+          />
 
-          <div>
-            <label className="block mb-1 font-medium">كلمة المرور</label>
-            <div className="relative">
-              <input
-                type={showPw ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-11 rounded-xl border border-gray-200 px-3 pr-12 outline-none focus:ring-2 focus:ring-purple-400"
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw((v) => !v)}
-                className="absolute inset-y-0 left-2 my-auto px-2 text-sm text-purple-700"
-                aria-label={showPw ? "إخفاء" : "إظهار"}
-              >
-                {showPw ? "إخفاء" : "إظهار"}
-              </button>
-            </div>
-          </div>
+          <InputField
+            label="كلمة المرور"
+            type="password"
+            placeholder="••••••••"
+            required
+            value={password}
+            register={{
+              value: password,
+              onChange: (e) => setPassword(e.target.value),
+            }}
+          />
 
-          {err ? (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
-              {err}
-            </div>
-          ) : null}
-
-          <button
+          <GradientButton
             type="submit"
             disabled={loading}
-            className="w-full h-11 rounded-xl bg-gradient-to-b from-[#D40078] to-[#6D003E] text-white font-bold disabled:opacity-60"
+            className="w-full justify-center py-2.5 rounded-xl"
           >
             {loading ? "جاري الدخول..." : "دخول"}
-          </button>
+          </GradientButton>
         </form>
 
         <p className="mt-4 text-center text-xs text-gray-400">

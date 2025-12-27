@@ -5,25 +5,15 @@ import { phoneLengths } from "@/lib/helpers/phoneLengths";
 
 const phoneUtil = PhoneNumberUtil.getInstance();
 
-/**
- * مكون رقم الهاتف — متكامل مع RHF بدون Zod
- * -----------------------------------------
- * Props:
- * - name: اسم الحقل (مثلاً: "father_phone")
- * - register: من useForm
- * - setValue: لتحديث قيمة الحقل داخل RHF
- * - error: رسالة الخطأ إن وجدت
- * - defaultCountry: رمز الدولة الافتراضي (SY مثلاً)
- */
-export default function PhoneInput({
+export default function PhoneInputSimple({
   name,
-  register,
+  value,
   setValue,
-  error,
   defaultCountry = "SY",
+  error,
 }) {
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
-  const [phoneValue, setPhoneValue] = useState("");
+  const [phoneValue, setPhoneValue] = useState(value || "");
 
   const maxLen = phoneLengths[selectedCountry] || 20;
 
@@ -31,18 +21,23 @@ export default function PhoneInput({
     let val = e.target.value.replace(/\D/g, "");
     if (val.length > maxLen) val = val.slice(0, maxLen);
     setPhoneValue(val);
-    setValue(name, val);
+
+    let calling = "";
+    try {
+      const c = phoneUtil.getCountryCodeForRegion(selectedCountry);
+      calling = c ? `+${c}` : "";
+    } catch {}
+
+    setValue(name, calling + val);
   };
 
   const options = useMemo(() => {
     return Object.keys(phoneLengths).map((iso) => {
       let calling = "";
       try {
-        const num = phoneUtil.getCountryCodeForRegion(iso);
-        calling = num ? `+${num}` : "";
-      } catch {
-        calling = "";
-      }
+        const c = phoneUtil.getCountryCodeForRegion(iso);
+        calling = c ? `+${c}` : "";
+      } catch {}
       return { iso, calling };
     });
   }, []);
@@ -52,16 +47,15 @@ export default function PhoneInput({
       <label className="text-sm text-gray-700 font-medium">رقم الهاتف</label>
 
       <div className="flex" dir="rtl">
-        {/* اختيار الدولة */}
         <select
           value={selectedCountry}
           onChange={(e) => {
             const newCountry = e.target.value;
             setSelectedCountry(newCountry);
             setPhoneValue("");
-            setValue(name, ""); // إعادة ضبط رقم الهاتف
+            setValue(name, "");
           }}
-          className="border border-gray-200 rounded-r-lg p-2 bg-gray-50 text-sm focus:ring-1 focus:ring-pink-200 focus:border-pink-400 outline-none"
+          className="border border-gray-200 rounded-r-lg p-2 bg-gray-50 text-sm"
         >
           {options.map(({ iso, calling }) => (
             <option key={iso} value={iso}>
@@ -70,26 +64,17 @@ export default function PhoneInput({
           ))}
         </select>
 
-        {/* إدخال الرقم */}
         <input
           type="tel"
-          placeholder={`أدخل رقم الهاتف (حتى ${maxLen} أرقام)`}
-          {...register(name, {
-            required: "رقم الهاتف مطلوب",
-            minLength: {
-              value: 5,
-              message: "الرقم قصير جدًا",
-            },
-          })}
           value={phoneValue}
           onChange={handleChange}
+          placeholder={`أدخل رقم الهاتف (حتى ${maxLen} أرقام)`}
           maxLength={maxLen}
-          className="flex-1 border border-gray-200 rounded-l-lg p-2 text-sm focus:ring-1 focus:ring-pink-200 focus:border-pink-400 outline-none text-right"
+          className="flex-1 border border-gray-200 rounded-l-lg p-2 text-sm text-right"
         />
       </div>
 
-      {/* رسالة الخطأ */}
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+      {error && <p className="text-red-500 text-xs">{error}</p>}
     </div>
   );
 }

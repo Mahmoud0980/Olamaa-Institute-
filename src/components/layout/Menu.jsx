@@ -1,178 +1,269 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Menu() {
   const [openMenu, setOpenMenu] = useState(null);
+  const [userRoles, setUserRoles] = useState([]);
+  const router = useRouter();
+
+  // ===== جلب roles من localStorage =====
+  useEffect(() => {
+    const auth = localStorage.getItem("auth");
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth);
+        setUserRoles(parsed?.user?.roles || []);
+      } catch {
+        setUserRoles([]);
+      }
+    }
+  }, []);
 
   const toggleMenu = (title) => {
     setOpenMenu(openMenu === title ? null : title);
   };
 
+  // ===== التحقق من الصلاحيات =====
+  const hasAccess = (allowedRoles = []) => {
+    if (allowedRoles.length === 0) return true;
+    return allowedRoles.some((role) => userRoles.includes(role));
+  };
+
+  // ===== تسجيل الخروج =====
+  const handleLogout = async () => {
+    try {
+      const auth = localStorage.getItem("auth");
+      const token = auth ? JSON.parse(auth)?.token : null;
+
+      await fetch("http://abd990-001-site1.qtempurl.com/api/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+    } catch (error) {
+      // حتى لو فشل الطلب، نكمل تسجيل الخروج
+    } finally {
+      localStorage.removeItem("auth");
+      localStorage.removeItem("currentUser");
+      router.replace("/login");
+    }
+  };
+
+  // ===== عناصر القائمة =====
   const menuItems = [
     {
       title: "الصفحة الرئيسية",
       icon: "/icons/ChartLine.svg",
       href: "/",
+      roles: ["admin", "accountant", "employee"],
     },
     {
       title: "الجداول الرئيسية",
       icon: "/icons/CirclesFour.svg",
+      roles: ["admin"],
       sub: [
-        { name: "الشعب", href: "/batches" },
-        { name: "المدن", href: "/cities" },
-        { name: "الباصات", href: "/buses" },
-        { name: "السجلات الاكاديمية", href: "/academicBranches" },
-        { name: "المواد", href: "/subjects" },
-        { name: "القاعات", href: "/rooms" },
+        { name: "الشعب", href: "/batches", roles: ["admin"] },
+        { name: "المدن", href: "/cities", roles: ["admin"] },
+        { name: "الباصات", href: "/buses", roles: ["admin"] },
+        {
+          name: "السجلات الاكاديمية",
+          href: "/academicBranches",
+          roles: ["admin"],
+        },
+        { name: "افرع المعهد", href: "/instituteBranches", roles: ["admin"] },
+        { name: "المواد", href: "/subjects", roles: ["admin"] },
+        { name: "طرق المعرفة بنا", href: "/knowWays", roles: ["admin"] },
+        { name: "القاعات الدراسية", href: "/classRooms", roles: ["admin"] },
       ],
     },
     {
       title: "الدفعات",
       icon: "/icons/HandCoins.svg",
+      roles: ["admin", "accountant"],
       sub: [
-        { name: "عرض الدفعات", href: "/payments" },
-        { name: "إضافة دفعة", href: "/payments/add" },
+        {
+          name: "عرض الدفعات",
+          href: "/payments",
+          roles: ["admin", "accountant"],
+        },
+        {
+          name: "إضافة دفعة",
+          href: "/payments/add",
+          roles: ["admin"],
+        },
       ],
     },
     {
       title: "المدرسون",
       icon: "/icons/UsersThree.svg",
+      roles: ["admin"],
       sub: [
-        { name: "قائمة المدرسين", href: "/teachers" },
-        { name: "إضافة مدرس", href: "/teachers/add" },
+        { name: "قائمة المدرسين", href: "/teachers", roles: ["admin"] },
+        { name: "إضافة مدرس", href: "/teachers/add", roles: ["admin"] },
       ],
     },
     {
       title: "الموظفون",
       icon: "/icons/HeadCircuit.svg",
+      roles: ["admin"],
       sub: [
-        { name: "قائمة الموظفين", href: "/employees" },
-        { name: "إضافة موظف", href: "/employees/add" },
+        { name: "قائمة الموظفين", href: "/employees", roles: ["admin"] },
+        { name: "إضافة موظف", href: "/employees/add", roles: ["admin"] },
       ],
     },
     {
       title: "الطلاب",
       icon: "/icons/Student.svg",
+      roles: ["admin", "employee"],
       sub: [
-        { name: "قائمة الطلاب", href: "/students" },
-        { name: "إضافة طالب", href: "/students/add" },
+        {
+          name: "قائمة الطلاب",
+          href: "/students",
+          roles: ["admin", "employee"],
+        },
+        { name: "إضافة طالب", href: "/students/add", roles: ["admin"] },
       ],
     },
     {
       title: "المذاكرات",
       icon: "/icons/EyeSlash.svg",
+      roles: ["admin", "employee"],
       sub: [
-        { name: "قائمة المذاكرات", href: "/notes" },
-        { name: "إضافة مذاكرة", href: "/notes/add" },
+        {
+          name: "قائمة المذاكرات",
+          href: "/notes",
+          roles: ["admin", "employee"],
+        },
+        { name: "إضافة مذاكرة", href: "/notes/add", roles: ["admin"] },
       ],
     },
     {
       title: "الدورات",
       icon: "/icons/Export.svg",
+      roles: ["admin"],
       sub: [
-        { name: "قائمة الدورات", href: "/courses" },
-        { name: "إضافة دورة", href: "/courses/add" },
+        { name: "قائمة الدورات", href: "/courses", roles: ["admin"] },
+        { name: "إضافة دورة", href: "/courses/add", roles: ["admin"] },
       ],
     },
     {
       title: "التقارير",
       icon: "/icons/ChartBar.svg",
+      roles: ["admin", "accountant"],
       sub: [
-        { name: "تقارير الطلاب", href: "/reports/students" },
-        { name: "تقارير الموظفين", href: "/reports/employees" },
+        { name: "تقارير الطلاب", href: "/reports/students", roles: ["admin"] },
+        {
+          name: "تقارير الموظفين",
+          href: "/reports/employees",
+          roles: ["admin", "accountant"],
+        },
       ],
     },
   ];
 
   return (
-    <div className="w-full text-right font-medium mt-4 px-3">
-      {menuItems.map((menu) => {
-        const isOpen = openMenu === menu.title;
+    <div className="w-full h-full text-right font-medium px-3 flex flex-col">
+      <div className="mt-4">
+        {menuItems
+          .filter((menu) => hasAccess(menu.roles))
+          .map((menu) => {
+            const isOpen = openMenu === menu.title;
 
-        return (
-          <div key={menu.title} className="mb-1">
-            {/* الزر أو الرابط الرئيسي */}
-            {menu.sub ? (
-              <button
-                onClick={() => toggleMenu(menu.title)}
-                className="cursor-pointer group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
-              >
-                <div className="flex items-center gap-2">
-                  <Image
-                    src={menu.icon}
-                    alt=""
-                    width={22}
-                    height={22}
-                    className="object-contain transition group-hover:brightness-0 group-hover:invert"
-                  />
-                  <span>{menu.title}</span>
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform duration-300 ${
-                    isOpen ? "rotate-180" : ""
-                  } group-hover:text-white`}
-                />
-              </button>
-            ) : (
-              <Link
-                href={menu.href}
-                className="group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
-              >
-                <div className="flex items-center gap-2">
-                  <Image
-                    src={menu.icon}
-                    alt=""
-                    width={22}
-                    height={22}
-                    className="object-contain transition group-hover:brightness-0 group-hover:invert"
-                  />
-                  <span>{menu.title}</span>
-                </div>
-              </Link>
-            )}
+            return (
+              <div key={menu.title} className="mb-1">
+                {/* العنصر الرئيسي */}
+                {menu.sub ? (
+                  <button
+                    onClick={() => toggleMenu(menu.title)}
+                    className="cursor-pointer group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={menu.icon}
+                        alt=""
+                        width={22}
+                        height={22}
+                        className="object-contain transition group-hover:brightness-0 group-hover:invert"
+                      />
+                      <span>{menu.title}</span>
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform duration-300 ${
+                        isOpen ? "rotate-180" : ""
+                      } group-hover:text-white`}
+                    />
+                  </button>
+                ) : (
+                  <Link
+                    href={menu.href}
+                    className="group flex items-center w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={menu.icon}
+                        alt=""
+                        width={22}
+                        height={22}
+                        className="object-contain transition group-hover:brightness-0 group-hover:invert"
+                      />
+                      <span>{menu.title}</span>
+                    </div>
+                  </Link>
+                )}
 
-            {/* القوائم الفرعية */}
-            {menu.sub && (
-              <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  isOpen ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0"
-                }`}
-              >
-                <ul>
-                  {menu.sub.map((item) => (
-                    <li key={item.name}>
-                      <Link
-                        href={item.href}
-                        className="block px-2 py-1 rounded-md hover:bg-[#F7CBE3] hover:font-semibold hover:text-black transition"
-                      >
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                {/* القوائم الفرعية */}
+                {menu.sub && (
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ${
+                      isOpen
+                        ? "max-h-screen opacity-100 mt-1"
+                        : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <ul>
+                      {menu.sub
+                        .filter((item) => hasAccess(item.roles))
+                        .map((item) => (
+                          <li key={item.name}>
+                            <Link
+                              href={item.href}
+                              className="block px-2 py-1 rounded-md hover:bg-[#F7CBE3] hover:font-semibold hover:text-black transition"
+                            >
+                              {item.name}
+                            </Link>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
 
-      {/* زر تسجيل الخروج */}
-      <Link
-        href="/logout"
-        className="group flex items-center gap-2 text-[#7B0046] hover:bg-[#AD164C] hover:text-white rounded-lg px-3 py-2 mt-12 transition"
-      >
-        <Image
-          src="/icons/SignOut.svg"
-          alt="logout"
-          width={20}
-          height={20}
-          className="transition group-hover:brightness-0 group-hover:invert"
-        />
-        <span>تسجيل الخروج</span>
-      </Link>
+        {/* ===== تسجيل الخروج ===== */}
+        <button
+          onClick={handleLogout}
+          className="group flex items-center gap-2 w-full text-right text-[#7B0046]
+             hover:bg-[#AD164C] hover:text-white
+             rounded-lg px-3 py-2 mt-auto mb-4 transition"
+        >
+          <Image
+            src="/icons/SignOut.svg"
+            alt="logout"
+            width={20}
+            height={20}
+            className="transition group-hover:brightness-0 group-hover:invert"
+          />
+          <span>تسجيل الخروج</span>
+        </button>
+      </div>
     </div>
   );
 }

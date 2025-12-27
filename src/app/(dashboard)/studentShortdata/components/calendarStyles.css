@@ -1,0 +1,106 @@
+.my-calendar {
+  width: 100%;
+  max-width: 200px;
+  margin: 0 auto;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+/* ================= Navigation (مخفي) ================= */
+.my-calendar .react-calendar__navigation {
+  display: none !important;
+}
+
+/* ================= Week Days ================= */
+.my-calendar .react-calendar__month-view__weekdays {
+  border-bottom: 1px solid #e6e6e6;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.my-calendar .react-calendar__month-view__weekdays__weekday {
+  text-transform: uppercase;
+  font-size: 8px;
+  color: #666 !important;
+}
+
+/* ================= Days ================= */
+.my-calendar .react-calendar__tile {
+  padding: 4px 0;
+  font-size: 11px;
+  height: 26px;
+  border-radius: 999px;
+  color: #555;
+}
+
+/* Selected day */
+.my-calendar .react-calendar__tile--active {
+  background: #7B0046 !important;
+  color: white !important;
+  border-radius: 999px !important;
+}
+
+/* Selected range */
+.my-calendar .react-calendar__tile--range {
+  background: #fcd7e5 !important;
+  color: #88003c !important;
+  border-radius: 999px !important;
+}
+
+/* Hover */
+.my-calendar .react-calendar__tile:hover {
+  background: #fce8f1 !important;
+  border-radius: 999px;
+}
+
+/* Today */
+.my-calendar .react-calendar__tile--now {
+  background: #7B0046 !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+}
+
+/* ================= Rows spacing ================= */
+.my-calendar .react-calendar__month-view__days {
+  row-gap: 4px;
+}
+
+/* ================= Responsive tweak ================= */
+@media (min-width: 768px) {
+  .my-calendar {
+    max-width: 220px;
+    /* شوي أكبر على الديسكتوب */
+  }
+}
+
+@media (max-width: 360px) {
+  .my-calendar {
+    max-width: 170px;
+    /* 👈 الحل الأساسي */
+  }
+
+  .my-calendar .react-calendar__month-view__weekdays__weekday {
+    font-size: 7px;
+  }
+
+  .my-calendar .react-calendar__tile {
+    height: 22px;
+    font-size: 10px;
+    padding: 2px 0;
+  }
+
+  .my-calendar .react-calendar__month-view__days {
+    row-gap: 3px;
+  }
+}
+@media (max-width: 320px) {
+  .my-calendar {
+    max-width: 155px;
+  }
+
+  .my-calendar .react-calendar__tile {
+    height: 20px;
+    font-size: 9px;
+  }
+}

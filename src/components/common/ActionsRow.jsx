@@ -5,10 +5,13 @@ import DashboardButton from "./DashboardButton";
 export default function ActionsRow({
   onAdd,
   onView,
-  onSelectAll,
-  showSelectAll = false,
 
-  // ⭐ أسماء الأزرار القابلة للتغيير ديناميكيًا
+  // ⭐ select all
+  showSelectAll = false,
+  isAllSelected = false,
+  onToggleSelectAll,
+
+  // labels
   addLabel = "إضافة عنصر",
   viewLabel = "عرض البيانات",
   selectAllLabel = "تحديد الكل",
@@ -22,19 +25,28 @@ export default function ActionsRow({
         onClick={onAdd}
       />
 
-      <DashboardButton
-        label={viewLabel}
-        icon={<i className="text-sm">≡</i>}
-        color="green"
-        onClick={onView}
-      />
+      {viewLabel && (
+        <DashboardButton
+          label={viewLabel}
+          icon={<i className="text-sm">≡</i>}
+          color="green"
+          onClick={onView}
+        />
+      )}
 
       {showSelectAll && (
         <DashboardButton
           label={selectAllLabel}
-          icon={<input type="checkbox" className="accent-[#6F013F]" />}
+          icon={
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              readOnly
+              className="accent-[#6F013F]"
+            />
+          }
           color="gray"
-          onClick={onSelectAll}
+          onClick={onToggleSelectAll}
         />
       )}
     </div>

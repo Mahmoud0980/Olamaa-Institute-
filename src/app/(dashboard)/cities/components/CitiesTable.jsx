@@ -1,72 +1,60 @@
-"use client";
+// "use client";
 
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import CitiesTableSkeleton from "./CitiesTableSkeleton";
 
 export default function CitiesTable({
-  cities,
+  cities = [],
   isLoading,
-  search,
+  selectedIds = [],
+  onSelectChange,
   onEdit,
   onDelete,
 }) {
+  // ===== Pagination (مثل batches) =====
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
-  /* --------------------------
-      الفلترة
-  --------------------------- */
-  const filtered = cities.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const totalPages = Math.ceil(cities.length / pageSize) || 1;
+  const paginated = cities.slice((page - 1) * pageSize, page * pageSize);
 
-  /* --------------------------
-      Pagination
-  --------------------------- */
-  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+  useEffect(() => {
+    setPage(1);
+  }, [cities]);
 
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  // ===== Checkbox =====
+  const toggleSelect = (city) => {
+    const exists = selectedIds.includes(city.id);
+
+    const updated = exists
+      ? selectedIds.filter((id) => id !== city.id)
+      : [...selectedIds, city.id];
+
+    onSelectChange?.(updated);
+  };
 
   const truncate = (txt, len = 25) =>
     txt?.length > len ? txt.substring(0, len) + "..." : txt;
 
-  /* -------------------------------------------------
-      نفس منطق صفحة الباصات و الشعب 100%
-      Adjust page when items deleted or filtered
-  -------------------------------------------------- */
-  useEffect(() => {
-    // 1) إذا الصفحة الحالية أكبر من عدد الصفحات الجديد → روح لآخر صفحة
-    if (page > totalPages) {
-      setPage(totalPages);
-      return;
-    }
-
-    // 2) إذا الصفحة الحالية صارت فاضية بعد الحذف → ارجع صفحة
-    if (paginated.length === 0 && page > 1) {
-      setPage(page - 1);
-    }
-  }, [filtered.length, totalPages, paginated.length, page]);
-
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
-      {/* حالة التحميل */}
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
       {isLoading ? (
         <CitiesTableSkeleton />
       ) : !paginated.length ? (
         <div className="py-10 text-center text-gray-400">لا توجد بيانات.</div>
       ) : (
         <>
-          {/* ------------------ TABLE (for desktop) ------------------ */}
+          {/* ================= DESKTOP TABLE ================= */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
               <thead>
                 <tr className="bg-pink-50 text-gray-700">
-                  <th className="p-3 rounded-r-xl">#</th>
+                  <th className="p-3 text-center rounded-r-xl">#</th>
                   <th className="p-3">اسم المدينة</th>
                   <th className="p-3">الوصف</th>
-                  <th className="p-3">الحالة</th>
+                  <th className="p-3 text-center">الحالة</th>
                   <th className="p-3 text-center rounded-l-xl">الإجراءات</th>
                 </tr>
               </thead>
@@ -77,8 +65,16 @@ export default function CitiesTable({
                     key={city.id}
                     className="bg-white hover:bg-pink-50 transition"
                   >
-                    <td className="p-3 rounded-r-xl">
-                      {(page - 1) * pageSize + index + 1}
+                    <td className="p-3 text-center rounded-r-xl">
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-[#6F013F]"
+                          checked={selectedIds.includes(city.id)}
+                          onChange={() => toggleSelect(city)}
+                        />
+                        <span>{(page - 1) * pageSize + index + 1}</span>
+                      </div>
                     </td>
 
                     <td className="p-3 font-medium">{city.name}</td>
@@ -87,7 +83,7 @@ export default function CitiesTable({
                       {truncate(city.description || "—")}
                     </td>
 
-                    <td className="p-3">
+                    <td className="p-3 text-center">
                       {city.is_active ? (
                         <span className="px-3 py-1 text-xs rounded-xl bg-green-100 text-green-700">
                           نشط
@@ -99,10 +95,10 @@ export default function CitiesTable({
                       )}
                     </td>
 
-                    <td className="p-3 rounded-l-xl text-center">
+                    <td className="p-3 text-center rounded-l-xl">
                       <div className="flex items-center justify-center gap-4">
                         <button
-                          onClick={() => onEdit(city.id)}
+                          onClick={() => onEdit?.(city.id)}
                           className="cursor-pointer"
                         >
                           <Image
@@ -114,7 +110,7 @@ export default function CitiesTable({
                         </button>
 
                         <button
-                          onClick={() => onDelete(city.id)}
+                          onClick={() => onDelete?.(city)}
                           className="cursor-pointer"
                         >
                           <Image
@@ -132,18 +128,27 @@ export default function CitiesTable({
             </table>
           </div>
 
-          {/* ------------------ CARD VIEW (for mobile) ------------------ */}
-          <div className="md:hidden space-y-4">
+          {/* ================= MOBILE CARDS ================= */}
+          <div className="md:hidden space-y-4 mt-4">
             {paginated.map((city, index) => (
               <div
                 key={city.id}
                 className="border border-gray-200 rounded-xl p-4 shadow-sm"
               >
+                {/* checkbox + index */}
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-500">#</span>
-                  <span className="font-semibold">
-                    {(page - 1) * pageSize + index + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">
+                      {(page - 1) * pageSize + index + 1}
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-[#6F013F]"
+                      checked={selectedIds.includes(city.id)}
+                      onChange={() => toggleSelect(city)}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-between mb-2">
@@ -173,7 +178,7 @@ export default function CitiesTable({
 
                 <div className="flex justify-center gap-6 mt-3">
                   <button
-                    onClick={() => onEdit(city.id)}
+                    onClick={() => onEdit?.(city.id)}
                     className="cursor-pointer"
                   >
                     <Image
@@ -185,7 +190,7 @@ export default function CitiesTable({
                   </button>
 
                   <button
-                    onClick={() => onDelete(city.id)}
+                    onClick={() => onDelete?.(city)}
                     className="cursor-pointer"
                   >
                     <Image
@@ -200,8 +205,8 @@ export default function CitiesTable({
             ))}
           </div>
 
-          {/* ------------------ Pagination ------------------ */}
-          <div className="flex justify-center items-center gap-4 mt-4">
+          {/* ================= PAGINATION ================= */}
+          <div className="flex justify-center items-center gap-4 mt-6">
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}

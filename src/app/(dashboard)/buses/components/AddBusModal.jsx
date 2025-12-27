@@ -31,7 +31,6 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
     is_active: "true", // انتبه: لازم string
   });
 
-  // ⭐ عند فتح المودال → جهّز البيانات
   useEffect(() => {
     if (isOpen) {
       if (bus) {

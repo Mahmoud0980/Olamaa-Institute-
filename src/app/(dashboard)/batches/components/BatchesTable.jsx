@@ -1,202 +1,252 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import BatchesTableSkeleton from "./BatchesTableSkeleton";
 
-import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
-import { useGetAcademicBranchesQuery } from "@/store/services/academicBranchesApi";
+/* ================= Helpers ================= */
+const getGenderBadge = (gender) => {
+  switch (gender) {
+    case "male":
+      return {
+        text: "ذكور",
+        className: "bg-blue-100 text-blue-700",
+      };
+    case "female":
+      return {
+        text: "إناث",
+        className: "bg-pink-100 text-pink-700",
+      };
+    case "mixed":
+      return {
+        text: "مختلطة",
+        className: "bg-purple-100 text-purple-700",
+      };
+    default:
+      return {
+        text: "غير محدد",
+        className: "bg-gray-100 text-gray-600",
+      };
+  }
+};
 
 export default function BatchesTable({
-  batches,
+  batches = [],
   isLoading,
-  search,
+  selectedIds = [],
+  onSelectChange,
   onEdit,
   onDelete,
 }) {
+  // ===== Pagination =====
   const [page, setPage] = useState(1);
-  const pageSize = 6;
+  const pageSize = 4;
 
-  const { data: branchesData } = useGetInstituteBranchesQuery();
-  const branches = branchesData?.data || [];
+  const totalPages = Math.ceil(batches.length / pageSize) || 1;
+  const paginated = batches.slice((page - 1) * pageSize, page * pageSize);
 
-  const { data: academicData } = useGetAcademicBranchesQuery();
-  const academics = academicData?.data || [];
-
-  const getBranchName = (id) => {
-    return branches.find((b) => b.id === id)?.name || "—";
-  };
-
-  const getAcademicName = (id) => {
-    return academics.find((a) => a.id === id)?.name || "—";
-  };
-
-  const filtered = batches.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-
-  // ⭐ حل مشكلة حذف آخر عنصر في الصفحة الثانية
   useEffect(() => {
-    if (page > totalPages && totalPages > 0) {
-      setPage(1);
-    }
-  }, [totalPages, page]);
+    setPage(1);
+  }, [batches]);
+
+  // ===== Checkbox =====
+  const toggleSelect = (batch) => {
+    const exists = selectedIds.includes(batch.id);
+    const updated = exists
+      ? selectedIds.filter((id) => id !== batch.id)
+      : [...selectedIds, batch.id];
+
+    onSelectChange(updated);
+  };
 
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
       {isLoading ? (
         <BatchesTableSkeleton />
-      ) : !paginated.length ? (
-        <div className="py-10 text-center text-gray-400">لا توجد بيانات.</div>
       ) : (
         <>
-          {/* Desktop */}
+          {/* ================= DESKTOP TABLE ================= */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
               <thead>
                 <tr className="bg-pink-50 text-gray-700">
-                  <th className="p-3 rounded-r-xl">#</th>
+                  <th className="p-3 text-center">#</th>
                   <th className="p-3">اسم الشعبة</th>
                   <th className="p-3">الفرع</th>
                   <th className="p-3">الفرع الأكاديمي</th>
+                  <th className="p-3">القاعة</th>
                   <th className="p-3">تاريخ البداية</th>
                   <th className="p-3">تاريخ النهاية</th>
-                  <th className="p-3">الحالة</th>
-                  <th className="p-3 text-center rounded-l-xl">الإجراءات</th>
+                  <th className="p-3 text-center">الجنس</th>
+                  <th className="p-3 text-center">الحالة</th>
+                  <th className="p-3 text-center">الإجراءات</th>
                 </tr>
               </thead>
 
               <tbody>
-                {paginated.map((batch, index) => (
-                  <tr
-                    key={batch.id}
-                    className="bg-white hover:bg-pink-50 transition"
-                  >
-                    <td className="p-3 rounded-r-xl">
-                      {(page - 1) * pageSize + index + 1}
-                    </td>
+                {paginated.map((batch, index) => {
+                  const gender = getGenderBadge(batch.gender_type);
 
-                    <td className="p-3 font-medium">{batch.name}</td>
-
-                    <td className="p-3">
-                      {getBranchName(batch.institute_branch_id)}
-                    </td>
-
-                    <td className="p-3">
-                      {getAcademicName(batch.academic_branch_id)}
-                    </td>
-
-                    <td className="p-3">{batch.start_date}</td>
-
-                    <td className="p-3">{batch.end_date}</td>
-
-                    <td className="p-3">
-                      {batch.is_completed ? (
-                        <span className="status bg-green-100 text-green-700">
-                          مكتملة
-                        </span>
-                      ) : batch.is_hidden ? (
-                        <span className="status bg-orange-100 text-orange-700">
-                          مخفية
-                        </span>
-                      ) : batch.is_archived ? (
-                        <span className="status bg-gray-200 text-gray-700">
-                          مؤرشفة
-                        </span>
-                      ) : (
-                        <span className="status bg-blue-100 text-blue-700">
-                          نشطة
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="p-3 rounded-l-xl text-center">
-                      <div className="flex items-center justify-center gap-4">
-                        <button onClick={() => onEdit(batch.id)}>
-                          <Image
-                            src="/icons/Edit.png"
-                            width={18}
-                            height={18}
-                            alt="edit batch"
+                  return (
+                    <tr
+                      key={batch.id}
+                      className="bg-white hover:bg-pink-50 transition"
+                    >
+                      <td className="p-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 accent-[#6F013F]"
+                            checked={selectedIds.includes(batch.id)}
+                            onChange={() => toggleSelect(batch)}
                           />
-                        </button>
-                        <button onClick={() => onDelete(batch.id)}>
-                          <Image
-                            src="/icons/Trash.png"
-                            width={18}
-                            height={18}
-                            alt="delete batch"
-                          />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <span>{(page - 1) * pageSize + index + 1}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-3 font-medium">{batch.name}</td>
+                      <td className="p-3">
+                        {batch.institute_branch?.name || "-"}
+                      </td>
+                      <td className="p-3">
+                        {batch.academic_branch?.name || "-"}
+                      </td>
+                      <td className="p-3">{batch.class_room?.name || "-"}</td>
+                      <td className="p-3">{batch.start_date}</td>
+                      <td className="p-3">{batch.end_date}</td>
+
+                      <td className="p-3 text-center">
+                        <span
+                          className={`px-3 py-1 text-xs rounded-xl ${gender.className}`}
+                        >
+                          {gender.text}
+                        </span>
+                      </td>
+
+                      <td className="p-3 text-center">
+                        {batch.is_completed ? (
+                          <StatusBadge text="مكتملة" color="green" />
+                        ) : batch.is_hidden ? (
+                          <StatusBadge text="مخفية" color="orange" />
+                        ) : batch.is_archived ? (
+                          <StatusBadge text="مؤرشفة" color="gray" />
+                        ) : (
+                          <StatusBadge text="نشطة" color="blue" />
+                        )}
+                      </td>
+
+                      <td className="p-3 text-center">
+                        <div className="flex justify-center gap-6 mt-3">
+                          <button onClick={() => onDelete(batch)}>
+                            <Image
+                              src="/icons/Trash.png"
+                              alt="trash"
+                              width={20}
+                              height={20}
+                            />
+                          </button>
+
+                          <button onClick={() => onEdit(batch.id)}>
+                            <Image
+                              src="/icons/Edit.png"
+                              alt="edit"
+                              width={20}
+                              height={20}
+                            />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* MOBILE */}
-          <div className="md:hidden space-y-4">
-            {paginated.map((batch, index) => (
-              <div
-                key={batch.id}
-                className="border border-gray-200 rounded-xl p-4 shadow-sm"
-              >
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-500">رقم:</span>
-                  <span>{(page - 1) * pageSize + index + 1}</span>
-                </div>
+          {/* ================= MOBILE CARDS ================= */}
+          <div className="md:hidden space-y-4 mt-4">
+            {paginated.map((batch, index) => {
+              const gender = getGenderBadge(batch.gender_type);
 
-                <div className="row">
-                  <span>اسم الشعبة:</span>
-                  <span>{batch.name}</span>
-                </div>
-                <div className="row">
-                  <span>الفرع:</span>
-                  <span>{getBranchName(batch.institute_branch_id)}</span>
-                </div>
-                <div className="row">
-                  <span>الفرع الأكاديمي:</span>
-                  <span>{getAcademicName(batch.academic_branch_id)}</span>
-                </div>
-                <div className="row">
-                  <span>البداية:</span>
-                  <span>{batch.start_date}</span>
-                </div>
-                <div className="row">
-                  <span>النهاية:</span>
-                  <span>{batch.end_date}</span>
-                </div>
+              return (
+                <div
+                  key={batch.id}
+                  className="border border-gray-200 rounded-xl p-4 shadow-sm"
+                >
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-500">#</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {(page - 1) * pageSize + index + 1}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-[#6F013F]"
+                        checked={selectedIds.includes(batch.id)}
+                        onChange={() => toggleSelect(batch)}
+                      />
+                    </div>
+                  </div>
 
-                <div className="flex justify-center gap-6 mt-3">
-                  <button onClick={() => onDelete(batch.id)}>
-                    <Image
-                      src="/icons/Trash.png"
-                      width={20}
-                      height={20}
-                      alt="delete batch"
-                    />
-                  </button>
-                  <button onClick={() => onEdit(batch.id)}>
-                    <Image
-                      src="/icons/Edit.png"
-                      width={20}
-                      height={20}
-                      alt="edit batch"
-                    />
-                  </button>
+                  <InfoRow label="اسم الشعبة" value={batch.name} />
+                  <InfoRow label="الفرع" value={batch.institute_branch?.name} />
+                  <InfoRow
+                    label="الفرع الأكاديمي"
+                    value={batch.academic_branch?.name}
+                  />
+                  <InfoRow label="القاعة" value={batch.class_room?.name} />
+                  <InfoRow label="البداية" value={batch.start_date} />
+                  <InfoRow label="النهاية" value={batch.end_date} />
+
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-500">الجنس:</span>
+                    <span
+                      className={`px-3 py-1 text-xs rounded-xl ${gender.className}`}
+                    >
+                      {gender.text}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-500">الحالة:</span>
+                    {batch.is_completed ? (
+                      <StatusBadge text="مكتملة" color="green" />
+                    ) : batch.is_hidden ? (
+                      <StatusBadge text="مخفية" color="orange" />
+                    ) : batch.is_archived ? (
+                      <StatusBadge text="مؤرشفة" color="gray" />
+                    ) : (
+                      <StatusBadge text="نشطة" color="blue" />
+                    )}
+                  </div>
+
+                  <div className="flex justify-center gap-6 mt-3">
+                    <button onClick={() => onEdit(batch.id)}>
+                      <Image
+                        src="/icons/Edit.png"
+                        alt="edit"
+                        width={20}
+                        height={20}
+                      />
+                    </button>
+
+                    <button onClick={() => onDelete(batch)}>
+                      <Image
+                        src="/icons/Trash.png"
+                        alt="trash"
+                        width={20}
+                        height={20}
+                      />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-4 mt-4">
+          {/* ================= PAGINATION ================= */}
+          <div className="flex justify-center items-center gap-4 mt-6">
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
@@ -220,5 +270,30 @@ export default function BatchesTable({
         </>
       )}
     </div>
+  );
+}
+
+/* ================= Small Components ================= */
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex justify-between mb-2">
+      <span className="text-gray-500">{label}:</span>
+      <span>{value || "-"}</span>
+    </div>
+  );
+}
+
+function StatusBadge({ text, color }) {
+  const colors = {
+    green: "bg-green-100 text-green-700",
+    orange: "bg-orange-100 text-orange-700",
+    gray: "bg-gray-200 text-gray-700",
+    blue: "bg-blue-100 text-blue-700",
+  };
+
+  return (
+    <span className={`px-3 py-1 text-xs rounded-xl ${colors[color]}`}>
+      {text}
+    </span>
   );
 }

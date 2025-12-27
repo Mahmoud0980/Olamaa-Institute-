@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -16,7 +17,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
   return (
     <>
-      {/* زر للموبايل */}
+      {/* زر فتح القائمة للموبايل */}
       <button
         onClick={() => setSidebarOpen(true)}
         className="xl:hidden fixed top-3 right-3 z-50 p-2 rounded-xl bg-[#6F013F] shadow"
@@ -25,12 +26,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         <MenuIcon className="w-6 h-6 text-white" />
       </button>
 
-      {/* السايدبار الثابت للشاشات الكبيرة فقط (xl وفوق) */}
+      {/* ===== السايدبار الثابت (ديسكتوب) ===== */}
       <aside
         className="
           relative hidden xl:flex xl:flex-col shrink-0
           bg-[#F2F2F3]
           w-[250px] 2xl:w-[300px]
+          h-screen
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.2)]
           transition-all duration-300
         "
@@ -42,32 +44,32 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           alt="sidebar-bg"
           className="absolute z-50 top-[485px] left-[236px]"
         />
-        {/* ====== شعار المعهد ====== */}
+
+        {/* ===== شعار المعهد ===== */}
         <div className="flex items-center gap-2 px-5 py-4">
           <Image src="/logo.svg" alt="logo" width={45} height={45} />
           <Link
             href="/"
-            className="flex items-center gap-2 text-[#6F013F] font-semibold 
+            className="flex items-center gap-2 text-[#6F013F] font-semibold
                        text-[16px] sm:text-[18px] md:text-[20px] lg:text-[22px]"
           >
             معهد العلماء
           </Link>
         </div>
 
-        {/* ====== القائمة ====== */}
+        {/* ===== القائمة ===== */}
         <div
-          className="flex-1 overflow-y-auto p-4 
-                     text-[14px] sm:text-[15px] md:text-[16px]
-                     transition-all duration-300"
+          className="
+            flex-1 overflow-y-auto p-4 flex
+            text-[14px] sm:text-[15px] md:text-[16px]
+            transition-all duration-300
+          "
         >
-          <Menu
-            activeColor="#AD164C"
-            onLinkClick={() => setSidebarOpen(false)}
-          />
+          <Menu />
         </div>
       </aside>
 
-      {/* الخلفية المعتمة عند فتح السايدبار على الموبايل */}
+      {/* ===== خلفية معتمة للموبايل ===== */}
       <div
         className={`xl:hidden fixed inset-0 z-40 bg-black/40 transition-opacity ${
           sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -75,14 +77,15 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* السايدبار المنزلق للموبايل */}
+      {/* ===== السايدبار المنزلق (موبايل) ===== */}
       <aside
         className={`
           xl:hidden fixed inset-y-0 right-0 z-50
           w-[80%] max-w-[320px]
           bg-[#F2F2F3]
+          h-screen
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.25)]
-          border-l transition-transform duration-300 overflow-y-auto
+          border-l transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "translate-x-full"}
         `}
         aria-hidden={!sidebarOpen}
@@ -94,6 +97,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           alt="sidebar-bg"
           className="absolute z-50 top-[485px] left-[236px]"
         />
+
+        {/* رأس السايدبار */}
         <div className="flex items-center justify-between p-4 border-b border-[#e0e0e0]">
           <Link href="/" className="font-semibold text-[#6F013F] text-[18px]">
             معهد العلماء
@@ -106,8 +111,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
             <X className="w-5 h-5 text-[#6F013F]" />
           </button>
         </div>
-        <div className="p-4 text-[15px]">
-          <Menu activeColor="#AD164C" />
+
+        {/* القائمة */}
+        <div className="flex-1 overflow-y-auto p-4 flex text-[15px]">
+          <Menu />
         </div>
       </aside>
     </>

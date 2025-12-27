@@ -7,12 +7,12 @@ import axios from "@/lib/config/axiosConfig";
  */
 export const axiosBaseQuery =
   ({ baseUrl } = { baseUrl: "" }) =>
-  async ({ url, method, data, params, headers }) => {
+  async ({ url, method, data, body, params, headers }) => {
     try {
       const result = await axios({
         url: baseUrl + url,
         method,
-        data,
+        data: data ?? body,
         params,
         headers,
       });

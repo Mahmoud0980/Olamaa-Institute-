@@ -2,57 +2,66 @@
 
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BusesTableSkeleton from "./BusesTableSkeleton";
 
 export default function BusesTable({
-  buses,
+  buses = [],
   isLoading,
-  search,
+  selectedIds = [],
+  onSelectChange,
   onEdit,
   onDelete,
 }) {
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
-  // حماية لمنع undefined
   const safeBuses = Array.isArray(buses) ? buses : [];
 
-  // البحث
-  const filtered = safeBuses.filter((b) =>
-    b.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  // ===== Pagination =====
+  const totalPages = Math.ceil(safeBuses.length / pageSize) || 1;
 
-  // حساب عدد الصفحات
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = useMemo(() => {
+    return safeBuses.slice((page - 1) * pageSize, page * pageSize);
+  }, [safeBuses, page]);
 
-  // ⭐️ حل مشكلة حذف كل عناصر الصفحة الثانية:
+  // رجّع للصفحة الأولى عند تغيير الداتا (مثل صفحة الشعب)
   useEffect(() => {
-    if (page > totalPages && totalPages > 0) {
-      setPage(1);
-    }
-  }, [totalPages]);
+    setPage(1);
+  }, [safeBuses]);
 
-  // الصفوف الحالية
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  // حماية إذا الصفحة الحالية صارت خارج المدى بعد فلترة/حذف
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [page, totalPages]);
+
+  // ===== Checkbox =====
+  const toggleSelect = (bus) => {
+    const exists = selectedIds.includes(bus.id);
+
+    const updated = exists
+      ? selectedIds.filter((id) => id !== bus.id)
+      : [...selectedIds, bus.id];
+
+    onSelectChange?.(updated);
+  };
 
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 mt-6 w-full">
-      {/* Skeleton */}
+    <div className="bg-white rounded-xl border border-gray-200 p-5 w-full">
       {isLoading ? (
-        <div className="py-10 text-center text-gray-500">
+        <div className="text-center text-gray-500">
           <BusesTableSkeleton />
         </div>
-      ) : !paginated.length ? (
+      ) : safeBuses.length === 0 ? (
         <div className="py-10 text-center text-gray-400">لا توجد بيانات.</div>
       ) : (
         <>
-          {/* Desktop Table */}
+          {/* ================= DESKTOP TABLE ================= */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
               <thead>
                 <tr className="bg-pink-50 text-gray-700">
-                  <th className="p-3 rounded-r-xl">#</th>
+                  <th className="p-3 text-center rounded-r-xl">#</th>
                   <th className="p-3">اسم الباص</th>
                   <th className="p-3">السعة</th>
                   <th className="p-3">اسم السائق</th>
@@ -68,16 +77,22 @@ export default function BusesTable({
                     key={bus.id}
                     className="bg-white hover:bg-pink-50 transition"
                   >
-                    <td className="p-3 rounded-r-xl">
-                      {(page - 1) * pageSize + index + 1}
+                    {/* checkbox + index */}
+                    <td className="p-3 text-center rounded-r-xl">
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-[#6F013F]"
+                          checked={selectedIds.includes(bus.id)}
+                          onChange={() => toggleSelect(bus)}
+                        />
+                        <span>{(page - 1) * pageSize + index + 1}</span>
+                      </div>
                     </td>
 
                     <td className="p-3 font-medium">{bus.name}</td>
-
                     <td className="p-3">{bus.capacity}</td>
-
                     <td className="p-3">{bus.driver_name || "—"}</td>
-
                     <td className="p-3">{bus.route_description || "—"}</td>
 
                     <td className="p-3">
@@ -94,7 +109,7 @@ export default function BusesTable({
 
                     <td className="p-3 rounded-l-xl text-center">
                       <div className="flex items-center justify-center gap-4">
-                        <button onClick={() => onDelete(bus.id)}>
+                        <button onClick={() => onDelete?.(bus)}>
                           <Image
                             src="/icons/Trash.png"
                             width={18}
@@ -102,7 +117,7 @@ export default function BusesTable({
                             alt="Trash"
                           />
                         </button>
-                        <button onClick={() => onEdit(bus.id)}>
+                        <button onClick={() => onEdit?.(bus.id)}>
                           <Image
                             src="/icons/Edit.png"
                             width={18}
@@ -118,18 +133,27 @@ export default function BusesTable({
             </table>
           </div>
 
-          {/* Mobile Cards */}
+          {/* ================= MOBILE CARDS ================= */}
           <div className="md:hidden space-y-4">
             {paginated.map((bus, index) => (
               <div
                 key={bus.id}
                 className="border border-gray-200 rounded-xl p-4 shadow-sm"
               >
+                {/* checkbox + index */}
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-500">#</span>
-                  <span className="font-semibold">
-                    {(page - 1) * pageSize + index + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">
+                      {(page - 1) * pageSize + index + 1}
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-[#6F013F]"
+                      checked={selectedIds.includes(bus.id)}
+                      onChange={() => toggleSelect(bus)}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-between mb-2">
@@ -142,8 +166,31 @@ export default function BusesTable({
                   <span className="font-semibold">{bus.capacity}</span>
                 </div>
 
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-500">السائق:</span>
+                  <span>{bus.driver_name || "—"}</span>
+                </div>
+
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-500">الطريق:</span>
+                  <span>{bus.route_description || "—"}</span>
+                </div>
+
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-500">الحالة:</span>
+                  {bus.is_active ? (
+                    <span className="px-3 py-1 text-xs rounded-xl bg-green-100 text-green-700">
+                      نشط
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 text-xs rounded-xl bg-red-100 text-red-700">
+                      غير نشط
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex justify-center gap-6 mt-3">
-                  <button onClick={() => onEdit(bus.id)}>
+                  <button onClick={() => onEdit?.(bus.id)}>
                     <Image
                       src="/icons/Edit.png"
                       width={20}
@@ -152,7 +199,7 @@ export default function BusesTable({
                     />
                   </button>
 
-                  <button onClick={() => onDelete(bus.id)}>
+                  <button onClick={() => onDelete?.(bus)}>
                     <Image
                       src="/icons/Trash.png"
                       width={20}
@@ -165,28 +212,30 @@ export default function BusesTable({
             ))}
           </div>
 
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-4 mt-4">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="p-2 border rounded-md bg-white disabled:opacity-40"
-            >
-              <ChevronRight size={18} />
-            </button>
+          {/* ================= PAGINATION ================= */}
+          {safeBuses.length > 0 && (
+            <div className="flex justify-center items-center gap-4 mt-4">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="p-2 border rounded-md bg-white disabled:opacity-40"
+              >
+                <ChevronRight size={18} />
+              </button>
 
-            <span className="text-gray-600 text-sm">
-              صفحة {page} من {totalPages}
-            </span>
+              <span className="text-gray-600 text-sm">
+                صفحة {page} من {totalPages}
+              </span>
 
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-2 border rounded-md bg-white disabled:opacity-40"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          </div>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="p-2 border rounded-md bg-white disabled:opacity-40"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

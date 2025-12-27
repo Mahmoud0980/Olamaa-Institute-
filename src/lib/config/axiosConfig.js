@@ -1,8 +1,8 @@
 import axios from "axios";
-import { getToken, clearAuth } from "../helpers/auth"; // استيراد من lib/auth
+import { getToken, clearAuth } from "../helpers/auth";
 
 const api = axios.create({
-  baseURL: "https://james90-001-site1.mtempurl.com/api",
+  baseURL: "http://abd990-001-site1.qtempurl.com/api/",
   //baseURL: "https://olamaa-institute.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
@@ -10,7 +10,7 @@ const api = axios.create({
   timeout: 15000, // مهلة الطلب (اختياري)
 });
 
-// 🟢 إضافة الـ token تلقائيًا قبل كل طلب
+//  إضافة الـ token تلقائيًا قبل كل طلب
 api.interceptors.request.use(
   (config) => {
     const token = getToken();
@@ -22,7 +22,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 🔴 التعامل مع الأخطاء (401 مثلاً)
+//  التعامل مع الأخطاء (401 مثلاً)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
