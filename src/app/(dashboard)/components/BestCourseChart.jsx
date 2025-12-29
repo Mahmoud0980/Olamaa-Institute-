@@ -2,41 +2,15 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { useGetBatchesPerformanceQuery } from "@/store/services/statisticsApi";
 
-const BRANCHES = {
-  sci: [
-    { label: "بنات", count: 24, value: 60.7 },
-    { label: "شباب", count: 34, value: 70.1 },
-    { label: "بنات", count: 22, value: 60.7 },
-    { label: "شباب", count: 13, value: 60.7 },
-    { label: "بنات", count: 44, value: 60.7 },
-    { label: "شباب", count: 33, value: 45.2 },
-    { label: "شباب", count: 55, value: 50.0 },
-    { label: "شباب", count: 44, value: 60.7 },
-  ],
-  lit: [
-    { label: "بنات", count: 18, value: 52.3 },
-    { label: "شباب", count: 21, value: 48.2 },
-    { label: "بنات", count: 27, value: 61.1 },
-    { label: "شباب", count: 16, value: 55.4 },
-  ],
-  ninth: [
-    { label: "A", count: 30, value: 72.5 },
-    { label: "B", count: 28, value: 66.4 },
-    { label: "C", count: 25, value: 58.9 },
-  ],
-};
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const fmtEN = (n) =>
   typeof n === "number"
-    ? n.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      })
+    ? n.toLocaleString("en-US", { maximumFractionDigits: 0 })
     : n;
 
-// دالة مساعدة للقياس بين حدّين
 function scaleBetween(minW, maxW, minVal, maxVal, w) {
   const t = Math.max(minW, Math.min(maxW, w));
   const r = (t - minW) / (maxW - minW || 1);
@@ -46,11 +20,11 @@ function scaleBetween(minW, maxW, minVal, maxVal, w) {
 export default function BestCourseApex({
   title = "الدورة المتفوّقة",
   initialBranch = "sci",
-  aspect = 364 / 125,
+  aspect = 364 / 150, // ✅ شوي أعلى ليعبّي الكارد
   minWidth = 280,
-  maxWidth = 1280, // وسّعت الحد الأعلى ليكون القياس أنعم على الشاشات العريضة
-  minHeight = 160,
-  maxHeight = 320,
+  maxWidth = 1280,
+  minHeight = 190,
+  maxHeight = 260,
   className = "",
 }) {
   const [branch, setBranch] = useState(initialBranch);
@@ -58,7 +32,8 @@ export default function BestCourseApex({
   const [w, setW] = useState(0);
   const [h, setH] = useState(minHeight);
 
-  // راقب عرض الحاوية واحسب ارتفاعًا مناسبًا بدون انكماش زائد
+  const { data: apiRows = [], isLoading } = useGetBatchesPerformanceQuery();
+
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -66,198 +41,197 @@ export default function BestCourseApex({
       const cw = el.clientWidth || 0;
       setW(cw);
       const byAspect = cw / aspect;
-      const clamped = Math.max(minHeight, Math.min(maxHeight, byAspect));
-      setH(Math.round(clamped));
+      setH(Math.round(Math.max(minHeight, Math.min(maxHeight, byAspect))));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [aspect, minHeight, maxHeight]);
 
-  const rows = BRANCHES[branch] ?? [];
+  // ✅ فلترة حسب الفرع + حذف 0
+  const rows = useMemo(() => {
+    if (!apiRows.length) return [];
+    return apiRows
+      .filter((r) => {
+        if (branch === "sci") return r.name.includes("علمي");
+        if (branch === "lit") return r.name.includes("أدبي");
+        if (branch === "ninth") return r.name.includes("تاسع");
+        return false;
+      })
+      .filter((r) => r.value > 0);
+  }, [apiRows, branch]);
+
+  const values = useMemo(() => rows.map((r) => r.value), [rows]);
+
+  // ✅ أهم تعديل: سقف ديناميكي بدل 100
+  const yMax = useMemo(() => {
+    const mx = values.length ? Math.max(...values) : 0;
+    if (!mx) return 10;
+    // هامش + تقريب لأقرب 5
+    const padded = mx + 5;
+    return Math.ceil(padded / 5) * 5;
+  }, [values]);
 
   const isPhone = w < 420;
   const isTablet = w >= 420 && w < 768;
 
-  // مقاسات متكيفة
-  const xFont = Math.round(scaleBetween(minWidth, maxWidth, 9, 12, w));
-  const yFont = Math.round(scaleBetween(minWidth, maxWidth, 9, 12, w));
   const dlFont = Math.max(
-    8,
-    Math.round(scaleBetween(minWidth, maxWidth, 9, 14, w))
+    12,
+    Math.round(scaleBetween(minWidth, maxWidth, 10, 13, w))
   );
-  const dlPosition = isPhone ? "top" : "center";
-  const dlOffsetY = isPhone ? -1 : 0;
-  const colWidth = isPhone ? "78%" : isTablet ? "60%" : "46%";
 
-  const categoryFormatter = (val, opts) => {
-    // بالموبايل نعرض الاسم فقط لتقليل الارتفاع، وعلى الشاشات الأكبر اسم + عدد بسطرين
-    const i = opts?.dataPointIndex ?? -1;
-    const item = rows[i];
-    if (!item) return val;
-    return isPhone ? `${item.label}` : `${item.label}\n${item.count}`;
-  };
-
-  const series = useMemo(
-    () => [{ name: "النسبة", data: rows.map((r) => r.value) }],
-    [rows]
-  );
+  const series = useMemo(() => [{ name: "النسبة", data: values }], [values]);
 
   const options = useMemo(
     () => ({
       chart: {
         type: "bar",
         toolbar: { show: false },
-        animations: { enabled: true, speed: 250 },
-        sparkline: { enabled: false },
-        // محاذاة نصوص RTL عبر CSS للفئات
-        foreColor: "#3A3C40",
+        animations: { enabled: true, speed: 260 },
+        // ✅ يقلل الفراغات داخل الكارد
+        sparkline: { enabled: true },
       },
+
+      grid: {
+        show: false,
+        padding: { top: 6, right: 6, bottom: 0, left: 6 },
+      },
+
       plotOptions: {
         bar: {
-          horizontal: false,
-          columnWidth: colWidth,
-          borderRadius: 3,
+          columnWidth: isPhone ? "68%" : isTablet ? "52%" : "42%",
+          borderRadius: 8,
           borderRadiusApplication: "end",
-          dataLabels: { position: dlPosition }, // top | center | bottom
+          // ✅ نخلي label فوق العمود لأن العمود قصير
+          dataLabels: { position: "top" },
         },
       },
+
+      // ✅ أرقام فوق العمود (واضحة)
       dataLabels: {
         enabled: true,
-        position: dlPosition, // "top" على الموبايل / "center" على الأكبر
-        offsetY: dlOffsetY,
-        formatter: (val) => fmtEN(val),
+        formatter: (v) => fmtEN(v),
+        offsetY: 0,
         style: {
           fontSize: `${dlFont}px`,
-          fontWeight: 700,
-          // أبيض عند الكتابة داخل العمود، ورمادي غامق فوق الأعمدة
-          colors: [dlPosition === "center" ? "#FFFFFF" : "#fff"],
+          fontWeight: 400,
+          colors: ["#ffffff"],
         },
-        background: {
-          enabled: false, // ✅ إلغاء الدائرة/الخلفية تمامًا
-        },
-        dropShadow: {
-          enabled: false, // للتأكيد ما في ظل حول الأرقام
-        },
+        background: { enabled: false },
+        dropShadow: { enabled: false },
       },
 
       fill: {
         type: "gradient",
         gradient: {
-          shade: "light",
           type: "vertical",
-          shadeIntensity: 0.8,
           opacityFrom: 0.95,
-          opacityTo: 0.15,
+          opacityTo: 0.25,
           stops: [0, 100],
           colorStops: [
             { offset: 0, color: "#C01779", opacity: 0.95 },
-            { offset: 50, color: "#8F0D6D", opacity: 0.55 },
-            { offset: 100, color: "#5C0B64", opacity: 0.15 },
+            { offset: 100, color: "#5C0B64", opacity: 0.25 },
           ],
         },
       },
-      colors: ["#C01779"],
+
+      // ❌ إخفاء أسماء تحت
       xaxis: {
-        categories: rows.map((r) => r.label), // سنعيد كتابة النص عبر formatter
-        labels: {
-          show: true,
-          formatter: categoryFormatter,
-          style: { fontSize: `${xFont}px`, colors: "#6b7280", fontWeight: 600 },
-          offsetY: 2,
-          trim: true,
-        },
-        axisBorder: { show: true, color: "#e5e7eb" },
+        categories: rows.map((r) => r.name),
+        labels: { show: false },
+        axisBorder: { show: false },
         axisTicks: { show: false },
         tooltip: { enabled: false },
       },
+
+      // ✅ نخلي المحور ديناميكي عشان الأعمدة تعبى الكارد
       yaxis: {
-        show: !isPhone,
-        max: 100,
-        tickAmount: isTablet ? 4 : 5,
-        decimalsInFloat: 0,
-        labels: {
-          style: { fontSize: `${yFont}px`, colors: "#6b7280", fontWeight: 500 },
-          formatter: (v) => fmtEN(v),
-          offsetX: -6,
-          offsetY: 2,
+        show: false,
+        min: 0,
+        max: yMax,
+      },
+
+      // ✅ Hover واضح (حد + تفتيح)
+      stroke: {
+        show: true,
+        width: 2,
+        colors: ["#ffffff"],
+      },
+      states: {
+        hover: {
+          filter: { type: "lighten", value: 0.06 },
+        },
+        active: {
+          filter: { type: "none", value: 0 },
         },
       },
-      grid: {
-        borderColor: "#eef2f7",
-        strokeDashArray: 0,
-        yaxis: { lines: { show: !isPhone } },
-        xaxis: { lines: { show: false } },
-        padding: isPhone
-          ? { left: 4, right: 4, top: 2, bottom: 0 }
-          : { left: 10, right: 10, top: 6, bottom: 2 },
-      },
+
+      // ✅ Tooltip يظهر الاسم عند hover
       tooltip: {
-        y: { formatter: (v) => `${fmtEN(v)}%` },
-        x: {
-          formatter: (_v, { dataPointIndex }) => {
-            const item = rows[dataPointIndex];
-            return item ? `${item.label} • ${item.count}` : "";
-          },
+        custom: ({ dataPointIndex }) => {
+          const item = rows[dataPointIndex];
+          if (!item) return "";
+          return `
+            <div style="
+              padding: 10px 12px;
+              background: white;
+              border-radius: 10px;
+              box-shadow: 0 8px 22px rgba(0,0,0,0.14);
+              font-size: 12px;
+              color: #3A3C40;
+              direction: rtl;
+              text-align: right;
+              max-width: 260px;
+            ">
+              <div style="font-weight:700;margin-bottom:6px;line-height:1.3;">
+                ${item.name}
+              </div>
+              <div style="color:#A0005F;font-weight:900;">
+                ${fmtEN(item.value)}%
+              </div>
+            </div>
+          `;
         },
       },
+
       legend: { show: false },
-      // تمكين كسر السطر في عناوين المحور السفلي ل RTL
-      // (نضيف كلاس على SVG لنجبر المحاذاة يمين)
-      // سنضيفه عبر CSS inline أدناه
     }),
-    [
-      rows,
-      w,
-      xFont,
-      yFont,
-      dlFont,
-      dlOffsetY,
-      isPhone,
-      isTablet,
-      dlPosition,
-      colWidth,
-    ]
+    [rows, values, yMax, isPhone, isTablet, dlFont]
   );
 
   return (
     <div dir="rtl" className={`min-w-0 ${className}`}>
-      {/* رأس الكارد */}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[clamp(12px,1.4vw,14px)] font-semibold text-[#3A3C40]">
-          {title}
-        </h3>
+        <h3 className="text-sm font-semibold text-[#3A3C40]">{title}</h3>
 
-        <label className="inline-flex items-center gap-2 text-[clamp(11px,1.2vw,12px)] text-slate-500">
-          <select
-            className="rounded-xl bg-transparent px-2 py-1 text-xs focus:outline-none"
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-          >
-            <option value="sci">علمي</option>
-            <option value="lit">أدبي</option>
-            <option value="ninth">تاسع</option>
-          </select>
-        </label>
+        <select
+          className="rounded-xl bg-transparent px-2 py-1 text-xs focus:outline-none"
+          value={branch}
+          onChange={(e) => setBranch(e.target.value)}
+        >
+          <option value="sci">علمي</option>
+          <option value="lit">أدبي</option>
+          <option value="ninth">تاسع</option>
+        </select>
       </div>
 
-      {/* الحاوية المرنة */}
-      <div ref={wrapRef} className="w-full overflow-hidden min-w-0">
-        {/* CSS صغير لضمان محاذاة يمين لكلمات المحور السفلي ودعم السطرين */}
-        <style jsx global>{`
-          .apexcharts-xaxis text {
-            direction: rtl;
-            text-anchor: end !important;
-            white-space: pre-line; /* يسمح بكسر السطر */
-          }
-        `}</style>
-
-        <Chart
-          options={options}
-          series={series}
-          type="bar"
-          width="100%"
-          height={h}
-        />
+      <div ref={wrapRef} className="w-full overflow-hidden">
+        {isLoading ? (
+          <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">
+            جاري التحميل...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">
+            لا يوجد بيانات لعرضها
+          </div>
+        ) : (
+          <Chart
+            options={options}
+            series={series}
+            type="bar"
+            width="100%"
+            height={h}
+          />
+        )}
       </div>
     </div>
   );

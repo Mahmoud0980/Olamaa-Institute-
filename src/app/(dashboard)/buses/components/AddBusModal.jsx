@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -14,12 +14,11 @@ import {
   useUpdateBusMutation,
 } from "@/store/services/busesApi";
 
-export default function AddBusModal({ isOpen, onClose, bus }) {
+export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
   const [addBus] = useAddBusMutation();
   const [updateBus] = useUpdateBusMutation();
 
   const [loading, setLoading] = useState(false);
-
   const step = 1;
   const total = 1;
 
@@ -28,40 +27,82 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
     capacity: "",
     driver_name: "",
     route_description: "",
-    is_active: "true", // انتبه: لازم string
+    is_active: "true",
   });
 
+  const [suggestions, setSuggestions] = useState([]);
+
+  // ===== عند الفتح
   useEffect(() => {
     if (isOpen) {
-      if (bus) {
-        setForm({
-          name: bus.name ?? "",
-          capacity: String(bus.capacity ?? ""),
-          driver_name: bus.driver_name ?? "",
-          route_description: bus.route_description ?? "",
-          is_active: bus.is_active ? "true" : "false",
-        });
-      } else {
-        setForm({
-          name: "",
-          capacity: "",
-          driver_name: "",
-          route_description: "",
-          is_active: "true",
-        });
-      }
+      setForm(
+        bus
+          ? {
+              name: bus.name ?? "",
+              capacity: String(bus.capacity ?? ""),
+              driver_name: bus.driver_name ?? "",
+              route_description: bus.route_description ?? "",
+              is_active: bus.is_active ? "true" : "false",
+            }
+          : {
+              name: "",
+              capacity: "",
+              driver_name: "",
+              route_description: "",
+              is_active: "true",
+            }
+      );
+      setSuggestions([]);
     }
   }, [isOpen, bus]);
 
-  // ⭐ الحفظ / التعديل
+  // ===== أسماء الباصات (للتحقق عند الحفظ فقط)
+  const busNames = useMemo(
+    () =>
+      buses
+        .filter((b) => !bus || b.id !== bus.id)
+        .map((b) => b.name?.toLowerCase().trim()),
+    [buses, bus]
+  );
+
+  // ===== اقتراحات (نفس منطق وتصميم المدينة)
+  useEffect(() => {
+    const v = form.name.trim().toLowerCase();
+    if (!v) return setSuggestions([]);
+
+    setSuggestions(
+      buses
+        .filter(
+          (b) =>
+            b.name &&
+            b.name.toLowerCase().includes(v) &&
+            (!bus || b.id !== bus.id)
+        )
+        .slice(0, 5)
+    );
+  }, [form.name, buses, bus]);
+
+  // ===== حفظ / تعديل
   const handleSubmit = async () => {
-    if (!form.name.trim()) {
+    const normalized = form.name.trim().toLowerCase();
+
+    if (!normalized) {
       toast.error("اسم الباص مطلوب");
       return;
     }
 
-    if (!form.capacity || form.capacity <= 0) {
-      toast.error("السعة مطلوبة ويجب أن تكون أكبر من 0");
+    if (busNames.includes(normalized)) {
+      toast.error("اسم الباص موجود مسبقًا");
+      return;
+    }
+
+    if (!form.capacity || Number(form.capacity) <= 0) {
+      toast.error("السعة مطلوبة");
+      return;
+    }
+
+    if (Number(form.capacity) > 40) {
+      toast.error("السعة لا يمكن أن تكون أكبر من 40");
       return;
     }
 
@@ -74,20 +115,16 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
         is_active: form.is_active === "true",
       };
 
-      if (bus) {
-        await updateBus({ id: bus.id, ...payload }).unwrap();
-        toast.success("تم تعديل بيانات الباص");
-      } else {
-        await addBus(payload).unwrap();
-        toast.success("تم إضافة باص جديد");
-      }
+      bus
+        ? await updateBus({ id: bus.id, ...payload }).unwrap()
+        : await addBus(payload).unwrap();
 
-      setLoading(false);
+      toast.success(bus ? "تم تعديل بيانات الباص" : "تم إضافة باص جديد");
       onClose();
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
+    } catch {
       toast.error("حدث خطأ أثناء الحفظ");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,44 +132,69 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
     <div
       className={`${
         isOpen ? "flex" : "hidden"
-      } fixed inset-0 bg-black/40 justify-start z-50 backdrop-blur-md`}
+      } fixed inset-0 bg-black/40 justify-start z-50`}
     >
-      <div className="w-[500px] bg-white h-full shadow-xl p-6 overflow-y-auto">
+      <div className="w-[500px] bg-white h-full p-6 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex justify-between mb-4">
           <h2 className="text-[#6F013F] font-semibold">
             {bus ? "تعديل باص" : "إضافة باص جديد"}
           </h2>
-
           <button onClick={onClose}>
-            <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
+            <X />
           </button>
         </div>
 
         <Stepper current={step} total={total} />
 
         <div className="mt-6 space-y-5">
-          {/* اسم الباص */}
-          <FormInput
-            label="اسم الباص"
-            required
-            placeholder="مثال: Bus A"
-            value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
-            error={!form.name ? "اسم الباص مطلوب" : ""}
-          />
+          {/* ===== اسم الباص + اقتراحات ===== */}
+          <div className="relative">
+            <FormInput
+              label="اسم الباص"
+              required
+              placeholder="مثال: Bus A"
+              value={form.name}
+              register={{
+                onChange: (e) => setForm({ ...form, name: e.target.value }),
+              }}
+            />
+
+            {suggestions.length > 0 && (
+              <div className="absolute w-full bg-white border rounded-xl shadow z-50">
+                {suggestions.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className="w-full px-3 py-2 text-right hover:bg-pink-50"
+                    onClick={() => {
+                      setForm({ ...form, name: b.name });
+                      setSuggestions([]);
+                    }}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* السعة */}
           <FormInput
             label="السعة"
             type="number"
             required
-            placeholder="مثال: 40"
+            placeholder="مثال: 30"
             value={form.capacity}
             register={{
-              onChange: (e) => setForm({ ...form, capacity: e.target.value }),
+              onChange: (e) => {
+                const value = Number(e.target.value);
+                if (value > 40) {
+                  toast.error("الحد الأقصى للسعة هو 40");
+                  return;
+                }
+                setForm({ ...form, capacity: e.target.value });
+              },
             }}
           />
 
@@ -158,7 +220,7 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
             }}
           />
 
-          {/* الحالة باستخدام SelectInput */}
+          {/* الحالة */}
           <SelectInput
             label="الحالة"
             required
@@ -168,7 +230,6 @@ export default function AddBusModal({ isOpen, onClose, bus }) {
               { value: "true", label: "نشط" },
               { value: "false", label: "غير نشط" },
             ]}
-            placeholder="اختر الحالة"
           />
 
           <StepButtonsSmart

@@ -75,9 +75,16 @@ export default function AcademicBranchesPage() {
 
   // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
   useEffect(() => {
-    setSelectedIds((prev) =>
-      prev.filter((id) => filteredBranches.some((r) => r.id === id))
-    );
+    setSelectedIds((prev) => {
+      const validIds = prev.filter((id) =>
+        filteredBranches.some((r) => r.id === id)
+      );
+
+      // ⛔ إذا ما في تغيير، لا نعمل setState
+      if (validIds.length === prev.length) return prev;
+
+      return validIds;
+    });
   }, [filteredBranches]);
 
   // ===== Modals =====

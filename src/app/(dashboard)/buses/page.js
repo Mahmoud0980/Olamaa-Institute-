@@ -301,6 +301,7 @@ export default function BusesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         bus={selectedBus}
+        buses={buses}
       />
 
       <DeleteConfirmModal

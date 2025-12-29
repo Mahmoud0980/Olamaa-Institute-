@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -22,7 +23,7 @@ import ExcelButton from "@/components/common/ExcelButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
 
 export default function CitiesPage() {
-  // ===== Redux (بحث + فلترة عامة من Navbar) =====
+  // ===== Redux (بحث + فلترة فرع من Navbar) =====
   const search = useSelector((state) => state.search.values.cities);
   const branchId = useSelector((state) => state.search.values.branch);
 
@@ -32,14 +33,13 @@ export default function CitiesPage() {
 
   const [deleteCity, { isLoading: isDeleting }] = useDeleteCityMutation();
 
-  // (اختياري) لجلب اسم الفرع للطباعة/الاكسل
+  // ===== Branches (للطباعة والاكسل) =====
   const { data: branchesData } = useGetInstituteBranchesQuery();
   const branches = branchesData?.data || [];
 
   const getBranchName = (id) =>
     branches.find((b) => Number(b.id) === Number(id))?.name || "-";
 
-  // ✅ ذكية: إذا صفحة المدن فيها branch_id أو institute_branch_id بيشتغل الفلتر
   const getCityBranchId = (c) =>
     c?.institute_branch_id ??
     c?.branch_id ??
@@ -49,21 +49,18 @@ export default function CitiesPage() {
 
   const getStatusLabel = (c) => (c?.is_active ? "نشط" : "غير نشط");
 
-  // ===== Filtering (من Navbar) =====
+  // ===== Filtering =====
   const filteredCities = useMemo(() => {
     return cities.filter((c) => {
       const matchSearch = (c?.name || "")
         .toLowerCase()
         .includes((search || "").toLowerCase());
 
-      // branch filter: يشتغل فقط إذا city فيها branch id فعلاً
-      const cityBranch = getCityBranchId(c);
+      const cityBranchId = getCityBranchId(c);
       const matchBranch =
-        !branchId || branchId === ""
-          ? true
-          : cityBranch == null
-          ? true
-          : Number(branchId) === Number(cityBranch);
+        !branchId ||
+        cityBranchId == null ||
+        Number(branchId) === Number(cityBranchId);
 
       return matchSearch && matchBranch;
     });
@@ -76,10 +73,6 @@ export default function CitiesPage() {
     filteredCities.length > 0 && selectedIds.length === filteredCities.length;
 
   const toggleSelectAll = () => {
-    if (!filteredCities.length) {
-      setSelectedIds([]);
-      return;
-    }
     setSelectedIds(isAllSelected ? [] : filteredCities.map((c) => c.id));
   };
 
@@ -87,6 +80,22 @@ export default function CitiesPage() {
   useEffect(() => {
     setSelectedIds([]);
   }, [search, branchId]);
+
+  // تنظيف التحديد عند تغير البيانات
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = prev.filter((id) =>
+        filteredCities.some((c) => c.id === id)
+      );
+
+      // ✅ إذا ما تغير شي، لا تعمل setState
+      if (validIds.length === prev.length) {
+        return prev;
+      }
+
+      return validIds;
+    });
+  }, [filteredCities]);
 
   // ===== Modals =====
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -112,10 +121,9 @@ export default function CitiesPage() {
     try {
       await deleteCity(cityToDelete.id).unwrap();
       toast.success("تم حذف المدينة بنجاح");
-
       setIsDeleteOpen(false);
       setCityToDelete(null);
-      setSelectedIds([]);
+      setSelectedIds((prev) => prev.filter((id) => id !== cityToDelete.id));
     } catch (err) {
       toast.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
@@ -135,59 +143,65 @@ export default function CitiesPage() {
       return;
     }
 
+    const hasBranchColumn = rows.some((c) => getCityBranchId(c) != null);
+
     const html = `
-    <html dir="rtl">
-      <head>
-        <style>
-          body { font-family: Arial; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td {
-            border: 1px solid #ccc;
-            padding: 6px;
-            font-size: 12px;
-            text-align: right;
-          }
-          th { background: #f3f3f3; }
-        </style>
-      </head>
-      <body>
-        <h3>قائمة المدن</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>اسم المدينة</th>
-              <th>الفرع</th>
-              <th>الوصف</th>
-              <th>الحالة</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows
-              .map((c, i) => {
-                const bId = getCityBranchId(c);
-                return `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${c.name ?? "-"}</td>
-                    <td>${bId ? getBranchName(bId) : "-"}</td>
-                    <td>${c.description ?? "-"}</td>
-                    <td>${getStatusLabel(c)}</td>
-                  </tr>
-                `;
-              })
-              .join("")}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `;
+      <html dir="rtl">
+        <head>
+          <style>
+            body { font-family: Arial; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td {
+              border: 1px solid #ccc;
+              padding: 6px;
+              font-size: 12px;
+              text-align: right;
+            }
+            th { background: #f3f3f3; }
+          </style>
+        </head>
+        <body>
+          <h3>قائمة المدن</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>اسم المدينة</th>
+                ${hasBranchColumn ? "<th>الفرع</th>" : ""}
+                <th>الوصف</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map((c, i) => {
+                  const branchCell = hasBranchColumn
+                    ? `<td>${getBranchName(getCityBranchId(c))}</td>`
+                    : "";
+
+                  return `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>${c.name ?? "-"}</td>
+                      ${branchCell}
+                      <td>${c.description ?? "-"}</td>
+                      <td>${getStatusLabel(c)}</td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
 
     const win = window.open("", "", "width=1200,height=800");
     if (!win) {
-      toast.error("المتصفح منع نافذة الطباعة (Popup Blocked)");
+      toast.error("المتصفح منع نافذة الطباعة");
       return;
     }
+
     win.document.write(html);
     win.document.close();
     win.print();
@@ -207,31 +221,43 @@ export default function CitiesPage() {
       return;
     }
 
+    const hasBranchColumn = rows.some((c) => getCityBranchId(c) != null);
+
     const excelRows = rows.map((c) => {
-      const bId = getCityBranchId(c);
-      return {
+      const base = {
         "اسم المدينة": c.name ?? "-",
-        الفرع: bId ? getBranchName(bId) : "-",
         الوصف: c.description ?? "-",
         الحالة: getStatusLabel(c),
       };
+
+      if (hasBranchColumn) {
+        base["الفرع"] = getBranchName(getCityBranchId(c));
+      }
+
+      return base;
     });
 
     const ws = XLSX.utils.json_to_sheet(excelRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cities");
 
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const buffer = XLSX.write(wb, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
     saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "المدن.xlsx"
+      new Blob([buffer], {
+        type: "application/octet-stream",
+      }),
+      "قائمة_المدن.xlsx"
     );
   };
 
   return (
     <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
       {/* HEADER */}
-      <div className="w-full flex justify-between items-center mb-6">
+      <div className="w-full flex justify-between items-center">
         <div className="flex flex-col text-right">
           <h1 className="text-lg font-semibold text-gray-700">
             الجداول الرئيسية
@@ -244,8 +270,8 @@ export default function CitiesPage() {
       <div className="flex justify-between items-center">
         <ActionsRow
           addLabel="إضافة مدينة"
-          showSelectAll
           viewLabel=""
+          showSelectAll
           isAllSelected={isAllSelected}
           onToggleSelectAll={toggleSelectAll}
           onAdd={() => {
@@ -260,7 +286,7 @@ export default function CitiesPage() {
         </div>
       </div>
 
-      {/* TABLE (✅ تظهر فوراً بدون زر عرض) */}
+      {/* TABLE */}
       <CitiesTable
         cities={filteredCities}
         isLoading={isLoading}
@@ -275,6 +301,7 @@ export default function CitiesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         city={selectedCity}
+        cities={cities}
       />
 
       <DeleteConfirmModal

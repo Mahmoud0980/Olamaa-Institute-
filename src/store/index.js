@@ -23,6 +23,7 @@ import { qrApi } from "./services/qrApi";
 import { batcheSubjectsApi } from "./services/batcheSubjectsApi";
 import { teachersApi } from "./services/teachersApi";
 import { subjectsTeachersApi } from "./services/subjectsTeachersApi";
+import { statisticsApi } from "./services/statisticsApi";
 
 export const store = configureStore({
   reducer: {
@@ -47,6 +48,7 @@ export const store = configureStore({
     [batcheSubjectsApi.reducerPath]: batcheSubjectsApi.reducer,
     [teachersApi.reducerPath]: teachersApi.reducer,
     [subjectsTeachersApi.reducerPath]: subjectsTeachersApi.reducer,
+    [statisticsApi.reducerPath]: statisticsApi.reducer,
     search: searchReducer,
   },
 
@@ -72,5 +74,6 @@ export const store = configureStore({
       .concat(qrApi.middleware)
       .concat(batcheSubjectsApi.middleware)
       .concat(teachersApi.middleware)
-      .concat(subjectsTeachersApi.middleware),
+      .concat(subjectsTeachersApi.middleware)
+      .concat(statisticsApi.middleware),
 });

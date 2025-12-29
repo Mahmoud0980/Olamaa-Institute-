@@ -1,37 +1,50 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import Image from "next/image";
 
-const CARDS = [
-  {
-    title: "عدد الطلاب الكلي",
-    subtitle: "إجمالي عدد الطلاب",
-    value: 4000,
-    img: "/totalStudents.svg",
-  },
-  {
-    title: "أولياء الأمور",
-    subtitle: "عدد أولياء الأمور المسجلين على التطبيق",
-    value: 4000,
-    img: "/parents.svg",
-  },
-  {
-    title: "الموظفون الإداريون",
-    subtitle: "عدد الموظفين الإداريين في الأكاديمية",
-    value: 4000,
-    img: "/admins.svg",
-  },
-  {
-    title: "الطلاب المستفيدون من الحسم",
-    subtitle: "عدد المستفيدين في الأكاديمية",
-    value: 4000,
-    img: "/discounted.svg",
-  },
-];
+import {
+  useGetTotalGuardiansQuery,
+  useGetTotalEmployeesQuery,
+} from "@/store/services/statisticsApi";
 
 export default function HighlightCards() {
   const [active, setActive] = useState(0);
   const resetTimerRef = useRef(null);
+
+  // 🔗 API calls
+  const { data: totalGuardians = 0 } = useGetTotalGuardiansQuery();
+  const { data: totalEmployees = 0 } = useGetTotalEmployeesQuery();
+
+  // 🧠 الكروت (dynamic)
+  const CARDS = useMemo(
+    () => [
+      {
+        title: "عدد الطلاب الكلي",
+        subtitle: "إجمالي عدد الطلاب",
+        value: 0, // لاحقًا API
+        img: "/totalStudents.svg",
+      },
+      {
+        title: "أولياء الأمور",
+        subtitle: "عدد أولياء الأمور المسجلين على التطبيق",
+        value: totalGuardians,
+        img: "/parents.svg",
+      },
+      {
+        title: "الموظفون الإداريون",
+        subtitle: "عدد الموظفين الإداريين في الأكاديمية",
+        value: totalEmployees,
+        img: "/admins.svg",
+      },
+      {
+        title: "الطلاب المستفيدون من الحسم",
+        subtitle: "عدد المستفيدين في الأكاديمية",
+        value: 0, // لاحقًا API
+        img: "/discounted.svg",
+      },
+    ],
+    [totalGuardians, totalEmployees]
+  );
 
   const clearResetTimer = () => {
     if (resetTimerRef.current) {
@@ -79,7 +92,6 @@ export default function HighlightCards() {
               onMouseLeave={scheduleResetToDefault}
               className={`${baseCard} ${isActive ? activeCard : plainCard}`}
             >
-              {/* النجمة تظهر فقط عند الهوفر */}
               {isActive && (
                 <Image
                   src="/icons/Group13.png"
@@ -90,27 +102,11 @@ export default function HighlightCards() {
                 />
               )}
 
-              {/* النص (يمين) */}
               <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 text-right">
-                <div
-                  className={`text-sm font-semibold ${
-                    isActive ? "text-white" : "text-gray-900"
-                  }`}
-                  title={c.title}
-                >
-                  {c.title}
-                </div>
-                <div
-                  className={`text-xs ${
-                    isActive ? "text-white/85" : "text-gray-600"
-                  }`}
-                  title={c.subtitle}
-                >
-                  {c.subtitle}
-                </div>
+                <div className="text-sm font-semibold">{c.title}</div>
+                <div className="text-xs opacity-80">{c.subtitle}</div>
               </div>
 
-              {/* الأيقونة + القيمة (يسار) */}
               <div className="ms-3 flex flex-col items-start justify-center gap-2">
                 <div className="relative h-6 w-11 shrink-0">
                   <Image
@@ -118,15 +114,10 @@ export default function HighlightCards() {
                     alt=""
                     fill
                     sizes="44px"
-                    className="object-contain transition" // بدون invert أو brightness-0
-                    priority={i === 0}
+                    className="object-contain"
                   />
                 </div>
-                <div
-                  className={`text-2xl font-bold ${
-                    isActive ? "text-white" : "text-gray-800"
-                  }`}
-                >
+                <div className="text-2xl font-bold">
                   {c.value.toLocaleString("en-US")}
                 </div>
               </div>

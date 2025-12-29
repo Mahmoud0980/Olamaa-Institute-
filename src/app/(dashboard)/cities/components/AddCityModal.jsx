@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -13,109 +12,129 @@ import {
   useUpdateCityMutation,
 } from "@/store/services/citiesApi";
 
-export default function AddCityModal({ isOpen, onClose, city }) {
+export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
   const [addCity] = useAddCityMutation();
   const [updateCity] = useUpdateCityMutation();
 
   const [loading, setLoading] = useState(false);
-
-  // خطوة واحدة فقط
   const step = 1;
   const total = 1;
 
-  // البيانات
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-  });
+  const [form, setForm] = useState({ name: "", description: "" });
+  const [suggestions, setSuggestions] = useState([]);
 
-  // ⭐ إعادة ضبط البيانات عند فتح المودال (إضافة / تعديل)
   useEffect(() => {
     if (isOpen) {
-      if (city) {
-        setForm({
-          name: city.name,
-          description: city.description || "",
-        });
-      } else {
-        setForm({
-          name: "",
-          description: "",
-        });
-      }
+      setForm(
+        city
+          ? { name: city.name, description: city.description || "" }
+          : { name: "", description: "" }
+      );
     }
   }, [isOpen, city]);
 
-  // ⭐ حفظ / تعديل المدينة
+  const cityNames = useMemo(
+    () =>
+      cities
+        .filter((c) => !city || c.id !== city.id)
+        .map((c) => c.name.toLowerCase().trim()),
+    [cities, city]
+  );
+
+  useEffect(() => {
+    const v = form.name.trim().toLowerCase();
+
+    if (!v) {
+      if (suggestions.length !== 0) {
+        setSuggestions([]);
+      }
+      return;
+    }
+
+    const matches = cities
+      .filter(
+        (c) => c.name.toLowerCase().includes(v) && (!city || c.id !== city.id)
+      )
+      .slice(0, 5);
+
+    setSuggestions(matches);
+  }, [form.name, cities, city]); // ❗️لاحظ: بدون suggestions هنا
+
   const handleSubmit = async () => {
-    if (!form.name.trim()) {
+    const normalized = form.name.trim().toLowerCase();
+
+    if (!normalized) {
       toast.error("اسم المدينة مطلوب");
+      return;
+    }
+
+    if (cityNames.includes(normalized)) {
+      toast.error("هذه المدينة موجودة مسبقاً");
       return;
     }
 
     try {
       setLoading(true);
+      city
+        ? await updateCity({ id: city.id, ...form }).unwrap()
+        : await addCity(form).unwrap();
 
-      if (city) {
-        await updateCity({ id: city.id, ...form }).unwrap();
-        toast.success("تم تعديل المدينة بنجاح");
-      } else {
-        await addCity(form).unwrap();
-        toast.success("تم حفظ المدينة بنجاح");
-      }
-
-      // إعادة تصفير
-      setForm({
-        name: "",
-        description: "",
-      });
-
-      setLoading(false);
+      toast.success(city ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
       onClose();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      toast.error("فشل الحفظ");
+    } finally {
       setLoading(false);
-      toast.error("حدث خطأ أثناء حفظ البيانات");
     }
   };
 
   return (
     <div
-      className={`${
-        isOpen ? "flex" : "hidden"
-      } fixed inset-0 bg-black/40 justify-start z-50 backdrop-blur-md`}
+      className={`${isOpen ? "flex" : "hidden"} fixed inset-0 bg-black/40 z-50`}
     >
-      <div className="w-[500px] bg-white h-full shadow-xl p-6 overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+      <div className="w-[500px] bg-white h-full p-6">
+        <div className="flex justify-between mb-4">
           <h2 className="text-[#6F013F] font-semibold">
-            {city ? "تعديل مدينة" : "إضافة مدينة جديدة"}
+            {city ? "تعديل مدينة" : "إضافة مدينة"}
           </h2>
-
           <button onClick={onClose}>
-            <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
+            <X />
           </button>
         </div>
 
-        {/* Stepper */}
         <Stepper current={step} total={total} />
 
-        {/* Form */}
         <div className="mt-6 space-y-5">
-          <FormInput
-            label="اسم المدينة"
-            required
-            placeholder="مثال: دمشق"
-            value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
-            error={!form.name ? "اسم المدينة مطلوب" : ""}
-          />
+          <div className="relative">
+            <FormInput
+              label="اسم المدينة"
+              required
+              value={form.name}
+              register={{
+                onChange: (e) => setForm({ ...form, name: e.target.value }),
+              }}
+            />
+
+            {suggestions.length > 0 && (
+              <div className="absolute w-full bg-white border rounded-xl shadow z-50">
+                {suggestions.map((c) => (
+                  <button
+                    key={c.id}
+                    className="w-full px-3 py-2 text-right hover:bg-pink-50"
+                    onClick={() => {
+                      setForm({ ...form, name: c.name });
+                      setSuggestions([]);
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <FormInput
             label="الوصف"
-            placeholder="وصف اختياري"
             value={form.description}
             register={{
               onChange: (e) =>
@@ -123,11 +142,9 @@ export default function AddCityModal({ isOpen, onClose, city }) {
             }}
           />
 
-          {/* الأزرار الذكية */}
           <StepButtonsSmart
             step={step}
             total={total}
-            isEdit={!!city}
             loading={loading}
             onNext={handleSubmit}
           />
