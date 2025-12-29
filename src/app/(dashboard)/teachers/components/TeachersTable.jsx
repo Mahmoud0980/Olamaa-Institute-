@@ -23,6 +23,8 @@ export default function TeachersTable({
   onEditBatches,
   onEditSubjects,
   onDelete,
+  openMenuId,
+  setOpenMenuId,
 }) {
   const [page, setPage] = useState(1);
   const pageSize = 2;
@@ -74,16 +76,16 @@ export default function TeachersTable({
                 </td>
 
                 <td className="p-3">{t.name}</td>
-
-                {/* ✅ حسب الـ response الجديد */}
                 <td className="p-3">{t.institute_branch?.name || "—"}</td>
-
                 <td className="p-3">{t.specialization}</td>
                 <td className="p-3">{t.phone}</td>
                 <td className="p-3">{t.hire_date}</td>
 
                 <td className="p-3 text-center">
                   <ActionsMenu
+                    menuId={t.id}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
                     items={[
                       {
                         label: "تعديل البيانات",
@@ -91,12 +93,12 @@ export default function TeachersTable({
                         onClick: () => onEdit(t),
                       },
                       {
-                        label: "تعديل المواد",
+                        label: "ربط/تعديل المواد",
                         icon: BookOpen,
                         onClick: () => onEditSubjects(t),
                       },
                       {
-                        label: "تعديل الشعب",
+                        label: "ربط/تعديل الشعب",
                         icon: Layers,
                         onClick: () => onEditBatches(t),
                       },
@@ -121,7 +123,6 @@ export default function TeachersTable({
       </table>
 
       {/* Pagination */}
-      {/* ================= PAGINATION ================= */}
       <div className="flex justify-center items-center gap-4 mt-6">
         <button
           disabled={page === 1}

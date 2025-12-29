@@ -1,19 +1,25 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import SelectInput from "@/components/common/SelectInput";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 
 import { useUpdateBatchSubjectMutation } from "@/store/services/batcheSubjectsApi";
 
+// ✅ هذا المودال حالياً لتعديل notes لتخصيص (batch_subject)
+// لاحقاً إذا بدك "ربط شعبة" فعلياً بدنا endpoint جديد للإضافة
 export default function EditBatchSubjectModal({ isOpen, onClose, item }) {
   const [update, { isLoading }] = useUpdateBatchSubjectMutation();
 
-  const [notes, setNotes] = useState(item?.notes || "");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setNotes(item?.notes || "");
+  }, [isOpen, item]);
 
   const handleSubmit = async () => {
     try {
@@ -25,8 +31,8 @@ export default function EditBatchSubjectModal({ isOpen, onClose, item }) {
 
       toast.success("تم التعديل");
       onClose();
-    } catch {
-      toast.error("فشل التعديل");
+    } catch (e) {
+      toast.error(e?.data?.message || "فشل التعديل");
     }
   };
 

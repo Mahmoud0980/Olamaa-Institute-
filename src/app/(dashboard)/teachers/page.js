@@ -14,17 +14,20 @@ import AddTeacherModal from "./components/AddTeacherModal";
 import EditTeacherModal from "./components/EditTeacherModal";
 import EditTeacherPhotoModal from "./components/EditTeacherPhotoModal";
 import EditTeacherSubjectsModal from "./components/EditTeacherSubjectsModal";
-import EditBatchSubjectModal from "./components/EditBatchSubjectModal";
+import EditTeacherBatchesModal from "./components/EditTeacherBatchesModal";
 
 import { useGetTeachersQuery } from "@/store/services/teachersApi";
 import TeachersPageSkeleton from "./components/TeachersPageSkeleton";
 import { useGetSubjectsQuery } from "@/store/services/subjectsApi";
 
 export default function TeachersPage() {
+  const [openMenuId, setOpenMenuId] = useState(null);
+
   const { data, isLoading } = useGetTeachersQuery();
   const teachers = data?.data || [];
 
   const search = useSelector((state) => state.search?.values?.teachers) || "";
+
   const { data: subjectsData } = useGetSubjectsQuery();
   const subjects = subjectsData || [];
 
@@ -41,13 +44,13 @@ export default function TeachersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [batchesOpen, setBatchesOpen] = useState(false);
 
   const [activeTeacher, setActiveTeacher] = useState(null);
-  if (isLoading) {
-    return <TeachersPageSkeleton />;
-  }
+
+  if (isLoading) return <TeachersPageSkeleton />;
 
   return (
     <div dir="rtl" className="p-6 flex flex-col gap-6">
@@ -60,11 +63,10 @@ export default function TeachersPage() {
         </div>
       </div>
 
-      {/* المحتوى: جدول + جدول الدورات */}
+      {/* content */}
       <div className="w-full flex flex-col gap-6">
         <TeachersTable
           teachers={filteredTeachers}
-          isLoading={isLoading}
           selectedIds={selectedIds}
           onSelectChange={setSelectedIds}
           onSelectTeacher={setSelectedTeacher}
@@ -85,9 +87,10 @@ export default function TeachersPage() {
             setBatchesOpen(true);
           }}
           onDelete={(t) => console.log("DELETE", t)}
+          openMenuId={openMenuId}
+          setOpenMenuId={setOpenMenuId}
         />
 
-        {/* ✅ هذا هو اللي بيرجع عرض المواد/الدورات عند التحديد */}
         <CoursesTable selectedTeacher={selectedTeacher} />
       </div>
 
@@ -113,7 +116,7 @@ export default function TeachersPage() {
         subjects={subjects}
       />
 
-      <EditBatchSubjectModal
+      <EditTeacherBatchesModal
         isOpen={batchesOpen}
         onClose={() => setBatchesOpen(false)}
         teacher={activeTeacher}

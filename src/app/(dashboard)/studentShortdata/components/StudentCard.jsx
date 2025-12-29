@@ -1,13 +1,12 @@
-"use client";
+// "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import Avatar from "../../../../components/common/Avatar";
 import "./calendarStyles.css";
 import GradientButton from "@/components/common/GradientButton";
 import Image from "next/image";
-import toast from "react-hot-toast";
 
 function getPrimaryPhone(student) {
   const guardians = student?.family?.guardians || [];
@@ -22,11 +21,22 @@ function getPrimaryPhone(student) {
   return anyPrimary?.full_phone_number || anyPrimary?.value || "—";
 }
 
+function isSameMonth(a, b) {
+  if (!a || !b) return false;
+  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+}
+
 export default function StudentCard({
   student,
-  selectedDate,
-  onDateChange,
+  selectedDate, // (بنتركه موجود حتى ما ينكسر شي قديم)
+  onDateChange, // (بنتركه موجود)
   onEditAttendance,
+
+  // ✅ جديد
+  activeTab,
+  attendanceRange,
+  paymentsRange,
+  onRangeChange,
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [monthListOpen, setMonthListOpen] = useState(false);
@@ -45,6 +55,65 @@ export default function StudentCard({
     "November",
     "December",
   ];
+
+  const today = useMemo(() => new Date(), []);
+  const isCurrentMonthShown = isSameMonth(currentMonth, today);
+
+  // ✅ تحديد أي Range بدنا نعرضه حسب التبويب
+  const activeRange =
+    activeTab === "payments" ? paymentsRange : attendanceRange;
+
+  // ✅ Calendar props (Range mode فقط لما مو الشهر الحالي)
+  const selectRange = !isCurrentMonthShown;
+
+  // value حسب نوع التقويم
+  const calendarValue = useMemo(() => {
+    if (selectRange) {
+      if (activeRange?.start && activeRange?.end)
+        return [activeRange.start, activeRange.end];
+      if (activeRange?.start && !activeRange?.end) return activeRange.start;
+      return null;
+    } else {
+      // الشهر الحالي: المستخدم يختار تاريخ واحد (نعتبره end)
+      return activeRange?.end || activeRange?.start || selectedDate || today;
+    }
+  }, [selectRange, activeRange, selectedDate, today]);
+
+  const handleCalendarChange = (val) => {
+    // ✅ إذا كان الشهر الحالي: اختيار تاريخ واحد => من اليوم للتاريخ المختار
+    if (!selectRange) {
+      const picked = val instanceof Date ? val : today;
+
+      const a = today.toLocaleDateString("en-CA");
+      const b = picked.toLocaleDateString("en-CA");
+      const start = a <= b ? today : picked;
+      const end = a <= b ? picked : today;
+
+      onRangeChange?.({
+        tab: activeTab,
+        range: { start, end },
+      });
+
+      onDateChange?.(picked); // نخلي القديم شغّال إذا في مكان يعتمد عليه
+      return;
+    }
+
+    // ✅ شهر غير الحالي: Range selection
+    if (Array.isArray(val)) {
+      const [start, end] = val;
+      onRangeChange?.({
+        tab: activeTab,
+        range: { start: start || null, end: end || null },
+      });
+      return;
+    }
+
+    // بعض الحالات بيرجع Date أول ضغطة بالـ range
+    onRangeChange?.({
+      tab: activeTab,
+      range: { start: val, end: null },
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -90,7 +159,7 @@ export default function StudentCard({
             </button>
 
             {monthListOpen && (
-              <div className="absolute right-0 bg-white  rounded shadow w-36">
+              <div className="absolute right-0 bg-white border rounded shadow w-36 z-50">
                 {months.map((m, i) => (
                   <div
                     key={i}
@@ -111,24 +180,19 @@ export default function StudentCard({
         </div>
 
         <Calendar
-          onChange={onDateChange}
-          value={selectedDate}
+          onChange={handleCalendarChange}
+          value={calendarValue}
           activeStartDate={currentMonth}
           locale="en"
           className="my-calendar"
+          selectRange={selectRange}
         />
       </div>
 
       {/* زر التعديل */}
       <div className="flex justify-end">
         <GradientButton
-          onClick={() => {
-            if (!selectedDate) {
-              toast.error("يرجى اختيار تاريخ أولاً");
-              return;
-            }
-            onEditAttendance();
-          }}
+          onClick={onEditAttendance}
           rightIcon={
             <Image src="/icons/editbtn.png" alt="edit" width={18} height={18} />
           }

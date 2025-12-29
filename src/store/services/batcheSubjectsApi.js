@@ -70,6 +70,14 @@ export const batcheSubjectsApi = createApi({
       }),
       invalidatesTags: [{ type: "BatchSubjects", id: "LIST" }],
     }),
+    deleteTeacherSubjectByIds: builder.mutation({
+      query: ({ instructor_id, subject_id }) => ({
+        url: `/subjects/delete-teacher-subject-by-ids`,
+        method: "POST",
+        data: { instructor_id, subject_id },
+      }),
+      invalidatesTags: [{ type: "SubjectTeachers", id: "LIST" }],
+    }),
   }),
 });
 
@@ -79,4 +87,5 @@ export const {
   useRemoveInstructorSubjectFromBatchMutation,
   useUpdateBatchSubjectMutation,
   useDeleteBatchSubjectMutation,
+  useDeleteTeacherSubjectByIdsMutation,
 } = batcheSubjectsApi;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -20,29 +21,124 @@ import PrintButton from "@/components/common/PrintButton";
 import { useGetAttendanceLogQuery } from "@/store/services/studentAttendanceApi";
 import { useGetStudentPaymentsSummaryQuery } from "@/store/services/studentPaymentsApi";
 
+/* ================= Helpers ================= */
+
+function toYMD(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-CA");
+}
+
+// للدفعات ممكن يجي "2025-12-25T..." أو "2025-12-25"
+function toYMDFromAny(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value instanceof Date) return toYMD(value);
+  return "";
+}
+
+function normalizeRange(start, end) {
+  const a = toYMD(start);
+  const b = toYMD(end);
+  if (!a || !b) return { min: "", max: "" };
+  return a <= b ? { min: a, max: b } : { min: b, max: a };
+}
+
+function filterAttendanceByRange(records, range) {
+  if (!range?.start || !range?.end) return records;
+  const { min, max } = normalizeRange(range.start, range.end);
+  if (!min || !max) return records;
+  return records.filter((r) => r?.date && r.date >= min && r.date <= max);
+}
+
+function filterPaymentsByRange(payments, range) {
+  if (!range?.start || !range?.end) return payments;
+  const { min, max } = normalizeRange(range.start, range.end);
+  if (!min || !max) return payments;
+
+  return payments.filter((p) => {
+    const rawDate =
+      p.payment_date || p.date || p.paid_at || p.created_at || p.updated_at;
+    const ymd = toYMDFromAny(rawDate);
+    if (!ymd) return false;
+    return ymd >= min && ymd <= max;
+  });
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getPrimaryPhone(student) {
+  const guardians = student?.family?.guardians || [];
+  const details = guardians.flatMap((g) => g.contact_details || []);
+
+  const primaryPhone = details.find(
+    (c) => c.type === "phone" && c.is_primary && c.full_phone_number
+  );
+  if (primaryPhone) return primaryPhone.full_phone_number;
+
+  const anyPrimary = details.find(
+    (c) => c.is_primary && (c.full_phone_number || c.value)
+  );
+  return anyPrimary?.full_phone_number || anyPrimary?.value || "—";
+}
+
+/* ================= Component ================= */
+
 export default function StudentShortdataPage({ idFromUrl }) {
   // ===== Data =====
   const { student, loading, error } = useStudentData(idFromUrl);
 
+  // ===== Attendance (للاكسل/الطباعة) =====
   const { data: attendanceRecords = [] } = useGetAttendanceLogQuery(
     { id: idFromUrl, range: "all" },
     { skip: !idFromUrl }
   );
 
+  // ===== Payments (للاكسل/الطباعة) =====
   const { data: paymentsData } = useGetStudentPaymentsSummaryQuery(idFromUrl, {
     skip: !idFromUrl,
   });
 
-  const payments = paymentsData?.payments || paymentsData?.data?.payments || [];
+  const paymentsAll =
+    paymentsData?.payments || paymentsData?.data?.payments || [];
 
   // ===== UI =====
   const [activeTab, setActiveTab] = useState("info");
+
+  // ✅ Range لكل تبويب (حتى ما يتأثروا ببعض)
+  const [attendanceRange, setAttendanceRange] = useState({
+    start: null,
+    end: null,
+  });
+
+  const [paymentsRange, setPaymentsRange] = useState({
+    start: null,
+    end: null,
+  });
+
+  // موجود فقط للـ compatibility (ما رح نكسر شي)
   const [selectedDate, setSelectedDate] = useState(null);
 
   // ===== Edit attendance =====
   const [openEdit, setOpenEdit] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState(null);
   const [editTrigger, setEditTrigger] = useState(0);
+
+  if (!idFromUrl) {
+    return (
+      <div className="w-full h-full flex items-center justify-center p-10 text-gray-500">
+        لا يوجد معرف طالب في الرابط.
+      </div>
+    );
+  }
 
   if (loading) return <StudentShortdataSkeleton />;
 
@@ -54,45 +150,254 @@ export default function StudentShortdataPage({ idFromUrl }) {
     );
   }
 
-  // ===== Excel =====
-  const handleExcel = () => {
-    const wb = XLSX.utils.book_new();
+  // ✅ تحديث range حسب التبويب الحالي
+  const handleRangeChange = ({ tab, range }) => {
+    if (tab === "payments") setPaymentsRange(range);
+    else setAttendanceRange(range);
+  };
 
-    const studentSheet = XLSX.utils.json_to_sheet([
-      {
-        "الاسم الكامل": student.full_name,
-        الجنس: student.gender,
-        الهاتف: student.phone || "",
-        الفرع: student.branch?.name || "",
-        الحالة: student.status?.name || "",
-      },
-    ]);
-    XLSX.utils.book_append_sheet(wb, studentSheet, "معلومات الطالب");
+  // ✅ “المعروض” فعلياً (لاكسل + للطباعة)
+  const attendanceView = useMemo(() => {
+    return filterAttendanceByRange(attendanceRecords, attendanceRange);
+  }, [attendanceRecords, attendanceRange]);
 
-    const attendanceSheet = XLSX.utils.json_to_sheet(
-      attendanceRecords.map((r) => ({
-        التاريخ: r.date,
-        الوصول: r.check_in || "",
-        الانصراف: r.check_out || "",
-        الحالة: r.status,
-      }))
-    );
-    XLSX.utils.book_append_sheet(wb, attendanceSheet, "الحضور");
+  const paymentsView = useMemo(() => {
+    return filterPaymentsByRange(paymentsAll, paymentsRange);
+  }, [paymentsAll, paymentsRange]);
 
-    const paymentsSheet = XLSX.utils.json_to_sheet(
-      payments.map((p) => ({
-        التاريخ: p.payment_date,
-        "رقم الإيصال": p.receipt_number,
-        المبلغ: p.amount_usd,
-      }))
-    );
-    XLSX.utils.book_append_sheet(wb, paymentsSheet, "الدفعات");
+  // ================= Excel (3 Sheets) =================
+  const handleExcelAll = () => {
+    try {
+      const wb = XLSX.utils.book_new();
 
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      `student_${student.id}.xlsx`
-    );
+      // Sheet 1: Info
+      const studentSheet = XLSX.utils.json_to_sheet([
+        {
+          "الاسم الكامل": student?.full_name || "—",
+          الجنس: student?.gender || "—",
+          الهاتف: getPrimaryPhone(student),
+          الفرع: student?.institute_branch?.name || "—",
+          الشعبة: student?.batch?.name || "—",
+          الحالة: student?.status?.name || "—",
+          "تاريخ التسجيل": student?.enrollment_date || "—",
+        },
+      ]);
+      XLSX.utils.book_append_sheet(wb, studentSheet, "معلومات الطالب");
+
+      // Sheet 2: Attendance (حسب الفلترة الحالية)
+      const attendanceSheet = XLSX.utils.json_to_sheet(
+        attendanceView.map((r) => ({
+          التاريخ: r.date,
+          الوصول: r.check_in || "",
+          الانصراف: r.check_out || "",
+          الحالة: r.status || "",
+        }))
+      );
+      XLSX.utils.book_append_sheet(wb, attendanceSheet, "الحضور والغياب");
+
+      // Sheet 3: Payments (حسب الفلترة الحالية)
+      const paymentsSheet = XLSX.utils.json_to_sheet(
+        paymentsView.map((p) => ({
+          "تاريخ الدفع":
+            toYMDFromAny(
+              p.payment_date ||
+                p.date ||
+                p.paid_at ||
+                p.created_at ||
+                p.updated_at
+            ) || "",
+          "رقم الإيصال": p.receipt_number || "",
+          المبلغ: p.amount_usd ?? p.amount ?? "",
+        }))
+      );
+      XLSX.utils.book_append_sheet(wb, paymentsSheet, "الدفعات");
+
+      const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      saveAs(
+        new Blob([buffer], { type: "application/octet-stream" }),
+        `student_${student.id}.xlsx`
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error("فشل تصدير الإكسل");
+    }
+  };
+
+  // ================= Print (3 Pages) =================
+  const handlePrintAll = () => {
+    try {
+      const attendanceLabel =
+        attendanceRange?.start && attendanceRange?.end
+          ? `من ${toYMD(attendanceRange.start)} إلى ${toYMD(
+              attendanceRange.end
+            )}`
+          : "بدون فلترة";
+
+      const paymentsLabel =
+        paymentsRange?.start && paymentsRange?.end
+          ? `من ${toYMD(paymentsRange.start)} إلى ${toYMD(paymentsRange.end)}`
+          : "بدون فلترة";
+
+      const html = `
+        <html dir="rtl">
+          <head>
+            <meta charset="utf-8" />
+            <title>student_${escapeHtml(student.id)}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 16px; }
+              h2 { margin: 0 0 10px; }
+              .muted { color:#666; font-size:12px; margin-bottom:12px; }
+              table { width:100%; border-collapse: collapse; margin-top: 10px; }
+              th, td { border:1px solid #ccc; padding:8px; font-size:12px; text-align:right; }
+              th { background:#f6f6f6; }
+              .section { margin-bottom: 24px; }
+              .page-break { page-break-after: always; }
+              @media print { .page-break { page-break-after: always; } }
+            </style>
+          </head>
+          <body>
+
+            <!-- Page 1: Info -->
+            <div class="section">
+              <h2>معلومات الطالب</h2>
+              <div class="muted">تاريخ الطباعة: ${escapeHtml(
+                toYMD(new Date())
+              )}</div>
+
+              <table>
+                <tbody>
+                  <tr><th>الاسم</th><td>${escapeHtml(
+                    student?.full_name || "—"
+                  )}</td></tr>
+                  <tr><th>الهاتف</th><td>${escapeHtml(
+                    getPrimaryPhone(student)
+                  )}</td></tr>
+                  <tr><th>الجنس</th><td>${escapeHtml(
+                    student?.gender || "—"
+                  )}</td></tr>
+                  <tr><th>الفرع</th><td>${escapeHtml(
+                    student?.institute_branch?.name || "—"
+                  )}</td></tr>
+                  <tr><th>الشعبة</th><td>${escapeHtml(
+                    student?.batch?.name || "—"
+                  )}</td></tr>
+                  <tr><th>الحالة</th><td>${escapeHtml(
+                    student?.status?.name || "—"
+                  )}</td></tr>
+                  <tr><th>تاريخ التسجيل</th><td>${escapeHtml(
+                    student?.enrollment_date || "—"
+                  )}</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="page-break"></div>
+
+            <!-- Page 2: Attendance -->
+            <div class="section">
+              <h2>الحضور والغياب</h2>
+              <div class="muted">${escapeHtml(attendanceLabel)}</div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>التاريخ</th>
+                    <th>الوصول</th>
+                    <th>الانصراف</th>
+                    <th>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    attendanceView.length
+                      ? attendanceView
+                          .map(
+                            (r, i) => `
+                            <tr>
+                              <td>${i + 1}</td>
+                              <td>${escapeHtml(r.date)}</td>
+                              <td>${escapeHtml(r.check_in || "—")}</td>
+                              <td>${escapeHtml(r.check_out || "—")}</td>
+                              <td>${escapeHtml(r.status || "—")}</td>
+                            </tr>
+                          `
+                          )
+                          .join("")
+                      : `<tr><td colspan="5" style="text-align:center;color:#777">لا يوجد بيانات</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="page-break"></div>
+
+            <!-- Page 3: Payments -->
+            <div class="section">
+              <h2>الدفعات</h2>
+              <div class="muted">${escapeHtml(paymentsLabel)}</div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>تاريخ الدفع</th>
+                    <th>رقم الإيصال</th>
+                    <th>المبلغ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    paymentsView.length
+                      ? paymentsView
+                          .map((p, i) => {
+                            const rawDate =
+                              p.payment_date ||
+                              p.date ||
+                              p.paid_at ||
+                              p.created_at ||
+                              p.updated_at;
+                            return `
+                              <tr>
+                                <td>${i + 1}</td>
+                                <td>${escapeHtml(
+                                  toYMDFromAny(rawDate) || "—"
+                                )}</td>
+                                <td>${escapeHtml(p.receipt_number || "—")}</td>
+                                <td>${escapeHtml(
+                                  p.amount_usd ?? p.amount ?? "—"
+                                )}</td>
+                              </tr>
+                            `;
+                          })
+                          .join("")
+                      : `<tr><td colspan="4" style="text-align:center;color:#777">لا يوجد بيانات</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </div>
+
+          </body>
+        </html>
+      `;
+
+      const win = window.open("", "", "width=1000,height=800");
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      win.print();
+    } catch (e) {
+      console.error(e);
+      toast.error("فشلت الطباعة");
+    }
+  };
+
+  const handleEditAttendanceClick = () => {
+    if (activeTab !== "attendance") {
+      toast.error("يرجى الانتقال إلى تبويب الغياب والحضور للتعديل");
+      return;
+    }
+    setEditTrigger((v) => v + 1);
   };
 
   return (
@@ -103,13 +408,18 @@ export default function StudentShortdataPage({ idFromUrl }) {
             student={student}
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
-            onEditAttendance={() => setEditTrigger((v) => v + 1)}
+            activeTab={activeTab}
+            attendanceRange={attendanceRange}
+            paymentsRange={paymentsRange}
+            onRangeChange={handleRangeChange}
+            onEditAttendance={handleEditAttendanceClick}
           />
         </div>
 
         <div className="lg:w-3/4 flex flex-col gap-4">
-          <div className="flex justify-between">
-            <div className="flex gap-6">
+          {/* Tabs + Actions */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex gap-6 overflow-x-auto">
               <TabButton
                 active={activeTab === "info"}
                 onClick={() => setActiveTab("info")}
@@ -130,18 +440,19 @@ export default function StudentShortdataPage({ idFromUrl }) {
               </TabButton>
             </div>
 
-            <div className="flex gap-2">
-              <ExcelButton onClick={handleExcel} />
-              <PrintButton />
+            <div className="flex gap-2 self-end md:self-auto">
+              <ExcelButton onClick={handleExcelAll} />
+              <PrintButton onClick={handlePrintAll} />
             </div>
           </div>
 
+          {/* Content */}
           {activeTab === "info" && <StudentInfoTab student={student} />}
 
           {activeTab === "attendance" && (
             <AttendanceTab
               student={student}
-              selectedDate={selectedDate}
+              attendanceRange={attendanceRange}
               editTrigger={editTrigger}
               onEditRequest={(record) => {
                 setRecordToEdit(record);
@@ -150,7 +461,9 @@ export default function StudentShortdataPage({ idFromUrl }) {
             />
           )}
 
-          {activeTab === "payments" && <PaymentsTab student={student} />}
+          {activeTab === "payments" && (
+            <PaymentsTab student={student} paymentsRange={paymentsRange} />
+          )}
         </div>
       </div>
 
@@ -168,7 +481,7 @@ function TabButton({ active, children, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`pb-2 border-b-2 text-sm transition ${
+      className={`pb-2 border-b-2 transition text-sm ${
         active
           ? "border-black text-black"
           : "border-transparent text-gray-400 hover:text-gray-600"

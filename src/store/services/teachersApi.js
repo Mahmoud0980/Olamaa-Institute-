@@ -5,7 +5,8 @@ import ENDPOINTS from "@/lib/constants/endpoints";
 export const teachersApi = createApi({
   reducerPath: "teachersApi",
   ...baseApiConfig,
-  tagTypes: ["Teachers"],
+  // ✅ FIX
+  tagTypes: ["Teachers", "TeacherDetails"],
 
   endpoints: (builder) => ({
     // ========================
@@ -13,7 +14,7 @@ export const teachersApi = createApi({
     // ========================
     getTeachers: builder.query({
       query: (params) => ({
-        url: ENDPOINTS.TEACHERS, // "/teachers"
+        url: ENDPOINTS.TEACHERS,
         method: "GET",
         params,
       }),
@@ -100,12 +101,19 @@ export const teachersApi = createApi({
         { type: "Teachers", id: "LIST" },
       ],
     }),
+
+    // ========================
+    // GET TEACHER BATCHES DETAILS
+    // ========================
     getTeacherBatchesDetails: builder.query({
-      query: (teacherId) => ({
-        url: `/teachers/${teacherId}/batches-details`,
+      query: ({ id, type = "all" }) => ({
+        url: `/teachers/${id}/batches-details`,
         method: "GET",
+        params: { type },
       }),
-      providesTags: (r, e, teacherId) => [{ type: "Teachers", id: teacherId }],
+      providesTags: (r, e, arg) => [
+        { type: "TeacherDetails", id: `TEACHER-${arg?.id}` },
+      ],
     }),
   }),
 });

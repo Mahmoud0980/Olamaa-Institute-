@@ -56,6 +56,14 @@ export const subjectsTeachersApi = createApi({
       }),
       invalidatesTags: [{ type: "SubjectTeachers", id: "LIST" }],
     }),
+    deleteTeacherSubjectByIds: builder.mutation({
+      query: ({ instructor_id, subject_id }) => ({
+        url: `/subjects/delete-teacher-subject-by-ids`,
+        method: "DELETE",
+        data: { instructor_id, subject_id }, // ✅ DELETE مع body مدعوم
+      }),
+      invalidatesTags: [{ type: "SubjectTeachers", id: "LIST" }],
+    }),
   }),
 });
 
@@ -64,4 +72,5 @@ export const {
   useAssignTeacherToSubjectMutation,
   useUpdateTeacherSubjectMutation,
   useDeleteTeacherSubjectMutation,
+  useDeleteTeacherSubjectByIdsMutation,
 } = subjectsTeachersApi;
