@@ -67,10 +67,10 @@ export default function Menu() {
     {
       title: "الجداول الرئيسية",
       icon: "/icons/CirclesFour.svg",
-      roles: ["admin"],
+      roles: ["admin", "accountant"],
       sub: [
-        { name: "الشعب", href: "/batches", roles: ["admin"] },
-        { name: "المدن", href: "/cities", roles: ["admin"] },
+        { name: "الشعب", href: "/batches", roles: ["admin", "accountant"] },
+        { name: "المدن", href: "/cities", roles: ["admin", "accountant"] },
         { name: "الباصات", href: "/buses", roles: ["admin"] },
         {
           name: "السجلات الاكاديمية",
