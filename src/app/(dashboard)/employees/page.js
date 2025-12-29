@@ -54,7 +54,7 @@ export default function EmployeesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
-
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -241,6 +241,8 @@ export default function EmployeesPage() {
           onSelectEmployee={setSelectedEmployeeForBatches}
           onEditPhoto={handleEditPhoto}
           onDelete={handleDeleteEmployee}
+          openMenuId={openMenuId}
+          setOpenMenuId={setOpenMenuId}
         />
 
         <BatchesBox selectedEmployee={selectedEmployeeForBatches} />

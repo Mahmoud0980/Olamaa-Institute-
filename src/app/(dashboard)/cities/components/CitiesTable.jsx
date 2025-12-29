@@ -1,9 +1,9 @@
 // "use client";
 
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import CitiesTableSkeleton from "./CitiesTableSkeleton";
+import Pagination from "@/components/common/Pagination";
 
 export default function CitiesTable({
   cities = [],
@@ -15,7 +15,7 @@ export default function CitiesTable({
 }) {
   // ===== Pagination (مثل batches) =====
   const [page, setPage] = useState(1);
-  const pageSize = 6;
+  const pageSize = 4;
 
   const totalPages = Math.ceil(cities.length / pageSize) || 1;
   const paginated = cities.slice((page - 1) * pageSize, page * pageSize);
@@ -206,27 +206,11 @@ export default function CitiesTable({
           </div>
 
           {/* ================= PAGINATION ================= */}
-          <div className="flex justify-center items-center gap-4 mt-6">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="p-2 border rounded-md bg-white disabled:opacity-40"
-            >
-              <ChevronRight size={18} />
-            </button>
-
-            <span className="text-gray-600 text-sm">
-              صفحة {page} من {totalPages}
-            </span>
-
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-2 border rounded-md bg-white disabled:opacity-40"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>

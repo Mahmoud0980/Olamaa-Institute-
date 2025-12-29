@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import CoursesTableSkeleton from "./CoursesTableSkeleton";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
+import Pagination from "@/components/common/Pagination";
 
 import { useGetTeacherBatchesDetailsQuery } from "@/store/services/teachersApi";
 import { useDeleteTeacherSubjectByIdsMutation } from "@/store/services/subjectsTeachersApi";
@@ -17,7 +18,7 @@ const TABS = [
   { key: "subjects", label: "المواد" },
 ];
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 4;
 
 function DeleteIconButton({ onClick, title = "حذف" }) {
   return (
@@ -66,20 +67,6 @@ export default function CoursesTable({ selectedTeacher }) {
     teacherId ? { id: teacherId, type: "all" } : undefined,
     { skip: !teacherId, refetchOnMountOrArgChange: true }
   );
-  const handleDeleteSubject = async (row) => {
-    if (!selectedTeacher) return;
-
-    try {
-      await deleteByIds({
-        instructor_id: selectedTeacher.id,
-        subject_id: row.subject.id,
-      }).unwrap();
-
-      toast.success("تم حذف المادة من الأستاذ");
-    } catch (e) {
-      toast.error(e?.data?.message || "فشل حذف المادة");
-    }
-  };
 
   const allBatches = Array.isArray(allData?.data)
     ? allData.data
@@ -127,7 +114,6 @@ export default function CoursesTable({ selectedTeacher }) {
 
   // ===== Derived lists per tab =====
   const batchesList = useMemo(() => {
-    // من allData منضمن نعرف إذا في مواد بالشعبة
     return allBatches.map((b) => ({
       batch_id: b?.batch_id,
       batch_name: b?.batch_name || b?.name || "—",
@@ -276,7 +262,6 @@ export default function CoursesTable({ selectedTeacher }) {
                           <div className="flex items-center justify-center">
                             <DeleteIconButton
                               onClick={() => {
-                                // حسب طلبك: إذا في مواد مرتبطة، ممنوع
                                 if (b?.subjects?.length > 0) {
                                   return toast.error(
                                     "لا يمكن حذف الشعبة قبل حذف المواد المرتبطة بها أولاً."
@@ -375,27 +360,11 @@ export default function CoursesTable({ selectedTeacher }) {
 
           {/* Pagination */}
           {listForPaging.length > 0 && (
-            <div className="flex justify-center items-center gap-4 mt-6">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="p-2 border rounded-md bg-white disabled:opacity-40"
-              >
-                <ChevronRight size={18} />
-              </button>
-
-              <span className="text-gray-600 text-sm">
-                صفحة {page} من {totalPages}
-              </span>
-
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="p-2 border rounded-md bg-white disabled:opacity-40"
-              >
-                <ChevronLeft size={18} />
-              </button>
-            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
           )}
         </>
       )}
@@ -409,17 +378,10 @@ export default function CoursesTable({ selectedTeacher }) {
         onClose={() => setToDeleteSubject(null)}
         onConfirm={async () => {
           try {
-            console.log("🟡 DELETE SUBJECT PAYLOAD", {
-              instructor_id: toDeleteSubject.instructor_id,
-              subject_id: toDeleteSubject.subject_id,
-            });
-
             const res = await deleteByIds({
               instructor_id: toDeleteSubject.instructor_id,
               subject_id: toDeleteSubject.subject_id,
             }).unwrap();
-
-            console.log("🟢 DELETE SUCCESS RESPONSE", res);
 
             toast.success("تم حذف المادة");
             setToDeleteSubject(null);
@@ -427,10 +389,6 @@ export default function CoursesTable({ selectedTeacher }) {
             refetchAll();
             refetchSubjects();
           } catch (e) {
-            console.error("🔴 DELETE ERROR FULL", e);
-            console.error("🔴 DELETE ERROR DATA", e?.data);
-            console.error("🔴 DELETE ERROR MESSAGE", e?.data?.message);
-
             toast.error(e?.data?.message || "فشل حذف المادة");
           }
         }}
