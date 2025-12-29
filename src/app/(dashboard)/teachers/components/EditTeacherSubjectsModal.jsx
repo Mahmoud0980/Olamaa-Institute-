@@ -11,6 +11,23 @@ import { useAssignTeacherToSubjectMutation } from "@/store/services/subjectsTeac
 import { useGetTeacherBatchesDetailsQuery } from "@/store/services/teachersApi";
 import { useGetSubjectsQuery } from "@/store/services/subjectsApi";
 
+/* ================= Helpers ================= */
+function getAcademicBranchName(obj) {
+  if (!obj) return "—";
+
+  // الأكتر شيوعاً: { academic_branch: { name } }
+  if (obj.academic_branch?.name) return obj.academic_branch.name;
+
+  // احتمال: academic_branch يكون string
+  if (typeof obj.academic_branch === "string") return obj.academic_branch;
+
+  // احتمالات ثانية حسب APIs
+  if (obj.academic_branch_name) return obj.academic_branch_name;
+  if (obj.academicBranch?.name) return obj.academicBranch.name;
+
+  return "—";
+}
+
 export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
   const teacherId = teacher?.id;
 
@@ -18,19 +35,26 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
   const [assign, { isLoading: isAssigning }] =
     useAssignTeacherToSubjectMutation();
 
-  // 🔹 جميع المواد (مع الفرع الأكاديمي)
+  // 🔹 جميع المواد (مع الفرع الأكاديمي) — عندك transformResponse بيرجع Array مباشرة
   const { data: subjectsRes, isLoading: subjectsLoading } = useGetSubjectsQuery(
     undefined,
-    {
-      skip: !isOpen,
-    }
+    { skip: !isOpen }
   );
 
   const allSubjects = useMemo(() => {
-    if (Array.isArray(subjectsRes)) return subjectsRes; // ✅ الأصح عندك
+    if (Array.isArray(subjectsRes)) return subjectsRes; // ✅ الشكل الصحيح عندك
     if (Array.isArray(subjectsRes?.data)) return subjectsRes.data; // احتياط
     return [];
   }, [subjectsRes]);
+
+  // خريطة: subjectId -> academicBranchName (لنستخدمها إذا linkedRes ما فيه فرع)
+  const subjectIdToBranchName = useMemo(() => {
+    const m = new Map();
+    for (const s of allSubjects) {
+      m.set(s.id, getAcademicBranchName(s));
+    }
+    return m;
+  }, [allSubjects]);
 
   // 🔹 المواد المرتبطة بالأستاذ
   const {
@@ -54,10 +78,13 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
   /* ================= DATA NORMALIZE ================= */
   const linkedSubjects = useMemo(() => linkedRes?.data ?? [], [linkedRes]);
 
+  // ملاحظة: التحقق لازم يكون على subject.id لأنو الآن كل فرع إلو subject_id مختلف
   const linkedSubjectIds = useMemo(
-    () => new Set(linkedSubjects.map((x) => x?.subject?.id)),
+    () => new Set(linkedSubjects.map((x) => x?.subject?.id).filter(Boolean)),
     [linkedSubjects]
   );
+
+  const loadingLinked = linkedLoading || linkedFetching;
 
   /* ================= HANDLERS ================= */
   const handleAdd = async () => {
@@ -84,8 +111,6 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
   };
 
   if (!isOpen || !teacher) return null;
-
-  const loadingLinked = linkedLoading || linkedFetching;
 
   /* ================= UI ================= */
   return (
@@ -118,14 +143,26 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
             <p className="text-sm text-gray-500">لا يوجد مواد مرتبطة</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {linkedSubjects.map((x) => (
-                <span
-                  key={x.instructor_subject_id}
-                  className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700"
-                >
-                  {x.subject?.name}
-                </span>
-              ))}
+              {linkedSubjects.map((x) => {
+                const subjectId = x?.subject?.id;
+                const subjectName = x?.subject?.name || "—";
+
+                // أحياناً linkedRes ما فيه academic_branch داخل subject
+                const branchName =
+                  getAcademicBranchName(x?.subject) !== "—"
+                    ? getAcademicBranchName(x?.subject)
+                    : subjectIdToBranchName.get(subjectId) || "—";
+
+                return (
+                  <span
+                    key={x.instructor_subject_id}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700"
+                    title={branchName}
+                  >
+                    {subjectName} — {branchName}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
@@ -134,12 +171,20 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
         <SelectInput
           label="المادة"
           value={selectedSubject}
-          options={allSubjects.map((s) => ({
-            value: String(s.id), // خليها سترينغ لتفادي مشاكل select
-            label: `${s.name} — ${s.academic_branch?.name ?? "—"}`,
-          }))}
+          options={allSubjects.map((s) => {
+            const branchName = getAcademicBranchName(s);
+            return {
+              value: String(s.id),
+              label: `${s.name} — ${branchName}`,
+            };
+          })}
           onChange={(e) => setSelectedSubject(e.target.value)}
         />
+
+        {/* Loading hint */}
+        {subjectsLoading && (
+          <p className="text-xs text-gray-500 mt-2">جاري تحميل المواد...</p>
+        )}
 
         {/* Duplicate warning */}
         {selectedSubject && linkedSubjectIds.has(Number(selectedSubject)) && (

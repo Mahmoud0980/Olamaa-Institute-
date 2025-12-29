@@ -20,17 +20,26 @@ export default function EditTeacherBatchesModal({ isOpen, onClose, teacher }) {
   const teacherId = teacher?.id;
 
   // ✅ all batches options
-  const { data: batchesRes } = useGetBatchesQuery(undefined, {
+  const {
+    data: batchesRes,
+    isFetching: fetchingBatches,
+    refetch: refetchBatches,
+  } = useGetBatchesQuery(undefined, {
     skip: !isOpen,
+    refetchOnMountOrArgChange: true,
   });
+
   const batches = batchesRes?.data || [];
 
   // ✅ teacher subjects => instructor_subject_id + subject
-  const { data: teacherSubjectsRes, isFetching: fetchingTeacherSubjects } =
-    useGetTeacherBatchesDetailsQuery(
-      teacherId ? { id: teacherId, type: "subjects" } : undefined,
-      { skip: !isOpen || !teacherId }
-    );
+  const {
+    data: teacherSubjectsRes,
+    isFetching: fetchingTeacherSubjects,
+    refetch: refetchTeacherSubjects,
+  } = useGetTeacherBatchesDetailsQuery(
+    teacherId ? { id: teacherId, type: "subjects" } : undefined,
+    { skip: !isOpen || !teacherId, refetchOnMountOrArgChange: true }
+  );
 
   const teacherSubjects = useMemo(
     () => teacherSubjectsRes?.data || [],
@@ -38,11 +47,14 @@ export default function EditTeacherBatchesModal({ isOpen, onClose, teacher }) {
   );
 
   // ✅ teacher all data => batches with subjects[] incl batch_subject_id
-  const { data: teacherAllRes, isFetching: fetchingTeacherAll } =
-    useGetTeacherBatchesDetailsQuery(
-      teacherId ? { id: teacherId, type: "all" } : undefined,
-      { skip: !isOpen || !teacherId }
-    );
+  const {
+    data: teacherAllRes,
+    isFetching: fetchingTeacherAll,
+    refetch: refetchTeacherAll,
+  } = useGetTeacherBatchesDetailsQuery(
+    teacherId ? { id: teacherId, type: "all" } : undefined,
+    { skip: !isOpen || !teacherId, refetchOnMountOrArgChange: true }
+  );
 
   const teacherAll = useMemo(() => teacherAllRes?.data || [], [teacherAllRes]);
 
@@ -64,7 +76,13 @@ export default function EditTeacherBatchesModal({ isOpen, onClose, teacher }) {
     if (!isOpen) return;
     setForm({ batch_id: "", instructor_subject_id: "", notes: "" });
     setToDelete(null);
-  }, [isOpen]);
+
+    // ✅ أول ما يفتح المودل جيب آخر نسخة (خصوصاً إذا كنت جاي من شاشة ثانية)
+    if (teacherId) {
+      refetchTeacherAll();
+      refetchTeacherSubjects();
+    }
+  }, [isOpen, teacherId, refetchTeacherAll, refetchTeacherSubjects]);
 
   const instructorSubjectIdToSubjectId = useMemo(() => {
     const map = new Map();
@@ -117,6 +135,10 @@ export default function EditTeacherBatchesModal({ isOpen, onClose, teacher }) {
 
       toast.success("تم تخصيص المادة للشعبة بنجاح");
       setForm({ batch_id: "", instructor_subject_id: "", notes: "" });
+
+      // ✅ أهم سطرين: تحديث البيانات مباشرة بدون Refresh
+      refetchTeacherAll();
+      refetchTeacherSubjects();
     } catch (e) {
       toast.error(e?.data?.message || "فشل التخصيص");
     }
@@ -128,6 +150,10 @@ export default function EditTeacherBatchesModal({ isOpen, onClose, teacher }) {
       await deleteBatchSubject(toDelete.batch_subject_id).unwrap();
       toast.success("تم حذف التخصيص");
       setToDelete(null);
+
+      // ✅ تحديث الجدول مباشرة بدون Refresh
+      refetchTeacherAll();
+      refetchTeacherSubjects();
     } catch (e) {
       toast.error(e?.data?.message || "فشل الحذف");
     }

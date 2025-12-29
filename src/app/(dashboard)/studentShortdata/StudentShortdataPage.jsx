@@ -131,7 +131,13 @@ export default function StudentShortdataPage({ idFromUrl }) {
   const [openEdit, setOpenEdit] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState(null);
   const [editTrigger, setEditTrigger] = useState(0);
+  const attendanceView = useMemo(() => {
+    return filterAttendanceByRange(attendanceRecords, attendanceRange);
+  }, [attendanceRecords, attendanceRange]);
 
+  const paymentsView = useMemo(() => {
+    return filterPaymentsByRange(paymentsAll, paymentsRange);
+  }, [paymentsAll, paymentsRange]);
   if (!idFromUrl) {
     return (
       <div className="w-full h-full flex items-center justify-center p-10 text-gray-500">
@@ -157,13 +163,6 @@ export default function StudentShortdataPage({ idFromUrl }) {
   };
 
   // ✅ “المعروض” فعلياً (لاكسل + للطباعة)
-  const attendanceView = useMemo(() => {
-    return filterAttendanceByRange(attendanceRecords, attendanceRange);
-  }, [attendanceRecords, attendanceRange]);
-
-  const paymentsView = useMemo(() => {
-    return filterPaymentsByRange(paymentsAll, paymentsRange);
-  }, [paymentsAll, paymentsRange]);
 
   // ================= Excel (3 Sheets) =================
   const handleExcelAll = () => {
