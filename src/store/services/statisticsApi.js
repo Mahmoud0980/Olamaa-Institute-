@@ -1,3 +1,4 @@
+// src/store/services/statisticsApi.js
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseApiConfig } from "./baseApi";
 
@@ -23,19 +24,31 @@ export const statisticsApi = createApi({
       transformResponse: (response) => response?.data?.total_employees ?? 0,
     }),
 
-    // 📊 أداء الدورات (ApexChart)
+    // 🎓 عدد الطلاب (المجموع + ذكور + إناث)
+    getTotalStudents: builder.query({
+      query: () => ({
+        url: "/students/total-students",
+        method: "GET",
+      }),
+      transformResponse: (response) => ({
+        total: response?.data?.total_students ?? 0,
+        male: response?.data?.male_students ?? 0,
+        female: response?.data?.female_students ?? 0,
+      }),
+    }),
+
+    // 📊 أداء الدورات (Apex Chart)
     getBatchesPerformance: builder.query({
       query: () => ({
         url: "/batches/performance/all",
         method: "GET",
       }),
-      transformResponse: (response) => {
-        return (response?.data || []).map((item) => ({
+      transformResponse: (response) =>
+        (response?.data || []).map((item) => ({
           id: item.batch_id,
           name: item.batch_name,
-          value: item.percentage ?? 0, // null → 0
-        }));
-      },
+          value: item.percentage ?? 0,
+        })),
     }),
   }),
 });
@@ -43,5 +56,6 @@ export const statisticsApi = createApi({
 export const {
   useGetTotalGuardiansQuery,
   useGetTotalEmployeesQuery,
+  useGetTotalStudentsQuery,
   useGetBatchesPerformanceQuery,
 } = statisticsApi;
