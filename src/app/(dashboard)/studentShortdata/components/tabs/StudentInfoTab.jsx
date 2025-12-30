@@ -39,10 +39,12 @@ export default function StudentInfoTab({ student }) {
 
   return (
     <div className="bg-white rounded-2xl p-4 md:p-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-5 gap-x-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6">
         {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">{item.label}</span>
+          <div key={i} className="flex items-center gap-2 pb-10">
+            <span className="text-sm text-gray-500 whitespace-nowrap">
+              {item.label}
+            </span>
             <span className="text-sm font-semibold text-gray-800 truncate">
               {item.value}
             </span>

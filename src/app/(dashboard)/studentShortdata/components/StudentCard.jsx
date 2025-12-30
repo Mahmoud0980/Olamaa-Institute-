@@ -1,6 +1,6 @@
-// "use client";
+"use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import Avatar from "../../../../components/common/Avatar";
@@ -21,25 +21,42 @@ function getPrimaryPhone(student) {
   return anyPrimary?.full_phone_number || anyPrimary?.value || "—";
 }
 
-function isSameMonth(a, b) {
-  if (!a || !b) return false;
-  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+function toYMD(d) {
+  return d instanceof Date ? d.toLocaleDateString("en-CA") : "";
+}
+
+function isSameDay(a, b) {
+  return a && b && toYMD(a) === toYMD(b);
+}
+
+function normalizeRange(start, end) {
+  const a = toYMD(start);
+  const b = toYMD(end);
+  if (!a || !b) return { min: "", max: "" };
+  return a <= b ? { min: a, max: b } : { min: b, max: a };
 }
 
 export default function StudentCard({
   student,
-  selectedDate, // (بنتركه موجود حتى ما ينكسر شي قديم)
-  onDateChange, // (بنتركه موجود)
+
+  // قديم (نتركهم حتى ما ينكسر شي)
+  selectedDate,
+  onDateChange,
+
   onEditAttendance,
 
   // ✅ جديد
-  activeTab,
+  activeTab, // "info" | "attendance" | "payments"
   attendanceRange,
   paymentsRange,
   onRangeChange,
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [monthListOpen, setMonthListOpen] = useState(false);
+
+  // ✅ اظهار/اخفاء حسب التاب
+  const showCalendar = activeTab !== "info";
+  const showEditButton = activeTab === "attendance";
 
   const months = [
     "January",
@@ -56,69 +73,102 @@ export default function StudentCard({
     "December",
   ];
 
-  const today = useMemo(() => new Date(), []);
-  const isCurrentMonthShown = isSameMonth(currentMonth, today);
-
-  // ✅ تحديد أي Range بدنا نعرضه حسب التبويب
+  // ✅ تحديد أي Range شغال حسب التبويب
   const activeRange =
     activeTab === "payments" ? paymentsRange : attendanceRange;
 
-  // ✅ Calendar props (Range mode فقط لما مو الشهر الحالي)
-  const selectRange = !isCurrentMonthShown;
+  // ✅ دعم double click
+  const lastClickRef = useRef({ time: 0, ymd: "" });
+  const DOUBLE_CLICK_MS = 450;
 
-  // value حسب نوع التقويم
   const calendarValue = useMemo(() => {
-    if (selectRange) {
-      if (activeRange?.start && activeRange?.end)
-        return [activeRange.start, activeRange.end];
-      if (activeRange?.start && !activeRange?.end) return activeRange.start;
-      return null;
-    } else {
-      // الشهر الحالي: المستخدم يختار تاريخ واحد (نعتبره end)
-      return activeRange?.end || activeRange?.start || selectedDate || today;
-    }
-  }, [selectRange, activeRange, selectedDate, today]);
+    const s = activeRange?.start || null;
+    const e = activeRange?.end || null;
 
-  const handleCalendarChange = (val) => {
-    // ✅ إذا كان الشهر الحالي: اختيار تاريخ واحد => من اليوم للتاريخ المختار
-    if (!selectRange) {
-      const picked = val instanceof Date ? val : today;
+    if (s && e) return [s, e];
+    if (s && !e) return s;
+    // fallback قديم إذا ما في رينج
+    return selectedDate || null;
+  }, [activeRange, selectedDate]);
 
-      const a = today.toLocaleDateString("en-CA");
-      const b = picked.toLocaleDateString("en-CA");
-      const start = a <= b ? today : picked;
-      const end = a <= b ? picked : today;
-
-      onRangeChange?.({
-        tab: activeTab,
-        range: { start, end },
-      });
-
-      onDateChange?.(picked); // نخلي القديم شغّال إذا في مكان يعتمد عليه
-      return;
-    }
-
-    // ✅ شهر غير الحالي: Range selection
-    if (Array.isArray(val)) {
-      const [start, end] = val;
-      onRangeChange?.({
-        tab: activeTab,
-        range: { start: start || null, end: end || null },
-      });
-      return;
-    }
-
-    // بعض الحالات بيرجع Date أول ضغطة بالـ range
+  const pushRange = (range) => {
     onRangeChange?.({
       tab: activeTab,
-      range: { start: val, end: null },
+      range,
     });
+  };
+
+  // ✅ منطق الاختيار:
+  // - دبل كليك على نفس اليوم => start=end
+  // - كبسة أولى => start فقط
+  // - كبسة ثانية => end
+  const handleDayClick = (date) => {
+    const now = Date.now();
+    const ymd = toYMD(date);
+
+    const isDouble =
+      lastClickRef.current.ymd === ymd &&
+      now - lastClickRef.current.time <= DOUBLE_CLICK_MS;
+
+    lastClickRef.current = { time: now, ymd };
+
+    // ✅ دبل كليك => يوم واحد فقط
+    if (isDouble) {
+      pushRange({ start: date, end: date });
+      onDateChange?.(date);
+      return;
+    }
+
+    const s = activeRange?.start || null;
+    const e = activeRange?.end || null;
+
+    // إذا ما في بداية أو عندك مجال مكتمل => ابدأ من جديد
+    if (!s || (s && e)) {
+      pushRange({ start: date, end: null });
+      onDateChange?.(date);
+      return;
+    }
+
+    // إذا في بداية وما في نهاية => هذي الكبسة تحدد النهاية
+    pushRange({ start: s, end: date });
+    onDateChange?.(date);
+  };
+
+  // ✅ تلوين المجال بدون selectRange من الريأكت-كالندر
+  const tileClassName = ({ date, view }) => {
+    if (view !== "month") return "";
+
+    const s = activeRange?.start || null;
+    const e = activeRange?.end || null;
+
+    if (!s && !e) return "";
+
+    // حالة start فقط
+    if (s && !e) {
+      return isSameDay(date, s) ? "range-start" : "";
+    }
+
+    // start + end
+    const { min, max } = normalizeRange(s, e);
+    const d = toYMD(date);
+    if (!min || !max || !d) return "";
+
+    const inBetween = d >= min && d <= max;
+    if (!inBetween) return "";
+
+    const startDay = isSameDay(date, s);
+    const endDay = isSameDay(date, e);
+
+    if (startDay && endDay) return "range-start range-end range-day"; // نفس اليوم
+    if (startDay) return "range-start range-day";
+    if (endDay) return "range-end range-day";
+    return "range-day";
   };
 
   return (
     <div className="flex flex-col gap-4 w-full">
       {/* بطاقة الطالب */}
-      <div className="bg-white shadow-sm  rounded-xl p-5 flex flex-col items-center text-center">
+      <div className="bg-white shadow-sm rounded-xl p-5 flex flex-col items-center text-center">
         <Avatar
           fullName={student?.full_name}
           image={student?.profile_photo_url || null}
@@ -127,79 +177,90 @@ export default function StudentCard({
         <p className="text-xs text-gray-500">{getPrimaryPhone(student)}</p>
       </div>
 
-      <div className="text-right text-sm font-semibold">التاريخ</div>
+      {/* ✅ الرزنامة حسب التاب */}
+      {showCalendar && (
+        <>
+          <div className="text-right text-sm font-semibold">التاريخ</div>
 
-      {/* التقويم */}
-      <div className="bg-white  rounded-xl p-4">
-        <div className="flex justify-between mb-3">
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                const d = new Date(currentMonth);
-                d.setMonth(d.getMonth() - 1);
-                setCurrentMonth(d);
-              }}
-            >
-              ❮
-            </button>
-            <button
-              onClick={() => {
-                const d = new Date(currentMonth);
-                d.setMonth(d.getMonth() + 1);
-                setCurrentMonth(d);
-              }}
-            >
-              ❯
-            </button>
-          </div>
-
-          <div className="relative">
-            <button onClick={() => setMonthListOpen(!monthListOpen)}>
-              {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </button>
-
-            {monthListOpen && (
-              <div className="absolute right-0 bg-white border rounded shadow w-36 z-50">
-                {months.map((m, i) => (
-                  <div
-                    key={i}
-                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => {
-                      const d = new Date(currentMonth);
-                      d.setMonth(i);
-                      setCurrentMonth(d);
-                      setMonthListOpen(false);
-                    }}
-                  >
-                    {m}
-                  </div>
-                ))}
+          <div className="bg-white rounded-xl p-4">
+            <div className="flex justify-between mb-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const d = new Date(currentMonth);
+                    d.setMonth(d.getMonth() - 1);
+                    setCurrentMonth(d);
+                  }}
+                >
+                  ❮
+                </button>
+                <button
+                  onClick={() => {
+                    const d = new Date(currentMonth);
+                    d.setMonth(d.getMonth() + 1);
+                    setCurrentMonth(d);
+                  }}
+                >
+                  ❯
+                </button>
               </div>
-            )}
+
+              <div className="relative">
+                <button onClick={() => setMonthListOpen(!monthListOpen)}>
+                  {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                </button>
+
+                {monthListOpen && (
+                  <div className="absolute right-0 bg-white border rounded shadow w-36 z-50">
+                    {months.map((m, i) => (
+                      <div
+                        key={i}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          const d = new Date(currentMonth);
+                          d.setMonth(i);
+                          setCurrentMonth(d);
+                          setMonthListOpen(false);
+                        }}
+                      >
+                        {m}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Calendar
+              activeStartDate={currentMonth}
+              locale="en"
+              className="my-calendar"
+              value={calendarValue}
+              onClickDay={handleDayClick} // ✅ كل المنطق هون
+              tileClassName={tileClassName} // ✅ تلوين المجال
+            />
           </div>
+        </>
+      )}
+
+      {/* ✅ زر التعديل فقط بالحضور والغياب */}
+      {showEditButton && (
+        <div className="flex justify-end">
+          <GradientButton
+            onClick={onEditAttendance}
+            rightIcon={
+              <Image
+                src="/icons/editbtn.png"
+                alt="edit"
+                width={18}
+                height={18}
+              />
+            }
+          >
+            تعديل
+          </GradientButton>
         </div>
-
-        <Calendar
-          onChange={handleCalendarChange}
-          value={calendarValue}
-          activeStartDate={currentMonth}
-          locale="en"
-          className="my-calendar"
-          selectRange={selectRange}
-        />
-      </div>
-
-      {/* زر التعديل */}
-      <div className="flex justify-end">
-        <GradientButton
-          onClick={onEditAttendance}
-          rightIcon={
-            <Image src="/icons/editbtn.png" alt="edit" width={18} height={18} />
-          }
-        >
-          تعديل
-        </GradientButton>
-      </div>
+      )}
     </div>
   );
 }

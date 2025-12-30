@@ -104,3 +104,20 @@
     font-size: 9px;
   }
 }
+/* تخصيص شكل حقول الوقت داخل مودال تعديل الحضور */
+.edit-attendance-modal input[type="time"] {
+  accent-color: #6F013F;
+  /* بعض المتصفحات فقط */
+  caret-color: #6F013F;
+}
+
+/* لون الأيقونة (قد يختلف حسب المتصفح) */
+.edit-attendance-modal input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(18%) sepia(54%) saturate(3450%) hue-rotate(315deg) brightness(85%) contrast(105%);
+  cursor: pointer;
+}
+
+/* إلغاء أي outline أزرق (على الحقل نفسه) */
+.edit-attendance-modal input[type="time"]:focus {
+  outline: none;
+}

@@ -17,6 +17,8 @@ import StudentShortdataSkeleton from "./components/StudentShortdataSkeleton";
 import ExcelButton from "@/components/common/ExcelButton";
 import PrintButton from "@/components/common/PrintButton";
 
+import ExportChoiceModal from "@/components/common/ExportChoiceModal";
+
 // RTK
 import { useGetAttendanceLogQuery } from "@/store/services/studentAttendanceApi";
 import { useGetStudentPaymentsSummaryQuery } from "@/store/services/studentPaymentsApi";
@@ -30,7 +32,6 @@ function toYMD(date) {
   return d.toLocaleDateString("en-CA");
 }
 
-// للدفعات ممكن يجي "2025-12-25T..." أو "2025-12-25"
 function toYMDFromAny(value) {
   if (!value) return "";
   if (typeof value === "string") return value.slice(0, 10);
@@ -131,6 +132,12 @@ export default function StudentShortdataPage({ idFromUrl }) {
   const [openEdit, setOpenEdit] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState(null);
   const [editTrigger, setEditTrigger] = useState(0);
+
+  // ===== Export Modal (Excel/Print) =====
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportType, setExportType] = useState("excel"); // "excel" | "print"
+  const [exportLoading, setExportLoading] = useState(false);
+
   const attendanceView = useMemo(() => {
     return filterAttendanceByRange(attendanceRecords, attendanceRange);
   }, [attendanceRecords, attendanceRange]);
@@ -138,6 +145,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
   const paymentsView = useMemo(() => {
     return filterPaymentsByRange(paymentsAll, paymentsRange);
   }, [paymentsAll, paymentsRange]);
+
   if (!idFromUrl) {
     return (
       <div className="w-full h-full flex items-center justify-center p-10 text-gray-500">
@@ -162,81 +170,126 @@ export default function StudentShortdataPage({ idFromUrl }) {
     else setAttendanceRange(range);
   };
 
-  // ✅ “المعروض” فعلياً (لاكسل + للطباعة)
+  /* ================= Excel ================= */
 
-  // ================= Excel (3 Sheets) =================
+  const exportWorkbook = (wb, filename) => {
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(new Blob([buffer], { type: "application/octet-stream" }), filename);
+  };
+
+  const addInfoSheet = (wb) => {
+    const studentSheet = XLSX.utils.json_to_sheet([
+      {
+        "الاسم الكامل": student?.full_name || "—",
+        الجنس: student?.gender || "—",
+        الهاتف: getPrimaryPhone(student),
+        الفرع: student?.institute_branch?.name || "—",
+        الشعبة: student?.batch?.name || "—",
+        الحالة: student?.status?.name || "—",
+        "تاريخ التسجيل": student?.enrollment_date || "—",
+      },
+    ]);
+    XLSX.utils.book_append_sheet(wb, studentSheet, "معلومات الطالب");
+  };
+
+  const addAttendanceSheet = (wb) => {
+    const attendanceSheet = XLSX.utils.json_to_sheet(
+      attendanceView.map((r) => ({
+        التاريخ: r.date,
+        الوصول: r.check_in || "",
+        الانصراف: r.check_out || "",
+        الحالة: r.status || "",
+      }))
+    );
+    XLSX.utils.book_append_sheet(wb, attendanceSheet, "الحضور والغياب");
+  };
+
+  const addPaymentsSheet = (wb) => {
+    const paymentsSheet = XLSX.utils.json_to_sheet(
+      paymentsView.map((p) => ({
+        "تاريخ الدفع":
+          toYMDFromAny(
+            p.payment_date ||
+              p.date ||
+              p.paid_at ||
+              p.created_at ||
+              p.updated_at
+          ) || "",
+        "رقم الإيصال": p.receipt_number || "",
+        المبلغ: p.amount_usd ?? p.amount ?? "",
+      }))
+    );
+    XLSX.utils.book_append_sheet(wb, paymentsSheet, "الدفعات");
+  };
+
+  // ✅ Excel: الكل (3 Sheets)
   const handleExcelAll = () => {
     try {
       const wb = XLSX.utils.book_new();
-
-      // Sheet 1: Info
-      const studentSheet = XLSX.utils.json_to_sheet([
-        {
-          "الاسم الكامل": student?.full_name || "—",
-          الجنس: student?.gender || "—",
-          الهاتف: getPrimaryPhone(student),
-          الفرع: student?.institute_branch?.name || "—",
-          الشعبة: student?.batch?.name || "—",
-          الحالة: student?.status?.name || "—",
-          "تاريخ التسجيل": student?.enrollment_date || "—",
-        },
-      ]);
-      XLSX.utils.book_append_sheet(wb, studentSheet, "معلومات الطالب");
-
-      // Sheet 2: Attendance (حسب الفلترة الحالية)
-      const attendanceSheet = XLSX.utils.json_to_sheet(
-        attendanceView.map((r) => ({
-          التاريخ: r.date,
-          الوصول: r.check_in || "",
-          الانصراف: r.check_out || "",
-          الحالة: r.status || "",
-        }))
-      );
-      XLSX.utils.book_append_sheet(wb, attendanceSheet, "الحضور والغياب");
-
-      // Sheet 3: Payments (حسب الفلترة الحالية)
-      const paymentsSheet = XLSX.utils.json_to_sheet(
-        paymentsView.map((p) => ({
-          "تاريخ الدفع":
-            toYMDFromAny(
-              p.payment_date ||
-                p.date ||
-                p.paid_at ||
-                p.created_at ||
-                p.updated_at
-            ) || "",
-          "رقم الإيصال": p.receipt_number || "",
-          المبلغ: p.amount_usd ?? p.amount ?? "",
-        }))
-      );
-      XLSX.utils.book_append_sheet(wb, paymentsSheet, "الدفعات");
-
-      const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      saveAs(
-        new Blob([buffer], { type: "application/octet-stream" }),
-        `student_${student.id}.xlsx`
-      );
+      addInfoSheet(wb);
+      addAttendanceSheet(wb);
+      addPaymentsSheet(wb);
+      exportWorkbook(wb, `student_${student.id}_ALL.xlsx`);
     } catch (e) {
       console.error(e);
       toast.error("فشل تصدير الإكسل");
     }
   };
 
-  // ================= Print (3 Pages) =================
+  // ✅ Excel: التبويب الحالي فقط
+  const handleExcelCurrentTab = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      if (activeTab === "info") {
+        addInfoSheet(wb);
+        exportWorkbook(wb, `student_${student.id}_INFO.xlsx`);
+        return;
+      }
+
+      if (activeTab === "attendance") {
+        addAttendanceSheet(wb);
+        exportWorkbook(wb, `student_${student.id}_ATTENDANCE.xlsx`);
+        return;
+      }
+
+      if (activeTab === "payments") {
+        addPaymentsSheet(wb);
+        exportWorkbook(wb, `student_${student.id}_PAYMENTS.xlsx`);
+        return;
+      }
+
+      // fallback
+      handleExcelAll();
+    } catch (e) {
+      console.error(e);
+      toast.error("فشل تصدير الإكسل");
+    }
+  };
+
+  /* ================= Print ================= */
+
+  const openPrintWindow = (html) => {
+    const win = window.open("", "", "width=1000,height=800");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
+  const attendanceLabel =
+    attendanceRange?.start && attendanceRange?.end
+      ? `من ${toYMD(attendanceRange.start)} إلى ${toYMD(attendanceRange.end)}`
+      : "بدون فلترة";
+
+  const paymentsLabel =
+    paymentsRange?.start && paymentsRange?.end
+      ? `من ${toYMD(paymentsRange.start)} إلى ${toYMD(paymentsRange.end)}`
+      : "بدون فلترة";
+
+  // ✅ Print: الكل (3 صفحات)
   const handlePrintAll = () => {
     try {
-      const attendanceLabel =
-        attendanceRange?.start && attendanceRange?.end
-          ? `من ${toYMD(attendanceRange.start)} إلى ${toYMD(
-              attendanceRange.end
-            )}`
-          : "بدون فلترة";
-
-      const paymentsLabel =
-        paymentsRange?.start && paymentsRange?.end
-          ? `من ${toYMD(paymentsRange.start)} إلى ${toYMD(paymentsRange.end)}`
-          : "بدون فلترة";
-
       const html = `
         <html dir="rtl">
           <head>
@@ -379,17 +432,187 @@ export default function StudentShortdataPage({ idFromUrl }) {
           </body>
         </html>
       `;
-
-      const win = window.open("", "", "width=1000,height=800");
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      win.print();
+      openPrintWindow(html);
     } catch (e) {
       console.error(e);
       toast.error("فشلت الطباعة");
     }
   };
+
+  // ✅ Print: التبويب الحالي فقط
+  const handlePrintCurrentTab = () => {
+    try {
+      const baseStyle = `
+        <style>
+          body { font-family: Arial, sans-serif; padding: 16px; }
+          h2 { margin: 0 0 10px; }
+          .muted { color:#666; font-size:12px; margin-bottom:12px; }
+          table { width:100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border:1px solid #ccc; padding:8px; font-size:12px; text-align:right; }
+          th { background:#f6f6f6; }
+        </style>
+      `;
+
+      if (activeTab === "info") {
+        const html = `
+          <html dir="rtl">
+            <head>
+              <meta charset="utf-8" />
+              <title>student_${escapeHtml(student.id)}_INFO</title>
+              ${baseStyle}
+            </head>
+            <body>
+              <h2>معلومات الطالب</h2>
+              <div class="muted">تاريخ الطباعة: ${escapeHtml(
+                toYMD(new Date())
+              )}</div>
+              <table>
+                <tbody>
+                  <tr><th>الاسم</th><td>${escapeHtml(
+                    student?.full_name || "—"
+                  )}</td></tr>
+                  <tr><th>الهاتف</th><td>${escapeHtml(
+                    getPrimaryPhone(student)
+                  )}</td></tr>
+                  <tr><th>الجنس</th><td>${escapeHtml(
+                    student?.gender || "—"
+                  )}</td></tr>
+                  <tr><th>الفرع</th><td>${escapeHtml(
+                    student?.institute_branch?.name || "—"
+                  )}</td></tr>
+                  <tr><th>الشعبة</th><td>${escapeHtml(
+                    student?.batch?.name || "—"
+                  )}</td></tr>
+                  <tr><th>الحالة</th><td>${escapeHtml(
+                    student?.status?.name || "—"
+                  )}</td></tr>
+                  <tr><th>تاريخ التسجيل</th><td>${escapeHtml(
+                    student?.enrollment_date || "—"
+                  )}</td></tr>
+                </tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        openPrintWindow(html);
+        return;
+      }
+
+      if (activeTab === "attendance") {
+        const html = `
+          <html dir="rtl">
+            <head>
+              <meta charset="utf-8" />
+              <title>student_${escapeHtml(student.id)}_ATTENDANCE</title>
+              ${baseStyle}
+            </head>
+            <body>
+              <h2>الحضور والغياب</h2>
+              <div class="muted">${escapeHtml(attendanceLabel)}</div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>التاريخ</th>
+                    <th>الوصول</th>
+                    <th>الانصراف</th>
+                    <th>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    attendanceView.length
+                      ? attendanceView
+                          .map(
+                            (r, i) => `
+                              <tr>
+                                <td>${i + 1}</td>
+                                <td>${escapeHtml(r.date)}</td>
+                                <td>${escapeHtml(r.check_in || "—")}</td>
+                                <td>${escapeHtml(r.check_out || "—")}</td>
+                                <td>${escapeHtml(r.status || "—")}</td>
+                              </tr>
+                          `
+                          )
+                          .join("")
+                      : `<tr><td colspan="5" style="text-align:center;color:#777">لا يوجد بيانات</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        openPrintWindow(html);
+        return;
+      }
+
+      if (activeTab === "payments") {
+        const html = `
+          <html dir="rtl">
+            <head>
+              <meta charset="utf-8" />
+              <title>student_${escapeHtml(student.id)}_PAYMENTS</title>
+              ${baseStyle}
+            </head>
+            <body>
+              <h2>الدفعات</h2>
+              <div class="muted">${escapeHtml(paymentsLabel)}</div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>تاريخ الدفع</th>
+                    <th>رقم الإيصال</th>
+                    <th>المبلغ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    paymentsView.length
+                      ? paymentsView
+                          .map((p, i) => {
+                            const rawDate =
+                              p.payment_date ||
+                              p.date ||
+                              p.paid_at ||
+                              p.created_at ||
+                              p.updated_at;
+                            return `
+                              <tr>
+                                <td>${i + 1}</td>
+                                <td>${escapeHtml(
+                                  toYMDFromAny(rawDate) || "—"
+                                )}</td>
+                                <td>${escapeHtml(p.receipt_number || "—")}</td>
+                                <td>${escapeHtml(
+                                  p.amount_usd ?? p.amount ?? "—"
+                                )}</td>
+                              </tr>
+                            `;
+                          })
+                          .join("")
+                      : `<tr><td colspan="4" style="text-align:center;color:#777">لا يوجد بيانات</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        openPrintWindow(html);
+        return;
+      }
+
+      // fallback
+      handlePrintAll();
+    } catch (e) {
+      console.error(e);
+      toast.error("فشلت الطباعة");
+    }
+  };
+
+  /* ================= Actions ================= */
 
   const handleEditAttendanceClick = () => {
     if (activeTab !== "attendance") {
@@ -399,8 +622,35 @@ export default function StudentShortdataPage({ idFromUrl }) {
     setEditTrigger((v) => v + 1);
   };
 
+  const openExportModal = (type) => {
+    setExportType(type); // "excel" | "print"
+    setExportModalOpen(true);
+  };
+
+  const handleExportAll = () => {
+    setExportLoading(true);
+    try {
+      if (exportType === "excel") handleExcelAll();
+      else handlePrintAll();
+    } finally {
+      setExportLoading(false);
+      setExportModalOpen(false);
+    }
+  };
+
+  const handleExportCurrent = () => {
+    setExportLoading(true);
+    try {
+      if (exportType === "excel") handleExcelCurrentTab();
+      else handlePrintCurrentTab();
+    } finally {
+      setExportLoading(false);
+      setExportModalOpen(false);
+    }
+  };
+
   return (
-    <div dir="rtl" className="p-4 md:p-6 bg-[#FBFBFB]">
+    <div dir="rtl" className="p-4 md:p-6 bg-[#FBFBFB] min-h-screen">
       <div className="flex flex-col lg:flex-row-reverse gap-6">
         <div className="lg:w-1/4">
           <StudentCard
@@ -440,8 +690,8 @@ export default function StudentShortdataPage({ idFromUrl }) {
             </div>
 
             <div className="flex gap-2 self-end md:self-auto">
-              <ExcelButton onClick={handleExcelAll} />
-              <PrintButton onClick={handlePrintAll} />
+              <ExcelButton onClick={() => openExportModal("excel")} />
+              <PrintButton onClick={() => openExportModal("print")} />
             </div>
           </div>
 
@@ -471,6 +721,16 @@ export default function StudentShortdataPage({ idFromUrl }) {
         onClose={() => setOpenEdit(false)}
         record={recordToEdit}
         onSave={() => setOpenEdit(false)}
+      />
+
+      {/* ✅ Export Choice Modal */}
+      <ExportChoiceModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        type={exportType}
+        loading={exportLoading}
+        onAll={handleExportAll}
+        onCurrent={handleExportCurrent}
       />
     </div>
   );

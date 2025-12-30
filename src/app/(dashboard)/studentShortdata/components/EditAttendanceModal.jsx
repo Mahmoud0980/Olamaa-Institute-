@@ -88,7 +88,7 @@ export default function EditAttendanceModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-md edit-attendance-moda">
       <div className="w-[450px] bg-white h-full shadow-xl p-6 overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
