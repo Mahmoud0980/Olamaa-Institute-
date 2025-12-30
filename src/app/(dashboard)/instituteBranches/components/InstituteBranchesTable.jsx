@@ -95,18 +95,18 @@ export default function InstituteBranchesTable({
 
                     <td className="p-3 text-center rounded-l-xl">
                       <div className="flex justify-center gap-4">
-                        <button onClick={() => onEdit?.(branch)}>
-                          <Image
-                            src="/icons/Edit.png"
-                            alt="edit"
-                            width={18}
-                            height={18}
-                          />
-                        </button>
                         <button onClick={() => onDelete?.(branch)}>
                           <Image
                             src="/icons/Trash.png"
                             alt="trash"
+                            width={18}
+                            height={18}
+                          />
+                        </button>
+                        <button onClick={() => onEdit?.(branch)}>
+                          <Image
+                            src="/icons/Edit.png"
+                            alt="edit"
                             width={18}
                             height={18}
                           />
@@ -160,18 +160,18 @@ export default function InstituteBranchesTable({
                 </div>
 
                 <div className="flex justify-center gap-6 mt-3">
-                  <button onClick={() => onEdit?.(branch)}>
-                    <Image
-                      src="/icons/Edit.png"
-                      alt="edit"
-                      width={20}
-                      height={20}
-                    />
-                  </button>
                   <button onClick={() => onDelete?.(branch)}>
                     <Image
                       src="/icons/Trash.png"
                       alt="trash"
+                      width={20}
+                      height={20}
+                    />
+                  </button>
+                  <button onClick={() => onEdit?.(branch)}>
+                    <Image
+                      src="/icons/Edit.png"
+                      alt="edit"
                       width={20}
                       height={20}
                     />

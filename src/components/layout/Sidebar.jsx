@@ -7,12 +7,11 @@ import { Menu as MenuIcon, X } from "lucide-react";
 import Menu from "./Menu";
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
-  // زر الموبايل يختفي عند النزول ويظهر عند الصعود
   const [showMobileBtn, setShowMobileBtn] = useState(true);
   const lastYRef = useRef(0);
   const tickingRef = useRef(false);
 
-  // ✅ Scroll Lock قوي (يمنع سكرول الصفحة 100%)
+  // ✅ Scroll Lock قوي
   useEffect(() => {
     if (!sidebarOpen) return;
 
@@ -37,7 +36,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     };
   }, [sidebarOpen]);
 
-  // ✅ scroll listener لزر فتح السايدبار بالموبايل
+  // ✅ hide/show button on scroll
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -95,26 +94,25 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           relative hidden xl:flex xl:flex-col shrink-0
           bg-[#F2F2F3]
           w-[250px] 2xl:w-[300px]
-          h-screen
-          overflow-hidden
+          h-screen overflow-hidden
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.2)]
           transition-all duration-300
         "
       >
-        {/* شعار */}
-        <div className="flex items-center justify-center gap-2 px-5 py-2">
-          <Image src="/logo.svg" alt="logo" width={45} height={45} />
+        {/* شعار (تصغير padding) */}
+        <div className="flex items-center gap-2 px-6 py-2">
+          <Image src="/logo.svg" alt="logo" width={40} height={40} />
           <Link
             href="/"
             className="flex items-center gap-2 text-[#6F013F] font-semibold
-                       text-[16px] sm:text-[18px] md:text-[20px] lg:text-[22px]"
+                       text-[15px] sm:text-[16px] md:text-[17px]"
           >
             معهد العلماء
           </Link>
         </div>
 
-        {/* ✅ هون منخلي المحتوى يتمدد + Menu يعمل سكرول داخلي */}
-        <div className="flex-1 min-h-0 p-4">
+        {/* المحتوى */}
+        <div className="flex-1 min-h-0 px-3 pb-3">
           <Menu />
         </div>
       </aside>
@@ -133,18 +131,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           xl:hidden fixed inset-y-0 right-0 z-50
           w-[80%] max-w-[320px]
           bg-[#F2F2F3]
-          h-screen
-          overflow-hidden
-          flex flex-col
+          h-screen overflow-hidden flex flex-col
           shadow-[inset_-4px_0_8px_-2px_rgba(0,0,0,0.25)]
           border-l transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "translate-x-full"}
         `}
         aria-hidden={!sidebarOpen}
       >
-        {/* رأس */}
-        <div className="flex items-center justify-between p-4 border-b border-[#e0e0e0]">
-          <Link href="/" className="font-semibold text-[#6F013F] text-[18px]">
+        {/* رأس (تصغير padding) */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e0e0]">
+          <Link href="/" className="font-semibold text-[#6F013F] text-[16px]">
             معهد العلماء
           </Link>
           <button
@@ -156,8 +152,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </button>
         </div>
 
-        {/* ✅ محتوى قابل للسكرول داخلياً فقط */}
-        <div className="flex-1 min-h-0 p-4">
+        {/* محتوى */}
+        <div className="flex-1 min-h-0 px-3 pb-3">
           <Menu />
         </div>
       </aside>

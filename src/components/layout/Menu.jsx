@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-
+import { SlidersHorizontal } from "lucide-react";
 export default function Menu() {
   const [openMenu, setOpenMenu] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
@@ -73,25 +73,13 @@ export default function Menu() {
           href: "/academicBranches",
           roles: ["admin"],
         },
-        { name: "افرع المعهد", href: "/instituteBranches", roles: ["admin"] },
+
         { name: "المواد", href: "/subjects", roles: ["admin"] },
         { name: "طرق المعرفة بنا", href: "/knowWays", roles: ["admin"] },
         { name: "القاعات الدراسية", href: "/classRooms", roles: ["admin"] },
       ],
     },
-    {
-      title: "الدفعات",
-      icon: "/icons/HandCoins.svg",
-      roles: ["admin", "accountant"],
-      sub: [
-        {
-          name: "عرض الدفعات",
-          href: "/payments",
-          roles: ["admin", "accountant"],
-        },
-        { name: "إضافة دفعة", href: "/payments/add", roles: ["admin"] },
-      ],
-    },
+
     {
       title: "المدرسون",
       icon: "/icons/UsersThree.svg",
@@ -137,6 +125,19 @@ export default function Menu() {
       ],
     },
     {
+      title: "الدفعات",
+      icon: "/icons/HandCoins.svg",
+      roles: ["admin", "accountant"],
+      sub: [
+        {
+          name: "عرض الدفعات",
+          href: "/payments",
+          roles: ["admin", "accountant"],
+        },
+        { name: "إضافة دفعة", href: "/payments/add", roles: ["admin"] },
+      ],
+    },
+    {
       title: "الدورات",
       icon: "/icons/Export.svg",
       roles: ["admin"],
@@ -158,12 +159,30 @@ export default function Menu() {
         },
       ],
     },
+    {
+      title: "لوحة التحكم",
+      icon: "/icons/ChartBar.svg",
+      roles: ["admin", "accountant"],
+      sub: [
+        { name: "أفرع المعهد", href: "/instituteBranches", roles: ["admin"] },
+        {
+          name: "السجلات",
+          href: "",
+          roles: ["admin", "accountant"],
+        },
+        {
+          name: "الإعدادات",
+          href: "",
+          roles: ["admin", "accountant"],
+        },
+      ],
+    },
   ];
 
   return (
-    <div className="w-full h-full text-right font-medium px-3 flex flex-col overflow-hidden">
-      {/* ✅ العناصر (Scrollable داخلياً) */}
-      <div className="flex-1 min-h-0 overflow-y-auto mt-1 pr-1 overscroll-contain">
+    <div className="w-full h-full text-right font-medium px-2 flex flex-col overflow-hidden">
+      {/* العناصر */}
+      <div className="flex-1 min-h-0 overflow-y-auto mt-1 pr-1 overscroll-contain text-[14px]">
         {menuItems
           .filter((menu) => hasAccess(menu.roles))
           .map((menu) => {
@@ -174,18 +193,21 @@ export default function Menu() {
                 {menu.sub ? (
                   <button
                     onClick={() => toggleMenu(menu.title)}
-                    className="cursor-pointer group flex items-center justify-between w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
+                    className="cursor-pointer group flex items-center justify-between w-full rounded-lg
+                               px-2.5 py-2 text-[#4D4D4D]
+                               hover:bg-[#AD164C] hover:text-white transition"
                   >
                     <div className="flex items-center gap-2">
                       <Image
                         src={menu.icon}
                         alt=""
-                        width={22}
-                        height={22}
+                        width={20}
+                        height={20}
                         className="object-contain transition group-hover:brightness-0 group-hover:invert"
                       />
-                      <span>{menu.title}</span>
+                      <span className="leading-5">{menu.title}</span>
                     </div>
+
                     <ChevronDown
                       className={`w-4 h-4 transition-transform duration-300 ${
                         isOpen ? "rotate-180" : ""
@@ -195,17 +217,19 @@ export default function Menu() {
                 ) : (
                   <Link
                     href={menu.href}
-                    className="group flex items-center w-full rounded-lg px-3 py-2 text-[#4D4D4D] hover:bg-[#AD164C] hover:text-white transition"
+                    className="group flex items-center w-full rounded-lg
+                               px-2.5 py-2 text-[#4D4D4D]
+                               hover:bg-[#AD164C] hover:text-white transition"
                   >
                     <div className="flex items-center gap-2">
                       <Image
                         src={menu.icon}
                         alt=""
-                        width={22}
-                        height={22}
+                        width={20}
+                        height={20}
                         className="object-contain transition group-hover:brightness-0 group-hover:invert"
                       />
-                      <span>{menu.title}</span>
+                      <span className="leading-5">{menu.title}</span>
                     </div>
                   </Link>
                 )}
@@ -218,14 +242,15 @@ export default function Menu() {
                         : "max-h-0 opacity-0"
                     }`}
                   >
-                    <ul>
+                    <ul className="space-y-1">
                       {menu.sub
                         .filter((item) => hasAccess(item.roles))
                         .map((item) => (
                           <li key={item.name}>
                             <Link
                               href={item.href}
-                              className="block px-2 py-1 rounded-md hover:bg-[#F7CBE3] hover:font-semibold hover:text-black transition"
+                              className="block px-2.5 py-1.5 rounded-md text-[13px]
+                                         hover:bg-[#F7CBE3] hover:font-semibold hover:text-black transition"
                             >
                               {item.name}
                             </Link>
@@ -239,13 +264,13 @@ export default function Menu() {
           })}
       </div>
 
-      {/* ✅ الفوتر ثابت تحت (بدون ما يعمل سكرول للصفحة) */}
-      <div className="shrink-0 pt-3">
+      {/* الفوتر */}
+      <div className="shrink-0 pt-2">
         <button
           onClick={handleLogout}
           className="group flex items-center gap-2 w-full text-right text-[#7B0046]
                  hover:bg-[#AD164C] hover:text-white
-                 rounded-lg px-3 py-2 transition"
+                 rounded-lg px-2.5 py-2 transition text-[14px]"
         >
           <Image
             src="/icons/SignOut.svg"
@@ -254,18 +279,18 @@ export default function Menu() {
             height={20}
             className="transition group-hover:brightness-0 group-hover:invert"
           />
-          <span>تسجيل الخروج</span>
+          <span className="leading-5">تسجيل الخروج</span>
         </button>
 
-        <div className="relative mt-3 h-[120px] rounded-xl overflow-hidden">
+        {/* الصورة أصغر شوي */}
+        <div className="relative mt-2 h-[170px] w-[84%] mx-auto rounded-xl overflow-hidden">
           <Image
-            src="/icons/Sidebar.png"
+            src="/icons/sidebar-footer.png"
             alt="sidebar footer"
             fill
-            sizes="(max-width: 768px) 320px, 300px"
+            sizes="(max-width: 768px) 200px, 300px"
             className="object-cover"
           />
-          {/* ✅ Blur Layer */}
         </div>
       </div>
     </div>
