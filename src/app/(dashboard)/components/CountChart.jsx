@@ -7,7 +7,7 @@ import { useGetTotalStudentsQuery } from "@/store/services/statisticsApi";
 export default function CountChart() {
   const [hovered] = useState(true);
 
-  // 📡 API
+  //  API
   const { data, isLoading, isError } = useGetTotalStudentsQuery();
 
   const total = data?.total ?? 0;

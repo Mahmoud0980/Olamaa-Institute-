@@ -11,7 +11,6 @@ export default function Menu() {
   const [userRoles, setUserRoles] = useState([]);
   const router = useRouter();
 
-  // ===== جلب roles من localStorage =====
   useEffect(() => {
     const auth = localStorage.getItem("auth");
     if (auth) {
@@ -28,13 +27,11 @@ export default function Menu() {
     setOpenMenu(openMenu === title ? null : title);
   };
 
-  // ===== التحقق من الصلاحيات =====
   const hasAccess = (allowedRoles = []) => {
     if (allowedRoles.length === 0) return true;
     return allowedRoles.some((role) => userRoles.includes(role));
   };
 
-  // ===== تسجيل الخروج =====
   const handleLogout = async () => {
     try {
       const auth = localStorage.getItem("auth");
@@ -48,7 +45,7 @@ export default function Menu() {
         },
       });
     } catch (error) {
-      // حتى لو فشل الطلب، نكمل تسجيل الخروج
+      // ignore
     } finally {
       localStorage.removeItem("auth");
       localStorage.removeItem("currentUser");
@@ -56,7 +53,6 @@ export default function Menu() {
     }
   };
 
-  // ===== عناصر القائمة =====
   const menuItems = [
     {
       title: "الصفحة الرئيسية",
@@ -93,11 +89,7 @@ export default function Menu() {
           href: "/payments",
           roles: ["admin", "accountant"],
         },
-        {
-          name: "إضافة دفعة",
-          href: "/payments/add",
-          roles: ["admin"],
-        },
+        { name: "إضافة دفعة", href: "/payments/add", roles: ["admin"] },
       ],
     },
     {
@@ -169,8 +161,9 @@ export default function Menu() {
   ];
 
   return (
-    <div className="w-full h-full text-right font-medium px-3 flex flex-col">
-      <div className="mt-4">
+    <div className="w-full h-full text-right font-medium px-3 flex flex-col overflow-hidden">
+      {/* ✅ العناصر (Scrollable داخلياً) */}
+      <div className="flex-1 min-h-0 overflow-y-auto mt-1 pr-1 overscroll-contain">
         {menuItems
           .filter((menu) => hasAccess(menu.roles))
           .map((menu) => {
@@ -178,7 +171,6 @@ export default function Menu() {
 
             return (
               <div key={menu.title} className="mb-1">
-                {/* العنصر الرئيسي */}
                 {menu.sub ? (
                   <button
                     onClick={() => toggleMenu(menu.title)}
@@ -218,7 +210,6 @@ export default function Menu() {
                   </Link>
                 )}
 
-                {/* القوائم الفرعية */}
                 {menu.sub && (
                   <div
                     className={`overflow-hidden transition-all duration-300 ${
@@ -246,13 +237,15 @@ export default function Menu() {
               </div>
             );
           })}
+      </div>
 
-        {/* ===== تسجيل الخروج ===== */}
+      {/* ✅ الفوتر ثابت تحت (بدون ما يعمل سكرول للصفحة) */}
+      <div className="shrink-0 pt-3">
         <button
           onClick={handleLogout}
           className="group flex items-center gap-2 w-full text-right text-[#7B0046]
-             hover:bg-[#AD164C] hover:text-white
-             rounded-lg px-3 py-2 mt-auto mb-4 transition"
+                 hover:bg-[#AD164C] hover:text-white
+                 rounded-lg px-3 py-2 transition"
         >
           <Image
             src="/icons/SignOut.svg"
@@ -263,6 +256,17 @@ export default function Menu() {
           />
           <span>تسجيل الخروج</span>
         </button>
+
+        <div className="relative mt-3 h-[120px] rounded-xl overflow-hidden">
+          <Image
+            src="/icons/Sidebar.png"
+            alt="sidebar footer"
+            fill
+            sizes="(max-width: 768px) 320px, 300px"
+            className="object-cover"
+          />
+          {/* ✅ Blur Layer */}
+        </div>
       </div>
     </div>
   );

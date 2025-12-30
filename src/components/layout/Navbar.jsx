@@ -366,7 +366,7 @@ export default function Navbar() {
             }}
             title={qrHint}
           >
-            <Image src="/icons/QR.png" width={22} height={22} alt="qr" />
+            <IconBox icon="/icons/Qrbtn.png" />
           </div>
 
           {/* 👤 Avatar */}
@@ -423,7 +423,7 @@ export default function Navbar() {
 function IconBox({ icon }) {
   return (
     <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 cursor-pointer hover:bg-gray-200">
-      <Image src={icon} width={22} height={22} alt="icon" />
+      <Image src={icon} width={40} height={40} alt="icon" />
     </div>
   );
 }
