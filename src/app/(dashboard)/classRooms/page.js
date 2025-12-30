@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-
+import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -19,31 +19,35 @@ import Breadcrumb from "@/components/common/Breadcrumb";
 
 import ClassRoomsTable from "./components/ClassRoomsTable";
 import AddClassRoomModal from "./components/AddClassRoomModal";
-import { useSelector } from "react-redux";
 
 export default function ClassRoomsPage() {
   const { data, isLoading } = useGetClassRoomsQuery();
   const rooms = data?.data || [];
+
   const search = useSelector((state) => state.search.values.classRooms);
 
   const [deleteRoom, { isLoading: deleting }] = useDeleteClassRoomMutation();
+
+  // ===== Selection =====
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // ===== Filtering =====
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) =>
       room.name?.toLowerCase().includes((search || "").toLowerCase())
     );
   }, [rooms, search]);
+
+  // تنظيف التحديد عند تغير البحث
   useEffect(() => {
     setSelectedIds([]);
   }, [search]);
 
-  // ===== Selection =====
-  const [selectedIds, setSelectedIds] = useState([]);
-
   const isAllSelected =
-    selectedIds.length > 0 && selectedIds.length === rooms.length;
+    selectedIds.length > 0 && selectedIds.length === filteredRooms.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : rooms.map((r) => r.id));
+    setSelectedIds(isAllSelected ? [] : filteredRooms.map((r) => r.id));
   };
 
   // ===== Modals =====
@@ -127,7 +131,7 @@ export default function ClassRoomsPage() {
       الاسم: r.name,
       الكود: r.code,
       السعة: r.capacity,
-      ملاحظات: r.notes,
+      ملاحظات: r.notes || "-",
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelRows);
@@ -135,7 +139,6 @@ export default function ClassRoomsPage() {
     XLSX.utils.book_append_sheet(wb, ws, "ClassRooms");
 
     const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-
     saveAs(new Blob([buffer]), "القاعات.xlsx");
   };
 
@@ -147,6 +150,7 @@ export default function ClassRoomsPage() {
         <ActionsRow
           addLabel="إضافة قاعة"
           showSelectAll
+          viewLabel=""
           isAllSelected={isAllSelected}
           onToggleSelectAll={toggleSelectAll}
           onAdd={() => {
@@ -166,7 +170,10 @@ export default function ClassRoomsPage() {
         isLoading={isLoading}
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
-        onEdit={setEditItem}
+        onEdit={(item) => {
+          setEditItem(item);
+          setIsModalOpen(true);
+        }}
         onDelete={handleDelete}
       />
 
@@ -174,6 +181,7 @@ export default function ClassRoomsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         item={editItem}
+        rooms={rooms} // ✅ مهم لتوليد الكود تلقائي
       />
 
       <DeleteConfirmModal

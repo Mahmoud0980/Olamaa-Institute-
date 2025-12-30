@@ -296,7 +296,7 @@ export default function AttendanceTab({
           const checked = selectedKey === key;
 
           return (
-            <div key={i} className="border rounded-xl p-4 shadow-sm bg-white">
+            <div key={i} className="rounded-xl p-4 shadow-sm bg-white">
               <div className="flex justify-between items-center mb-2">
                 <div className="text-xs text-gray-500">تحديد</div>
                 <input

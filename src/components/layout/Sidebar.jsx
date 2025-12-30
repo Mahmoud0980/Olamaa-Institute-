@@ -101,14 +101,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           transition-all duration-300
         "
       >
-        <Image
-          src="/icons/Star2.png"
-          width={60}
-          height={60}
-          alt="sidebar-bg"
-          className="absolute z-50 top-[485px] left-[236px]"
-        />
-
         {/* شعار */}
         <div className="flex items-center justify-center gap-2 px-5 py-2">
           <Image src="/logo.svg" alt="logo" width={45} height={45} />
@@ -150,14 +142,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         `}
         aria-hidden={!sidebarOpen}
       >
-        <Image
-          src="/icons/Star2.png"
-          width={100}
-          height={100}
-          alt="sidebar-bg"
-          className="absolute z-50 top-[485px] left-[236px]"
-        />
-
         {/* رأس */}
         <div className="flex items-center justify-between p-4 border-b border-[#e0e0e0]">
           <Link href="/" className="font-semibold text-[#6F013F] text-[18px]">

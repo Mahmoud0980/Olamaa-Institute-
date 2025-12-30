@@ -15,7 +15,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" dir="rtl">
-      <body>
+      <body className="overflow-hidden">
         <Providers>{children}</Providers>
         <Toaster
           position="top-center"

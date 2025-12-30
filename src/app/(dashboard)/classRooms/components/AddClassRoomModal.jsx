@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -12,9 +12,30 @@ import {
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 
-export default function AddClassRoomModal({ isOpen, onClose, item }) {
+// ✅ توليد الكود التالي بناءً على أكبر رقم موجود
+function getNextRoomCode(rooms = []) {
+  let max = 0;
+
+  for (const r of rooms) {
+    const code = String(r?.code || "");
+    const matches = code.match(/\d+/g);
+    const num = matches?.length ? Number(matches[matches.length - 1]) : 0;
+    if (!Number.isNaN(num)) max = Math.max(max, num);
+  }
+
+  return `CR-${max + 1}`;
+}
+
+export default function AddClassRoomModal({
+  isOpen,
+  onClose,
+  item,
+  rooms = [],
+}) {
   const [addRoom] = useAddClassRoomMutation();
   const [updateRoom] = useUpdateClassRoomMutation();
+
+  const nextAutoCode = useMemo(() => getNextRoomCode(rooms), [rooms]);
 
   const [form, setForm] = useState({
     name: "",
@@ -25,39 +46,106 @@ export default function AddClassRoomModal({ isOpen, onClose, item }) {
 
   const [loading, setLoading] = useState(false);
 
+  // ✅ أخطاء لحظية
+  const [capacityError, setCapacityError] = useState("");
+
   useEffect(() => {
     if (!isOpen) return;
+
+    // تنظيف أي Toast قديم متعلق بالسعة
+    toast.dismiss("capacity");
 
     if (item) {
       setForm({
         name: item.name || "",
         code: item.code || "",
-        capacity: item.capacity || "",
+        capacity: item.capacity ?? "",
         notes: item.notes || "",
       });
+      setCapacityError("");
     } else {
       setForm({
         name: "",
-        code: "",
+        code: nextAutoCode,
         capacity: "",
         notes: "",
       });
+      setCapacityError("");
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, nextAutoCode]);
+
+  // إذا كانت القاعات تأخرت بالتحميل وفتحنا المودال، حدّث الكود تلقائيًا
+  useEffect(() => {
+    if (!isOpen) return;
+    if (item) return;
+
+    setForm((prev) => ({
+      ...prev,
+      code: nextAutoCode,
+    }));
+  }, [isOpen, item, nextAutoCode]);
+
+  // ✅ فحص السعة أثناء الإدخال
+  const handleCapacityChange = (e) => {
+    const v = e.target.value;
+
+    setForm((prev) => ({ ...prev, capacity: v }));
+
+    // السماح بالفراغ أثناء الكتابة
+    if (v === "") {
+      setCapacityError("");
+      toast.dismiss("capacity");
+      return;
+    }
+
+    const num = Number(v);
+
+    if (Number.isNaN(num)) {
+      setCapacityError("السعة يجب أن تكون رقم");
+      toast.error("السعة يجب أن تكون رقم", { id: "capacity" });
+      return;
+    }
+
+    if (num <= 0) {
+      setCapacityError("السعة يجب أن تكون أكبر من 0");
+      toast.error("السعة يجب أن تكون أكبر من 0", { id: "capacity" });
+      return;
+    }
+
+    if (num > 40) {
+      setCapacityError("السعة لا يمكن أن تكون أكثر من 40");
+      toast.error("السعة لا يمكن أن تكون أكثر من 40", { id: "capacity" });
+      return;
+    }
+
+    // ✅ صالح
+    setCapacityError("");
+    toast.dismiss("capacity");
+  };
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return toast.error("اسم القاعة مطلوب");
+    if (form.capacity === "" || form.capacity === null)
+      return toast.error("السعة مطلوبة");
 
-    if (!form.capacity) return toast.error("السعة مطلوبة");
+    const capNum = Number(form.capacity);
+
+    if (Number.isNaN(capNum) || capNum <= 0)
+      return toast.error("السعة يجب أن تكون رقم صحيح أكبر من 0");
+
+    if (capNum > 40) return toast.error("السعة لا يمكن أن تكون أكثر من 40");
+
+    // ✅ منع الحفظ إذا كان في خطأ لحظي
+    if (capacityError) return toast.error(capacityError);
 
     try {
       setLoading(true);
 
       const payload = {
-        name: form.name,
-        code: form.code,
-        capacity: Number(form.capacity),
-        notes: form.notes,
+        name: form.name.trim(),
+        code: item ? form.code : nextAutoCode,
+        capacity: capNum,
+        notes: form.notes || "",
       };
 
       if (item) {
@@ -100,23 +188,35 @@ export default function AddClassRoomModal({ isOpen, onClose, item }) {
             }}
           />
 
+          {/* ✅ الكود ممنوع إدخاله */}
           <FormInput
             label="الكود"
             value={form.code}
             register={{
-              onChange: (e) => setForm({ ...form, code: e.target.value }),
+              readOnly: true,
+              disabled: true,
             }}
           />
 
-          <FormInput
-            type="number"
-            label="السعة"
-            required
-            value={form.capacity}
-            register={{
-              onChange: (e) => setForm({ ...form, capacity: e.target.value }),
-            }}
-          />
+          <div>
+            <FormInput
+              type="number"
+              label="السعة"
+              required
+              value={form.capacity}
+              register={{
+                min: 1,
+                max: 40,
+                step: 1,
+                onChange: handleCapacityChange, // ✅ فحص لحظي
+              }}
+            />
+
+            {/* ✅ رسالة تحت الحقل */}
+            {capacityError && (
+              <p className="mt-1 text-sm text-red-600">{capacityError}</p>
+            )}
+          </div>
 
           <FormInput
             label="ملاحظات"

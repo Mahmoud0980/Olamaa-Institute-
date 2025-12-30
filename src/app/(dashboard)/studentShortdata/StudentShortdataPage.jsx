@@ -650,7 +650,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
   };
 
   return (
-    <div dir="rtl" className="p-4 md:p-6 bg-[#FBFBFB] min-h-screen">
+    <div dir="rtl" className="p-4 md:p-6 bg-[#FBFBFB] h-screen overflow-auto ">
       <div className="flex flex-col lg:flex-row-reverse gap-6">
         <div className="lg:w-1/4">
           <StudentCard

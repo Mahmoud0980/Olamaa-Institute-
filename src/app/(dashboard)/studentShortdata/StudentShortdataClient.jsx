@@ -15,11 +15,7 @@ export default function StudentShortdataClient() {
 
   // ننتظر لحين وصول الـ id من QR
   if (!studentId) {
-    return (
-      <div className="p-10 text-center text-gray-500">
-        جاري تحميل بيانات الطالب...
-      </div>
-    );
+    return <div className="p-10 text-center text-gray-500"></div>;
   }
 
   return <StudentShortdataPage idFromUrl={studentId} />;
