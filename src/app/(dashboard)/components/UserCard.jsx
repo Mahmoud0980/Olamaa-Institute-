@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   useGetTotalGuardiansQuery,
   useGetTotalEmployeesQuery,
+  useGetTotalStudentsQuery,
 } from "@/store/services/statisticsApi";
 
 export default function HighlightCards() {
@@ -14,6 +15,9 @@ export default function HighlightCards() {
   // 🔗 API calls
   const { data: totalGuardians = 0 } = useGetTotalGuardiansQuery();
   const { data: totalEmployees = 0 } = useGetTotalEmployeesQuery();
+  const { data: studentsData } = useGetTotalStudentsQuery();
+
+  const totalStudents = studentsData?.total ?? 0;
 
   // 🧠 الكروت (dynamic)
   const CARDS = useMemo(
@@ -21,7 +25,7 @@ export default function HighlightCards() {
       {
         title: "عدد الطلاب الكلي",
         subtitle: "إجمالي عدد الطلاب",
-        value: 0, // لاحقًا API
+        value: totalStudents,
         img: "/totalStudents.svg",
       },
       {
@@ -43,7 +47,7 @@ export default function HighlightCards() {
         img: "/discounted.svg",
       },
     ],
-    [totalGuardians, totalEmployees]
+    [totalStudents, totalGuardians, totalEmployees]
   );
 
   const clearResetTimer = () => {
@@ -115,10 +119,11 @@ export default function HighlightCards() {
                     fill
                     sizes="44px"
                     className="object-contain"
+                    priority={i === 0}
                   />
                 </div>
                 <div className="text-2xl font-bold">
-                  {c.value.toLocaleString("en-US")}
+                  {Number(c.value || 0).toLocaleString("en-US")}
                 </div>
               </div>
             </div>

@@ -13,19 +13,19 @@ export default function DashbaordLayout({ children }) {
   const dispatch = useDispatch();
 
   return (
-    <div dir="rtl" className="min-h-screen flex">
+    <div dir="rtl" className="h-dvh flex overflow-hidden">
       {/* السايدبار (ثابت + متجاوب) */}
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
       {/* المحتوى */}
       {/*pr-5 pl-5*/}
-      <div className="flex-1 flex flex-col min-h-screen ">
+      <div className="flex-1 flex flex-col h-dvh min-w-0 overflow-hidden">
         <Navbar
           //  branches={list}
           selectedBranchId={selectedBranchId}
           setSelectedBranchId={setSelectedBranchId}
         />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

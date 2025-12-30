@@ -50,6 +50,17 @@ export const statisticsApi = createApi({
           value: item.percentage ?? 0,
         })),
     }),
+    getBatchesStats: builder.query({
+      query: () => ({
+        url: "/batches/stats",
+        method: "GET",
+      }),
+      transformResponse: (response) => ({
+        completed: response?.data?.completed ?? 0,
+        notCompleted: response?.data?.not_completed ?? 0,
+        total: response?.data?.total ?? 0,
+      }),
+    }),
   }),
 });
 
@@ -58,4 +69,5 @@ export const {
   useGetTotalEmployeesQuery,
   useGetTotalStudentsQuery,
   useGetBatchesPerformanceQuery,
+  useGetBatchesStatsQuery,
 } = statisticsApi;

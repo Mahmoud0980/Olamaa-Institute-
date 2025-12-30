@@ -29,12 +29,12 @@ export default function Page() {
       {isLoading ? (
         <DashboardSkeleton />
       ) : (
-        <div className="bg-white min-h-dvh" dir="rtl">
+        <div className="bg-white min-h-dvh overflow-auto" dir="rtl">
           {/* ===== User Header ===== */}
           <UserCard />
 
           {/* ===== Main Container ===== */}
-          <div className="container mx-auto p-4 overflow-hidden">
+          <div className="container mx-auto p-4 overflow-y-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* ===== Left (2/3) ===== */}
               <section className="lg:col-span-2 flex flex-col gap-4 min-w-0">

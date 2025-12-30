@@ -110,7 +110,7 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between px-6 py-4 bg-white">
+      <div className="flex items-center justify-end lg:justify-between px-6 py-4 bg-white">
         {/* ================= SEARCH ================= */}
         <div className="hidden lg:flex items-center gap-3 rounded-lg bg-[#F3F3F3] px-3 w-[231px] xl:w-[446px] h-[50px]">
           <Image

@@ -74,7 +74,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       <button
         onClick={() => setSidebarOpen(true)}
         className={`
-          xl:hidden fixed top-3 right-3 z-50 p-2 rounded-xl bg-[#6F013F] shadow
+          xl:hidden fixed top-9 right-3 z-50 p-2 rounded-xl bg-[#6F013F] shadow
           transition-all duration-300
           ${sidebarOpen ? "opacity-0 pointer-events-none" : ""}
           ${

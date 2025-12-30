@@ -250,7 +250,7 @@ export default function AttendanceTab({
         <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
           <thead>
             <tr className="bg-pink-50">
-              <th className="p-3 rounded-r-xl w-10 text-center">✓</th>
+              <th className="p-3 rounded-r-xl w-10 text-center">#</th>
               <th className="p-3">التاريخ</th>
               <th className="p-3">الوصول</th>
               <th className="p-3">الانصراف</th>
