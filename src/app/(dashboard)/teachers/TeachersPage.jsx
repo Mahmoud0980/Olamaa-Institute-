@@ -136,6 +136,7 @@ export default function TeachersPage({ openAddFromUrl }) {
       <div className="flex justify-between items-center">
         <ActionsRow
           addLabel="إضافة أستاذ"
+          viewLabel=""
           onAdd={() => setAddOpen(true)}
           showSelectAll={!selectedTeacher}
           isAllSelected={isAllSelected}
