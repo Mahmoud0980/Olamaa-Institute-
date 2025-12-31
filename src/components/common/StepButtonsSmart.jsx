@@ -9,6 +9,7 @@ export default function StepButtonsSmart({
   loading = false, // حالة التحميل
   onNext,
   onBack,
+  submitLabel,
 }) {
   const isSingleStep = total === 1;
   const isLastStep = step === total;
@@ -16,9 +17,10 @@ export default function StepButtonsSmart({
   // تحديد نص الزر تلقائياً
   let nextLabel = "التالي";
 
-  if (isSingleStep) {
-    nextLabel = isEdit ? "تعديل البيانات" : "حفظ";
-  } else if (isLastStep) {
+  if (total === 1) {
+    // ✅ إذا في submitLabel استخدمه
+    nextLabel = submitLabel ?? (isEdit ? "تعديل البيانات" : "حفظ");
+  } else if (step === total) {
     nextLabel = "إنهاء";
   }
 

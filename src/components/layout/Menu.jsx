@@ -86,7 +86,11 @@ export default function Menu() {
       roles: ["admin"],
       sub: [
         { name: "قائمة المدرسين", href: "/teachers", roles: ["admin"] },
-        { name: "إضافة مدرس", href: "/teachers/add", roles: ["admin"] },
+        {
+          name: "إضافة مدرس",
+          href: "/teachers?addTeacher=1",
+          roles: ["admin"],
+        },
       ],
     },
     {
@@ -95,7 +99,11 @@ export default function Menu() {
       roles: ["admin"],
       sub: [
         { name: "قائمة الموظفين", href: "/employees", roles: ["admin"] },
-        { name: "إضافة موظف", href: "/employees/add", roles: ["admin"] },
+        {
+          name: "إضافة موظف",
+          href: "/employees?addEmployee=1",
+          roles: ["admin"],
+        },
       ],
     },
     {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash2, ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -23,6 +23,7 @@ const PAGE_SIZE = 4;
 function DeleteIconButton({ onClick, title = "حذف" }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title={title}
       className="hover:opacity-80 text-red-600"
@@ -32,7 +33,18 @@ function DeleteIconButton({ onClick, title = "حذف" }) {
   );
 }
 
-export default function CoursesTable({ selectedTeacher }) {
+function InfoRow({ label, value, strong }) {
+  return (
+    <div className="flex justify-between gap-3 mb-2">
+      <span className="text-gray-500 shrink-0">{label}:</span>
+      <span className={`text-right ${strong ? "font-semibold" : ""}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+export default function CoursesTable({ selectedTeacher, onBack }) {
   const teacherId = selectedTeacher?.id;
 
   const [tab, setTab] = useState("all");
@@ -155,7 +167,19 @@ export default function CoursesTable({ selectedTeacher }) {
     <div className="bg-white rounded-xl shadow-sm p-5">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-4">
-        <h3 className="font-semibold">تفاصيل {selectedTeacher?.name}</h3>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+            title="رجوع"
+          >
+            <ArrowRight size={18} />
+            رجوع
+          </button>
+
+          <h3 className="font-semibold">تفاصيل {selectedTeacher?.name}</h3>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -182,180 +206,334 @@ export default function CoursesTable({ selectedTeacher }) {
         <>
           {/* ================= ALL ================= */}
           {tab === "all" && (
-            <div className="max-h-[450px] overflow-y-auto">
-              <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-                <thead className="sticky top-0 bg-pink-50 z-10">
-                  <tr>
-                    <th className="p-3">#</th>
-                    <th className="p-3">الشعبة</th>
-                    <th className="p-3">القاعة</th>
-                    <th className="p-3">المواد</th>
-                    <th className="p-3">الفترة</th>
-                  </tr>
-                </thead>
+            <>
+              {/* Desktop */}
+              <div className="hidden md:block max-h-[450px] overflow-y-auto overflow-x-auto">
+                <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
+                  <thead className="sticky top-0 bg-pink-50 z-10">
+                    <tr>
+                      <th className="p-3 rounded-r-xl">#</th>
+                      <th className="p-3">الشعبة</th>
+                      <th className="p-3">القاعة</th>
+                      <th className="p-3">المواد</th>
+                      <th className="p-3 rounded-l-xl">الفترة</th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                  {paginated.map((b, idx) => {
-                    const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
-                    const subjectsText =
-                      b?.subjects?.length > 0
-                        ? b.subjects.map((s) => s.subject_name).join("، ")
-                        : "—";
+                  <tbody>
+                    {paginated.map((b, idx) => {
+                      const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
+                      const subjectsText =
+                        b?.subjects?.length > 0
+                          ? b.subjects.map((s) => s.subject_name).join("، ")
+                          : "—";
 
-                    return (
-                      <tr
-                        key={`all-${b?.batch_id}-${b?.class_room?.id ?? "no"}`}
-                        className="hover:bg-pink-50"
-                      >
-                        <td className="p-3">{rowIndex}</td>
-                        <td className="p-3">{b?.batch_name || "—"}</td>
-                        <td className="p-3">{b?.class_room?.name || "—"}</td>
-                        <td className="p-3">{subjectsText}</td>
-                        <td className="p-3 text-gray-600 text-xs">
-                          {b?.start_date} → {b?.end_date}
+                      return (
+                        <tr
+                          key={`all-${b?.batch_id}-${
+                            b?.class_room?.id ?? "no"
+                          }`}
+                          className="hover:bg-pink-50"
+                        >
+                          <td className="p-3 rounded-r-xl">{rowIndex}</td>
+                          <td className="p-3">{b?.batch_name || "—"}</td>
+                          <td className="p-3">{b?.class_room?.name || "—"}</td>
+                          <td className="p-3">{subjectsText}</td>
+                          <td className="p-3 text-gray-600 text-xs rounded-l-xl">
+                            {b?.start_date || "—"} → {b?.end_date || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {listForPaging.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="p-4 text-center text-gray-500"
+                        >
+                          لا يوجد بيانات مرتبطة بهذا المدرس
                         </td>
                       </tr>
-                    );
-                  })}
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                  {listForPaging.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-4 text-center text-gray-500">
-                        لا يوجد بيانات مرتبطة بهذا المدرس
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+              {/* Mobile */}
+              <div className="md:hidden space-y-4">
+                {paginated.map((b, idx) => {
+                  const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
+                  const subjectsText =
+                    b?.subjects?.length > 0
+                      ? b.subjects.map((s) => s.subject_name).join("، ")
+                      : "—";
+
+                  return (
+                    <div
+                      key={`all-m-${b?.batch_id}-${b?.class_room?.id ?? "no"}`}
+                      className="border border-gray-200 rounded-xl p-4 shadow-sm"
+                    >
+                      <InfoRow label="#" value={rowIndex} strong />
+                      <InfoRow label="الشعبة" value={b?.batch_name || "—"} />
+                      <InfoRow
+                        label="القاعة"
+                        value={b?.class_room?.name || "—"}
+                      />
+                      <InfoRow label="المواد" value={subjectsText} />
+                      <InfoRow
+                        label="الفترة"
+                        value={`${b?.start_date || "—"} → ${
+                          b?.end_date || "—"
+                        }`}
+                      />
+                    </div>
+                  );
+                })}
+
+                {listForPaging.length === 0 && (
+                  <div className="py-10 text-center text-gray-400">
+                    لا يوجد بيانات مرتبطة بهذا المدرس
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* ================= BATCHES ================= */}
           {tab === "batches" && (
-            <div className="max-h-[450px] overflow-y-auto">
-              <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-                <thead className="sticky top-0 bg-pink-50 z-10">
-                  <tr>
-                    <th className="p-3">#</th>
-                    <th className="p-3">الشعبة</th>
-                    <th className="p-3">من</th>
-                    <th className="p-3">إلى</th>
-                    <th className="p-3 text-center">الإجراءات</th>
-                  </tr>
-                </thead>
+            <>
+              {/* Desktop */}
+              <div className="hidden md:block max-h-[450px] overflow-y-auto overflow-x-auto">
+                <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
+                  <thead className="sticky top-0 bg-pink-50 z-10">
+                    <tr>
+                      <th className="p-3 rounded-r-xl">#</th>
+                      <th className="p-3">الشعبة</th>
+                      <th className="p-3">من</th>
+                      <th className="p-3">إلى</th>
+                      <th className="p-3 text-center rounded-l-xl">
+                        الإجراءات
+                      </th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                  {paginated.map((b, idx) => {
-                    const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
+                  <tbody>
+                    {paginated.map((b, idx) => {
+                      const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
 
-                    return (
-                      <tr
-                        key={`batch-${b?.batch_id ?? rowIndex}`}
-                        className="hover:bg-pink-50"
-                      >
-                        <td className="p-3">{rowIndex}</td>
-                        <td className="p-3">{b?.batch_name || "—"}</td>
-                        <td className="p-3">{b?.start_date || "—"}</td>
-                        <td className="p-3">{b?.end_date || "—"}</td>
+                      return (
+                        <tr
+                          key={`batch-${b?.batch_id ?? rowIndex}`}
+                          className="hover:bg-pink-50"
+                        >
+                          <td className="p-3 rounded-r-xl">{rowIndex}</td>
+                          <td className="p-3">{b?.batch_name || "—"}</td>
+                          <td className="p-3">{b?.start_date || "—"}</td>
+                          <td className="p-3">{b?.end_date || "—"}</td>
 
-                        <td className="p-3">
-                          <div className="flex items-center justify-center">
-                            <DeleteIconButton
-                              onClick={() => {
-                                if (b?.subjects?.length > 0) {
-                                  return toast.error(
-                                    "لا يمكن حذف الشعبة قبل حذف المواد المرتبطة بها أولاً."
-                                  );
-                                }
-                                toast("لا يوجد مواد مرتبطة بهذه الشعبة.");
-                              }}
-                            />
-                          </div>
+                          <td className="p-3 rounded-l-xl">
+                            <div className="flex items-center justify-center">
+                              <DeleteIconButton
+                                onClick={() => {
+                                  if (b?.subjects?.length > 0) {
+                                    return toast.error(
+                                      "لا يمكن حذف الشعبة قبل حذف المواد المرتبطة بها أولاً."
+                                    );
+                                  }
+                                  toast("لا يوجد مواد مرتبطة بهذه الشعبة.");
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {listForPaging.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="p-4 text-center text-gray-500"
+                        >
+                          لا يوجد شعب مرتبطة بهذا المدرس
                         </td>
                       </tr>
-                    );
-                  })}
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                  {listForPaging.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-4 text-center text-gray-500">
-                        لا يوجد شعب مرتبطة بهذا المدرس
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+              {/* Mobile */}
+              <div className="md:hidden space-y-4">
+                {paginated.map((b, idx) => {
+                  const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
+
+                  return (
+                    <div
+                      key={`batch-m-${b?.batch_id ?? rowIndex}`}
+                      className="border border-gray-200 rounded-xl p-4 shadow-sm"
+                    >
+                      <InfoRow label="#" value={rowIndex} strong />
+                      <InfoRow label="الشعبة" value={b?.batch_name || "—"} />
+                      <InfoRow label="من" value={b?.start_date || "—"} />
+                      <InfoRow label="إلى" value={b?.end_date || "—"} />
+
+                      <div className="flex justify-center mt-3">
+                        <DeleteIconButton
+                          onClick={() => {
+                            if (b?.subjects?.length > 0) {
+                              return toast.error(
+                                "لا يمكن حذف الشعبة قبل حذف المواد المرتبطة بها أولاً."
+                              );
+                            }
+                            toast("لا يوجد مواد مرتبطة بهذه الشعبة.");
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {listForPaging.length === 0 && (
+                  <div className="py-10 text-center text-gray-400">
+                    لا يوجد شعب مرتبطة بهذا المدرس
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* ================= SUBJECTS ================= */}
           {tab === "subjects" && (
-            <div className="max-h-[450px] overflow-y-auto">
-              <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-                <thead className="sticky top-0 bg-pink-50 z-10">
-                  <tr>
-                    <th className="p-3">#</th>
-                    <th className="p-3">المادة</th>
-                    <th className="p-3">الشُّعب</th>
-                    <th className="p-3 text-center">الإجراءات</th>
-                  </tr>
-                </thead>
+            <>
+              {/* Desktop */}
+              <div className="hidden md:block max-h-[450px] overflow-y-auto overflow-x-auto">
+                <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
+                  <thead className="sticky top-0 bg-pink-50 z-10">
+                    <tr>
+                      <th className="p-3 rounded-r-xl">#</th>
+                      <th className="p-3">المادة</th>
+                      <th className="p-3">الشُّعب</th>
+                      <th className="p-3 text-center rounded-l-xl">
+                        الإجراءات
+                      </th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                  {paginated.map((row, idx) => {
-                    const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
+                  <tbody>
+                    {paginated.map((row, idx) => {
+                      const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
 
-                    const instructorSubjectId = row?.instructor_subject_id;
-                    const subjectId = row?.subject?.id;
-                    const subjectName = row?.subject?.name || "—";
+                      const instructorSubjectId = row?.instructor_subject_id;
+                      const subjectId = row?.subject?.id;
+                      const subjectName = row?.subject?.name || "—";
 
-                    const batchesForSubject = subjectId
-                      ? Array.from(subjectToBatchesMap.get(subjectId) || [])
-                      : [];
+                      const batchesForSubject = subjectId
+                        ? Array.from(subjectToBatchesMap.get(subjectId) || [])
+                        : [];
 
-                    return (
-                      <tr
-                        key={`sub-${
-                          instructorSubjectId ?? subjectId ?? rowIndex
-                        }`}
-                        className="hover:bg-pink-50"
-                      >
-                        <td className="p-3">{rowIndex}</td>
-                        <td className="p-3">{subjectName}</td>
-                        <td className="p-3">
-                          {batchesForSubject.length > 0
-                            ? batchesForSubject.join(" / ")
-                            : "—"}
-                        </td>
+                      return (
+                        <tr
+                          key={`sub-${
+                            instructorSubjectId ?? subjectId ?? rowIndex
+                          }`}
+                          className="hover:bg-pink-50"
+                        >
+                          <td className="p-3 rounded-r-xl">{rowIndex}</td>
+                          <td className="p-3">{subjectName}</td>
+                          <td className="p-3">
+                            {batchesForSubject.length > 0
+                              ? batchesForSubject.join(" / ")
+                              : "—"}
+                          </td>
 
-                        <td className="p-3">
-                          <div className="flex items-center justify-center">
-                            <DeleteIconButton
-                              onClick={() => {
-                                if (!subjectId) return;
-                                setToDeleteSubject({
-                                  instructor_id: teacherId,
-                                  subject_id: subjectId,
-                                  subject_name: subjectName,
-                                });
-                              }}
-                            />
-                          </div>
+                          <td className="p-3 rounded-l-xl">
+                            <div className="flex items-center justify-center">
+                              <DeleteIconButton
+                                onClick={() => {
+                                  if (!subjectId) return;
+                                  setToDeleteSubject({
+                                    instructor_id: teacherId,
+                                    subject_id: subjectId,
+                                    subject_name: subjectName,
+                                  });
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {listForPaging.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="p-4 text-center text-gray-500"
+                        >
+                          لا يوجد مواد مرتبطة بهذا المدرس
                         </td>
                       </tr>
-                    );
-                  })}
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                  {listForPaging.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-4 text-center text-gray-500">
-                        لا يوجد مواد مرتبطة بهذا المدرس
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+              {/* Mobile */}
+              <div className="md:hidden space-y-4">
+                {paginated.map((row, idx) => {
+                  const rowIndex = (page - 1) * PAGE_SIZE + idx + 1;
+
+                  const instructorSubjectId = row?.instructor_subject_id;
+                  const subjectId = row?.subject?.id;
+                  const subjectName = row?.subject?.name || "—";
+
+                  const batchesForSubject = subjectId
+                    ? Array.from(subjectToBatchesMap.get(subjectId) || [])
+                    : [];
+
+                  return (
+                    <div
+                      key={`sub-m-${
+                        instructorSubjectId ?? subjectId ?? rowIndex
+                      }`}
+                      className="border border-gray-200 rounded-xl p-4 shadow-sm"
+                    >
+                      <InfoRow label="#" value={rowIndex} strong />
+                      <InfoRow label="المادة" value={subjectName} strong />
+                      <InfoRow
+                        label="الشُّعب"
+                        value={
+                          batchesForSubject.length > 0
+                            ? batchesForSubject.join(" / ")
+                            : "—"
+                        }
+                      />
+
+                      <div className="flex justify-center mt-3">
+                        <DeleteIconButton
+                          onClick={() => {
+                            if (!subjectId) return;
+                            setToDeleteSubject({
+                              instructor_id: teacherId,
+                              subject_id: subjectId,
+                              subject_name: subjectName,
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {listForPaging.length === 0 && (
+                  <div className="py-10 text-center text-gray-400">
+                    لا يوجد مواد مرتبطة بهذا المدرس
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* Pagination */}
@@ -378,7 +556,7 @@ export default function CoursesTable({ selectedTeacher }) {
         onClose={() => setToDeleteSubject(null)}
         onConfirm={async () => {
           try {
-            const res = await deleteByIds({
+            await deleteByIds({
               instructor_id: toDeleteSubject.instructor_id,
               subject_id: toDeleteSubject.subject_id,
             }).unwrap();
@@ -389,7 +567,22 @@ export default function CoursesTable({ selectedTeacher }) {
             refetchAll();
             refetchSubjects();
           } catch (e) {
-            toast.error(e?.data?.message || "فشل حذف المادة");
+            const msg = e?.data?.message || "";
+
+            // ✅ MySQL FK constraint (foreign key)
+            const isFK =
+              msg.includes("SQLSTATE[23000]") ||
+              msg.includes("Integrity constraint violation") ||
+              msg.includes("Cannot delete or update a parent row") ||
+              msg.includes("foreign key constraint");
+
+            if (isFK) {
+              toast.error(
+                "لا يمكن حذف هذه المادة لأنها مربوطة بشُعب/تخصيصات. احذف التخصيصات أولاً."
+              );
+            } else {
+              toast.error(msg || "فشل حذف المادة");
+            }
           }
         }}
       />
@@ -405,8 +598,6 @@ export default function CoursesTable({ selectedTeacher }) {
             await deleteBatchSubject(toDeleteBatchSubject?.id).unwrap();
             toast.success("تم الحذف");
             setToDeleteBatchSubject(null);
-
-            // ✅ بدون Refresh
             refetchAll();
           } catch (e) {
             toast.error(e?.data?.message || "فشل الحذف");

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // API
 import {
@@ -38,6 +39,15 @@ export default function EmployeesPage() {
 
   // ===== Selection =====
   const [selectedIds, setSelectedIds] = useState([]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const addEmployee = searchParams.get("addEmployee");
+  useEffect(() => {
+    if (addEmployee === "1") {
+      setSelectedEmployee(null);
+      setIsModalOpen(true);
+    }
+  }, [addEmployee]);
 
   // ===== Filtering =====
   const filteredEmployees = useMemo(() => {
@@ -251,7 +261,13 @@ export default function EmployeesPage() {
       {/* MODALS */}
       <AddEmployeeModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedEmployee(null);
+
+          // إذا المودال انفتح من رابط السايدبار، شيل الباراميتر
+          if (addEmployee === "1") router.replace("/employees");
+        }}
         employee={selectedEmployee}
       />
 

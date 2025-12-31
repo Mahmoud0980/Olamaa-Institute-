@@ -1,17 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Menu as MenuIcon, X } from "lucide-react";
 import Menu from "./Menu";
 
+const BALL_SIZE = 52;
+const MARGIN = 12;
+const PEEK = 14; // قديش يضل ظاهر من الكرة (لسان صغير)
+const CLOSED_Y = 18; // لما السايدبار مسكّر (فوق)
+const OPEN_Y = 18; // لما السايدبار مفتوح (فوق)
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function getBounds() {
+  const maxX = window.innerWidth - BALL_SIZE - MARGIN;
+  const maxY = window.innerHeight - BALL_SIZE - MARGIN;
+  return { maxX, maxY };
+}
+
+function revealX(side) {
+  const { maxX } = getBounds();
+  return side === "left" ? MARGIN : maxX;
+}
+
+function peekX(side) {
+  return side === "left" ? -(BALL_SIZE - PEEK) : window.innerWidth - PEEK;
+}
+
 export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const [showMobileBtn, setShowMobileBtn] = useState(true);
-  const lastYRef = useRef(0);
-  const tickingRef = useRef(false);
 
-  // ✅ Scroll Lock قوي
+  const [dockSide, setDockSide] = useState("right"); // "left" | "right"
+  const [peeked, setPeeked] = useState(true);
+
+  // ✅ منع فلاش الريفرش: بلّشها برا الشاشة
+  const [ballPos, setBallPos] = useState(() => ({ x: -9999, y: CLOSED_Y }));
+
+  // ✅ hydration fix
+  const [mounted, setMounted] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  const draggingRef = useRef(false);
+  const movedRef = useRef(false);
+  const startRef = useRef({ px: 0, py: 0, x: 0, y: 0 });
+
+  // ===== Scroll lock =====
   useEffect(() => {
     if (!sidebarOpen) return;
 
@@ -31,36 +68,37 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       document.body.style.right = "";
       document.body.style.width = "";
       document.body.style.overflow = "";
-
       window.scrollTo(0, scrollY);
     };
   }, [sidebarOpen]);
 
-  // ✅ hide/show button on scroll
+  // ===== hide/show on scroll =====
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    lastYRef.current = window.scrollY;
+    let lastY = window.scrollY;
+    let ticking = false;
 
     const onScroll = () => {
-      if (tickingRef.current) return;
+      if (draggingRef.current) return;
+      if (ticking) return;
 
-      tickingRef.current = true;
+      ticking = true;
       window.requestAnimationFrame(() => {
         const currentY = window.scrollY;
-        const diff = currentY - lastYRef.current;
+        const diff = currentY - lastY;
         const TH = 10;
 
         if (diff > TH) {
           setShowMobileBtn(false);
-          lastYRef.current = currentY;
+          lastY = currentY;
         } else if (diff < -TH) {
           setShowMobileBtn(true);
-          lastYRef.current = currentY;
+          lastY = currentY;
         }
 
         if (currentY < 30) setShowMobileBtn(true);
-        tickingRef.current = false;
+        ticking = false;
       });
     };
 
@@ -68,27 +106,167 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // ✅ init position (بدون فلاش)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setMounted(true);
+
+    setDockSide("right");
+    setPeeked(true);
+
+    // حطها مباشرة بالمكان الصحيح
+    setBallPos({ x: peekX("right"), y: CLOSED_Y });
+
+    // فعّل الأنيميشن بعد أول frame (حتى ما يصير قفزة)
+    requestAnimationFrame(() => setReady(true));
+  }, []);
+
+  // ===== resize: keep y in bounds + update peek x =====
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onResize = () => {
+      const { maxY } = getBounds();
+      setBallPos((p) => {
+        const y = clamp(p.y, MARGIN, maxY);
+        const x = peeked ? peekX(dockSide) : revealX(dockSide);
+        return { x, y };
+      });
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [peeked, dockSide]);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((v) => !v);
+  }, [setSidebarOpen]);
+
+  // ===== لما يفتح/يسكر السايدبار: Reveal/Peek =====
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!mounted) return;
+
+    if (sidebarOpen) {
+      setPeeked(false);
+      setBallPos({
+        x: revealX(dockSide),
+        y: OPEN_Y, // ✅ لفوق
+      });
+    } else {
+      const t = setTimeout(() => {
+        setPeeked(true);
+        setBallPos({
+          x: peekX(dockSide),
+          y: CLOSED_Y, // ✅ لفوق
+        });
+      }, 140);
+      return () => clearTimeout(t);
+    }
+  }, [sidebarOpen, dockSide, mounted]);
+
+  // ===== drag =====
+  const onPointerDown = (e) => {
+    e.preventDefault();
+
+    if (peeked && !sidebarOpen) {
+      setPeeked(false);
+      setBallPos((p) => ({ ...p, x: revealX(dockSide) }));
+    }
+
+    draggingRef.current = true;
+    movedRef.current = false;
+
+    const currentX = peeked ? revealX(dockSide) : ballPos.x;
+
+    startRef.current = {
+      px: e.clientX,
+      py: e.clientY,
+      x: currentX,
+      y: ballPos.y,
+    };
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+
+    const onMove = (ev) => {
+      if (!draggingRef.current) return;
+
+      const dx = ev.clientX - startRef.current.px;
+      const dy = ev.clientY - startRef.current.py;
+
+      if (Math.abs(dx) + Math.abs(dy) > 6) movedRef.current = true;
+
+      const { maxX, maxY } = getBounds();
+      const x = clamp(startRef.current.x + dx, MARGIN, maxX);
+      const y = clamp(startRef.current.y + dy, MARGIN, maxY);
+
+      setBallPos({ x, y });
+      setDockSide(x + BALL_SIZE / 2 < window.innerWidth / 2 ? "left" : "right");
+    };
+
+    const onUp = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+
+      setBallPos((p) => {
+        const side =
+          p.x + BALL_SIZE / 2 < window.innerWidth / 2 ? "left" : "right";
+        setDockSide(side);
+
+        const x = sidebarOpen ? revealX(side) : peekX(side);
+        return { x, y: p.y };
+      });
+
+      if (!movedRef.current) toggleSidebar();
+
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
   return (
     <>
-      {/* زر فتح القائمة للموبايل */}
+      {/* ===== Quick Ball (موبايل) ===== */}
       <button
-        onClick={() => setSidebarOpen(true)}
+        onPointerDown={onPointerDown}
         className={`
-          xl:hidden fixed top-9 right-3 z-50 p-2 rounded-xl bg-[#6F013F] shadow
-          transition-all duration-300
-          ${sidebarOpen ? "opacity-0 pointer-events-none" : ""}
+          xl:hidden fixed z-[60]
+          rounded-full shadow-lg
+          bg-[#6F013F] text-white
+          flex items-center justify-center
+          ${ready ? "transition-all duration-300" : ""}
+          ${mounted ? "" : "opacity-0 pointer-events-none"}
           ${
             showMobileBtn
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 -translate-y-6 pointer-events-none"
+              ? "opacity-100 scale-100"
+              : "opacity-0 scale-90 pointer-events-none"
           }
         `}
-        aria-label="افتح القائمة"
+        style={{
+          width: BALL_SIZE,
+          height: BALL_SIZE,
+          left: ballPos.x,
+          top: ballPos.y,
+          touchAction: "none",
+        }}
+        aria-label={sidebarOpen ? "إغلاق القائمة" : "فتح القائمة"}
       >
-        <MenuIcon className="w-6 h-6 text-white" />
+        {sidebarOpen ? (
+          <X className="w-6 h-6" />
+        ) : (
+          <MenuIcon className="w-6 h-6" />
+        )}
       </button>
 
-      {/* ===== السايدبار الثابت (ديسكتوب) ===== */}
+      {/* ===== Desktop Sidebar ===== */}
       <aside
         className="
           relative hidden xl:flex xl:flex-col shrink-0
@@ -99,7 +277,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           transition-all duration-300
         "
       >
-        {/* شعار (تصغير padding) */}
         <div className="flex items-center gap-2 px-6 py-2">
           <Image src="/logo.svg" alt="logo" width={40} height={40} />
           <Link
@@ -111,7 +288,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </Link>
         </div>
 
-        {/* المحتوى */}
         <div className="flex-1 min-h-0 px-3 pb-3">
           <Menu />
         </div>
@@ -125,7 +301,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* ===== السايدبار المنزلق (موبايل) ===== */}
+      {/* ===== Mobile Sidebar ===== */}
       <aside
         className={`
           xl:hidden fixed inset-y-0 right-0 z-50
@@ -138,7 +314,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         `}
         aria-hidden={!sidebarOpen}
       >
-        {/* رأس (تصغير padding) */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e0e0]">
           <Link href="/" className="font-semibold text-[#6F013F] text-[16px]">
             معهد العلماء
@@ -152,7 +327,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </button>
         </div>
 
-        {/* محتوى */}
         <div className="flex-1 min-h-0 px-3 pb-3">
           <Menu />
         </div>

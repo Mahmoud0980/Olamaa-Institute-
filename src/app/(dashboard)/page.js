@@ -14,14 +14,19 @@ import CountChart from "./components/CountChart";
 import BadgeCluster from "./components/BadgeCluster";
 import ExamCard from "./components/ExamCard";
 import DashboardSkeleton from "../../components/feedback/DashboardSkeleton.jsx";
+import { fa } from "zod/v4/locales";
 
 export default function Page() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // ===== Fake loading (UX only) =====
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(t);
+    const showDelay = setTimeout(() => setIsLoading(true), 150);
+    const maxWait = setTimeout(() => setIsLoading(false), 800);
+
+    return () => {
+      clearTimeout(showDelay);
+      clearTimeout(maxWait);
+    };
   }, []);
 
   return (
@@ -30,17 +35,12 @@ export default function Page() {
         <DashboardSkeleton />
       ) : (
         <div className="bg-white min-h-dvh overflow-auto" dir="rtl">
-          {/* ===== User Header ===== */}
           <UserCard />
 
-          {/* ===== Main Container ===== */}
           <div className="container mx-auto p-4 overflow-y-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* ===== Left (2/3) ===== */}
               <section className="lg:col-span-2 flex flex-col gap-4 min-w-0">
-                {/* Top Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Left stack */}
                   <div className="flex flex-col gap-4">
                     <div className="rounded-2xl bg-[#FBFBFB] p-3 shadow-sm">
                       <BestCourseChart />
@@ -51,13 +51,11 @@ export default function Page() {
                     </div>
                   </div>
 
-                  {/* Right big card */}
                   <div className="rounded-2xl bg-[#FBFBFB] p-3 shadow-sm">
                     <CountChart />
                   </div>
                 </div>
 
-                {/* Bottom Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="rounded-2xl bg-[#FBFBFB] p-3 shadow-sm">
                     <AttendanceCard value={80} />
@@ -69,7 +67,6 @@ export default function Page() {
                 </div>
               </section>
 
-              {/* ===== Right (1/3) ===== */}
               <aside className="lg:col-span-1 flex flex-col gap-4 min-w-0">
                 <div className="rounded-2xl bg-[#FBFBFB] p-3 shadow-sm">
                   <WeeklyCalendarCard />

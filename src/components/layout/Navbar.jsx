@@ -40,6 +40,10 @@ export default function Navbar() {
     ? "cities"
     : pathname.startsWith("/buses")
     ? "buses"
+    : pathname.startsWith("/teachers")
+    ? "teachers"
+    : pathname.startsWith("/subjects")
+    ? "subjects"
     : "employees";
 
   /* ===============================

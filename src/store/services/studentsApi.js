@@ -40,11 +40,6 @@ export const studentsApi = createApi({
       }),
       providesTags: ["Students"],
 
-      // إعدادات تحسين الأداء:
-      keepUnusedDataFor: 300, // يخلي البيانات بالكاش خمس دقائق
-      refetchOnMountOrArgChange: false, // ما يعيد الجلب لو نفس البيانات
-      refetchOnFocus: false, // ما يعيد الجلب لما المستخدم يرجع للتبويب
-      refetchOnReconnect: false, // ما يعيد الجلب بعد انقطاع الشبكة
       transformResponse: (response) => response?.data || response, // يسهّل شكل البيانات
     }),
 

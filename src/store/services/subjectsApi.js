@@ -7,10 +7,6 @@ export const subjectsApi = createApi({
   baseQuery: baseApiConfig.baseQuery,
   tagTypes: ["Subjects"],
 
-  keepUnusedDataFor: 300, // الكاش يبقى دقيقتين
-  refetchOnFocus: true, // يحدث عند رجوع المستخدم للصفحة
-  refetchOnReconnect: true, // يحدث عند عودة الإنترنت
-
   endpoints: (builder) => ({
     getSubjects: builder.query({
       query: () => ({

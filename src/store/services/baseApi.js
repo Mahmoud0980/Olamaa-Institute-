@@ -1,6 +1,7 @@
 // src/store/services/baseApi.js
 import { createApi } from "@reduxjs/toolkit/query/react";
 import axios from "@/lib/config/axiosConfig";
+import { tr } from "zod/v4/locales";
 
 /**
  * 🧠 قاعدة مشتركة لكل API مبنية على axiosConfig
@@ -35,7 +36,7 @@ export const axiosBaseQuery =
 export const baseApiConfig = {
   baseQuery: axiosBaseQuery({ baseUrl: "" }),
   keepUnusedDataFor: 300,
-  refetchOnFocus: false,
-  refetchOnReconnect: false,
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
   refetchOnMountOrArgChange: false,
 };

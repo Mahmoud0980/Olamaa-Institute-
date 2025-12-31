@@ -126,4 +126,5 @@ export const {
   useDeleteTeacherMutation,
   useUploadTeacherPhotoMutation,
   useGetTeacherBatchesDetailsQuery,
+  useLazyGetTeacherBatchesDetailsQuery,
 } = teachersApi;

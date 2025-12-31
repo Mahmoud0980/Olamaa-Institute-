@@ -7,6 +7,8 @@ const searchSlice = createSlice({
       employees: "",
       students: "",
       batches: "",
+      teachers: "",
+      subjects: "",
       academicBranches: "",
       InstituteBranches: "",
       cities: "",
