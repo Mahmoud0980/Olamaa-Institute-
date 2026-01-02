@@ -65,6 +65,11 @@ export default function Menu() {
       icon: "/icons/CirclesFour.svg",
       roles: ["admin", "accountant"],
       sub: [
+        {
+          name: "سجلات الحضور والغياب ",
+          href: "/attendance",
+          roles: ["admin", "accountant"],
+        },
         { name: "الشعب", href: "/batches", roles: ["admin", "accountant"] },
         { name: "المدن", href: "/cities", roles: ["admin", "accountant"] },
         { name: "الباصات", href: "/buses", roles: ["admin"] },

@@ -20,6 +20,7 @@ const dictionary = {
   reports: "التقارير",
   knowWays: "طرق المعرفة بنا",
   classRooms: "القاعات الدراسية",
+  attendance: "سجلات الحضور والغياب",
 };
 
 export default function Breadcrumb() {

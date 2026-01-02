@@ -11,6 +11,11 @@ export default function ActionsRow({
   isAllSelected = false,
   onToggleSelectAll,
 
+  // ✅ View All
+  showViewAll = false,
+  onViewAll,
+  viewAllLabel = "عرض كل البيانات",
+
   // labels
   addLabel = "إضافة عنصر",
   viewLabel = "عرض البيانات",
@@ -31,6 +36,16 @@ export default function ActionsRow({
           icon={<i className="text-sm">≡</i>}
           color="green"
           onClick={onView}
+        />
+      )}
+
+      {/* ✅ زر عرض كل البيانات */}
+      {showViewAll && (
+        <DashboardButton
+          label={viewAllLabel}
+          icon={<span className="text-sm">↺</span>}
+          color="green"
+          onClick={onViewAll}
         />
       )}
 
