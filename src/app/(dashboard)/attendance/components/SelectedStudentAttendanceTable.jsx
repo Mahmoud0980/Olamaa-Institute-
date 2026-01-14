@@ -20,8 +20,7 @@ const badge = (status) => {
       return { text: "متأخر", className: "bg-orange-100 text-orange-700" };
     case "absent":
       return { text: "غائب", className: "bg-red-100 text-red-700" };
-    case "excused":
-      return { text: "إذن", className: "bg-blue-100 text-blue-700" };
+
     default:
       return { text: status || "-", className: "bg-gray-100 text-gray-600" };
   }
@@ -33,7 +32,7 @@ export default function SelectedStudentAttendanceTable({
   onClose,
 }) {
   const [page, setPage] = useState(1);
-  const pageSize = 6;
+  const pageSize = 4;
 
   const safe = Array.isArray(records) ? records : [];
   const totalPages = Math.ceil(safe.length / pageSize) || 1;
@@ -64,7 +63,6 @@ export default function SelectedStudentAttendanceTable({
           </div>
           <div className="text-xs text-gray-500 mt-1">
             موجود: {stats.present} | متأخر: {stats.late} | غائب: {stats.absent}{" "}
-            | إذن: {stats.excused}
           </div>
         </div>
 

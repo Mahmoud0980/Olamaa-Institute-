@@ -2,7 +2,7 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import axios from "@/lib/config/axiosConfig";
 import ENDPOINTS from "@/lib/constants/endpoints";
 
-// 🧩 baseQuery مخصص يعتمد على Axios نفسه
+/* ================= baseQuery ================= */
 const axiosBaseQuery =
   ({ baseUrl } = { baseUrl: "" }) =>
   async ({ url, method, data, params }) => {
@@ -25,47 +25,82 @@ const axiosBaseQuery =
     }
   };
 
-// 🚀 إنشاء الـ API مع إعدادات الأداء
+/* ================= API ================= */
 export const studentsApi = createApi({
   reducerPath: "studentsApi",
   baseQuery: axiosBaseQuery({ baseUrl: "" }),
-  tagTypes: ["Students"], // 👈 لتفعيل caching ذكي وتحديثات جزئية
-  endpoints: (builder) => ({
-    // ✅ جلب الطلاب
-    getStudents: builder.query({
-      query: (params) => ({
-        url: ENDPOINTS.STUDENTS,
-        method: "GET",
-        params,
-      }),
-      providesTags: ["Students"],
+  tagTypes: ["Students"],
 
-      transformResponse: (response) => response?.data || response, // يسهّل شكل البيانات
+  endpoints: (builder) => ({
+    /* ================= LIST (DETAILS) ================= */
+    getStudentsDetails: builder.query({
+      query: () => ({
+        url: "/students/details",
+        method: "GET",
+      }),
+      providesTags: (result) =>
+        result?.data
+          ? [
+              { type: "Students", id: "DETAILS_LIST" },
+              ...result.data.map((s) => ({
+                type: "Students",
+                id: s.id,
+              })),
+            ]
+          : [{ type: "Students", id: "DETAILS_LIST" }],
     }),
 
-    // ✅ مثال لاحق: حذف طالب (يحدث القائمة تلقائياً)
+    /* ================= SINGLE DETAILS (LAZY) ================= */
+    getStudentDetailsById: builder.query({
+      query: (id) => ({
+        url: `/students/${id}/details`,
+        method: "GET",
+      }),
+      providesTags: (r, e, id) => [{ type: "Students", id }],
+    }),
+
+    /* ================= ADD ================= */
+    addStudent: builder.mutation({
+      query: (data) => ({
+        url: ENDPOINTS.STUDENTS,
+        method: "POST",
+        data,
+      }),
+      invalidatesTags: [{ type: "Students", id: "DETAILS_LIST" }],
+    }),
+
+    /* ================= UPDATE ================= */
+    updateStudent: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `${ENDPOINTS.STUDENTS}/${id}`,
+        method: "PUT",
+        data,
+      }),
+      invalidatesTags: (r, e, { id }) => [
+        { type: "Students", id },
+        { type: "Students", id: "DETAILS_LIST" },
+      ],
+    }),
+
+    /* ================= DELETE ================= */
     deleteStudent: builder.mutation({
       query: (id) => ({
         url: `${ENDPOINTS.STUDENTS}/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Students"], // يجبر إعادة التحديث فقط عند الحذف
-    }),
-
-    // ✅ مثال لاحق: إضافة طالب جديد
-    addStudent: builder.mutation({
-      query: (newStudent) => ({
-        url: ENDPOINTS.STUDENTS,
-        method: "POST",
-        data: newStudent,
-      }),
-      invalidatesTags: ["Students"],
+      invalidatesTags: [{ type: "Students", id: "DETAILS_LIST" }],
     }),
   }),
 });
 
+/* ================= hooks ================= */
 export const {
-  useGetStudentsQuery,
-  useDeleteStudentMutation,
+  // queries
+  useGetStudentsDetailsQuery,
+  useLazyGetStudentDetailsByIdQuery,
+
+  // mutations
   useAddStudentMutation,
+  useUpdateStudentMutation,
+  useDeleteStudentMutation,
 } = studentsApi;

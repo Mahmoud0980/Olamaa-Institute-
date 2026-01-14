@@ -1,14 +1,12 @@
+"use client";
+
 import { useGetStudentsQuery } from "@/store/services/studentsApi";
 
 export default function useStudents(params) {
-  const { data, isLoading, isFetching, error } = useGetStudentsQuery(params);
+  const { data, isLoading, isFetching, refetch } = useGetStudentsQuery(params);
 
-  const students = Array.isArray(data?.data) ? data.data : data || [];
+  // data هنا (حسب transformResponse) غالباً تكون array
+  const students = Array.isArray(data) ? data : data?.data || [];
 
-  return {
-    students,
-    isLoading,
-    isFetching,
-    error,
-  };
+  return { students, isLoading: isLoading || isFetching, refetch };
 }

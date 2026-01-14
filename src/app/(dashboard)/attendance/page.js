@@ -147,6 +147,9 @@ export default function AttendancePage() {
   // ===== Row-click details table =====
   const [detailsStudentId, setDetailsStudentId] = useState("");
 
+  // ✅ (التعديل) هل جدول التفاصيل مفتوح؟
+  const isDetailsOpen = !filters.studentId && !!detailsStudentId;
+
   // الطالب للكارد يسار: يا من فلتر الاسم يا من ضغط سطر
   const sideStudentId = filters.studentId || detailsStudentId;
 
@@ -234,7 +237,7 @@ export default function AttendancePage() {
     // dispatch(setSearchValue({ key: "branch", value: "" }));
   };
 
-  // ===== Details records (جدول فوق عند الضغط على سطر) =====
+  // ===== Details records (جدول الطالب) =====
   const detailsRecords = useMemo(() => {
     if (!detailsStudentId) return [];
     const sid = Number(detailsStudentId);
@@ -439,9 +442,9 @@ export default function AttendancePage() {
     );
   };
 
-  // ===== row click -> show details table فوق الأساسي =====
+  // ===== row click -> show details (بدون ما يشتغل إذا فلتر طالب شغال) =====
   const handleRowClick = (rec) => {
-    if (filters.studentId) return; // إذا فلتر اسم الطالب شغال ما نفتح التفاصيل
+    if (filters.studentId) return;
     const sid = String(rec.student_id || "");
     setDetailsStudentId((prev) => (prev === sid ? "" : sid));
   };
@@ -514,27 +517,27 @@ export default function AttendancePage() {
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* RIGHT: Table area */}
         <section className="flex-1 min-w-0 lg:order-1">
-          {/* Details table فوق الأساسي */}
-          {!filters.studentId && detailsStudentId && (
+          {/* ✅ (التعديل) يا تفاصيل يا جدول رئيسي */}
+          {isDetailsOpen ? (
             <SelectedStudentAttendanceTable
               student={studentsById[Number(detailsStudentId)] || null}
               records={detailsRecords}
               onClose={() => setDetailsStudentId("")}
             />
+          ) : (
+            <AttendanceTable
+              records={filtered}
+              isLoading={isLoading || isFetching}
+              selectedIds={selectedIds}
+              onSelectChange={setSelectedIds}
+              onEdit={openEdit}
+              onDelete={openDelete}
+              onRowClick={handleRowClick}
+              studentsById={studentsById}
+              batchesById={batchesById}
+              branchesById={branchesById}
+            />
           )}
-
-          <AttendanceTable
-            records={filtered}
-            isLoading={isLoading || isFetching}
-            selectedIds={selectedIds}
-            onSelectChange={setSelectedIds}
-            onEdit={openEdit}
-            onDelete={openDelete}
-            onRowClick={handleRowClick}
-            studentsById={studentsById}
-            batchesById={batchesById}
-            branchesById={branchesById}
-          />
         </section>
 
         {/* LEFT: Student panel أصغر + sticky */}

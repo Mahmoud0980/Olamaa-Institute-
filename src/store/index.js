@@ -25,6 +25,10 @@ import { teachersApi } from "./services/teachersApi";
 import { subjectsTeachersApi } from "./services/subjectsTeachersApi";
 import { statisticsApi } from "./services/statisticsApi";
 import { attendanceApi } from "./services/attendanceApi";
+import { schoolsApi } from "./services/schoolsApi";
+import { paymentsApi } from "./services/paymentsApi";
+import { guardiansApi } from "./services/guardiansApi";
+import { enrollmentContractsApi } from "./services/enrollmentContractsApi";
 
 export const store = configureStore({
   reducer: {
@@ -51,6 +55,10 @@ export const store = configureStore({
     [subjectsTeachersApi.reducerPath]: subjectsTeachersApi.reducer,
     [statisticsApi.reducerPath]: statisticsApi.reducer,
     [attendanceApi.reducerPath]: attendanceApi.reducer,
+    [schoolsApi.reducerPath]: schoolsApi.reducer,
+    [paymentsApi.reducerPath]: paymentsApi.reducer,
+    [guardiansApi.reducerPath]: guardiansApi.reducer,
+    [enrollmentContractsApi.reducerPath]: enrollmentContractsApi.reducer,
     search: searchReducer,
   },
 
@@ -78,5 +86,9 @@ export const store = configureStore({
       .concat(teachersApi.middleware)
       .concat(subjectsTeachersApi.middleware)
       .concat(statisticsApi.middleware)
-      .concat(attendanceApi.middleware),
+      .concat(attendanceApi.middleware)
+      .concat(schoolsApi.middleware)
+      .concat(paymentsApi.middleware)
+      .concat(guardiansApi.middleware)
+      .concat(enrollmentContractsApi.middleware),
 });

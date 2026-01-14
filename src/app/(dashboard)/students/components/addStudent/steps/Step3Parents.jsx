@@ -1,175 +1,160 @@
 "use client";
 
 import InputField from "@/components/common/InputField";
+import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import PhoneInput from "@/components/common/PhoneInput";
+
+const clean = (v) =>
+  String(v ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
 
 export default function Step3Parents({
   register,
   errors,
   setValue,
+  watch,
   onNext,
   onBack,
 }) {
+  const fatherPhone = watch("father_phone") || "";
+  const motherPhone = watch("mother_phone") || "";
+
   return (
     <div className="space-y-6">
-      {/* =============================== */}
-      {/*        معلومات الأب            */}
-      {/* =============================== */}
-      <div className="space-y-3 border border-gray-200 rounded-xl p-4">
-        <h2 className="text-[#6F013F] font-semibold text-sm mb-1">
-          معلومات الأب
-        </h2>
+      {/* hidden registrations */}
+      <input type="hidden" {...register("father_phone")} />
+      <input type="hidden" {...register("mother_phone")} />
 
-        {/* اسم الأب */}
+      {/* الأب */}
+      <div className="space-y-3 border border-gray-200 rounded-xl p-4">
+        <h2 className="text-[#6F013F] font-semibold text-sm">معلومات الأب</h2>
+
         <InputField
           label="اسم الأب"
           required
-          placeholder="أدخل اسم الأب"
           register={register("father_first_name", {
-            required: "الاسم الأول للأب مطلوب",
-            minLength: { value: 2, message: "الاسم قصير جدًا" },
+            required: "اسم الأب مطلوب",
+            setValueAs: (v) => clean(v),
           })}
           error={errors.father_first_name?.message}
         />
 
-        {/* كنية الأب */}
         <InputField
           label="كنية الأب"
           required
-          placeholder="أدخل كنية الأب"
           register={register("father_last_name", {
-            required: "الكنية للأب مطلوبة",
-            minLength: { value: 2, message: "الكنية قصيرة جدًا" },
+            required: "كنية الأب مطلوبة",
+            setValueAs: (v) => clean(v),
           })}
           error={errors.father_last_name?.message}
         />
 
-        {/* الرقم الوطني للأب */}
         <InputField
           label="الرقم الوطني للأب"
-          type="number"
+          type="text"
           placeholder="10 أرقام فقط"
           register={register("father_national_id", {
-            minLength: { value: 10, message: "10 أرقام فقط" },
-            maxLength: { value: 10, message: "10 أرقام فقط" },
+            setValueAs: (v) => clean(v),
+            validate: (v) => {
+              if (!v) return true; // مو إجباري
+              return /^[0-9]{10}$/.test(v) || "يجب إدخال 10 أرقام فقط";
+            },
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+            },
           })}
-          error={errors.father_national_id?.message}
         />
+        <p className="text-xs text-red-500">
+          {errors.father_national_id?.message}
+        </p>
 
-        {/* هاتف الأب */}
         <PhoneInput
           name="father_phone"
-          register={register}
+          value={fatherPhone}
           setValue={setValue}
           error={errors.father_phone?.message}
         />
 
-        {/* مهنة الأب */}
         <InputField
           label="مهنة الأب"
-          placeholder="مثلاً: موظف"
-          register={register("father_occupation")}
-          error={errors.father_occupation?.message}
+          register={register("father_occupation", {
+            setValueAs: (v) => clean(v),
+          })}
         />
-
-        {/* عنوان الأب */}
         <InputField
           label="عنوان الأب"
-          placeholder="مثلاً: دمشق - المزة"
-          register={register("father_address")}
-          error={errors.father_address?.message}
+          register={register("father_address", {
+            setValueAs: (v) => clean(v),
+          })}
         />
       </div>
 
-      {/* =============================== */}
-      {/*        معلومات الأم            */}
-      {/* =============================== */}
+      {/* الأم */}
       <div className="space-y-3 border border-gray-200 rounded-xl p-4">
-        <h2 className="text-[#6F013F] font-semibold text-sm mb-1">
-          معلومات الأم
-        </h2>
+        <h2 className="text-[#6F013F] font-semibold text-sm">معلومات الأم</h2>
 
-        {/* اسم الأم */}
         <InputField
           label="اسم الأم"
           required
-          placeholder="أدخل اسم الأم"
           register={register("mother_first_name", {
-            required: "الاسم الأول للأم مطلوب",
-            minLength: { value: 2, message: "الاسم قصير جدًا" },
+            required: "اسم الأم مطلوب",
+            setValueAs: (v) => clean(v),
           })}
           error={errors.mother_first_name?.message}
         />
 
-        {/* كنية الأم */}
         <InputField
           label="كنية الأم"
           required
-          placeholder="أدخل كنية الأم"
           register={register("mother_last_name", {
-            required: "الكنية للأم مطلوبة",
-            minLength: { value: 2, message: "الكنية قصيرة جدًا" },
+            required: "كنية الأم مطلوبة",
+            setValueAs: (v) => clean(v),
           })}
           error={errors.mother_last_name?.message}
         />
 
-        {/* الرقم الوطني للأم */}
         <InputField
           label="الرقم الوطني للأم"
-          type="number"
+          type="text"
           placeholder="10 أرقام فقط"
           register={register("mother_national_id", {
-            minLength: { value: 10, message: "10 أرقام فقط" },
-            maxLength: { value: 10, message: "10 أرقام فقط" },
+            setValueAs: (v) => clean(v),
+            validate: (v) => {
+              if (!v) return true; // مو إجباري
+              return /^[0-9]{10}$/.test(v) || "يجب إدخال 10 أرقام فقط";
+            },
+            onChange: (e) => {
+              e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+            },
           })}
-          error={errors.mother_national_id?.message}
         />
+        <p className="text-xs text-red-500">
+          {errors.mother_national_id?.message}
+        </p>
 
-        {/* هاتف الأم */}
         <PhoneInput
           name="mother_phone"
-          register={register}
+          value={motherPhone}
           setValue={setValue}
           error={errors.mother_phone?.message}
         />
 
-        {/* مهنة الأم */}
         <InputField
           label="مهنة الأم"
-          placeholder="مثلاً: ربة منزل"
-          register={register("mother_occupation")}
-          error={errors.mother_occupation?.message}
+          register={register("mother_occupation", {
+            setValueAs: (v) => clean(v),
+          })}
         />
-
-        {/* عنوان الأم */}
         <InputField
           label="عنوان الأم"
-          placeholder="مثلاً: دمشق - المزة"
-          register={register("mother_address")}
-          error={errors.mother_address?.message}
+          register={register("mother_address", {
+            setValueAs: (v) => clean(v),
+          })}
         />
       </div>
 
-      {/* =============================== */}
-      {/*       أزرار التنقل              */}
-      {/* =============================== */}
-      <div className="flex justify-between mt-6">
-        <button
-          type="button"
-          onClick={onBack}
-          className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg"
-        >
-          السابق
-        </button>
-
-        <button
-          type="button"
-          onClick={onNext}
-          className="bg-[#6F013F] text-white px-4 py-2 rounded-lg"
-        >
-          التالي
-        </button>
-      </div>
+      <StepButtonsSmart step={3} total={6} onNext={onNext} onBack={onBack} />
     </div>
   );
 }

@@ -1,243 +1,323 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import toast from "react-hot-toast";
+import { useForm } from "react-hook-form";
+import { skipToken } from "@reduxjs/toolkit/query";
 
-// Steps
+import Stepper from "@/components/common/Stepper";
+import FamilyCheckModal from "../FamilyCheckModal";
+
 import Step1Student from "./steps/Step1Student";
 import Step2StudentExtra from "./steps/Step2StudentExtra";
 import Step3Parents from "./steps/Step3Parents";
 import Step4Record from "./steps/Step4Record";
 import Step5Contacts from "./steps/Step5Contacts";
+import Step6EnrollmentContract from "./steps/Step6EnrollmentContract";
+import Step7Payment from "./steps/Step7Payment";
 import StepSuccess from "./steps/StepSuccess";
-import Stepper from "@/components/common/Stepper";
 
-// Modal
-import FamilyCheckModal from "../FamilyCheckModal";
+import useAddEnrollment from "../../hooks/useAddEnrollment";
 
-// APIs
-import { useAddEnrollmentMutation } from "@/store/services/enrollmentsApi";
-import { useAddRecordMutation } from "@/store/services/academicRecordsApi";
-import { useAddContactMutation } from "@/store/services/contactsApi";
+import {
+  useGetRecordsQuery,
+  useAddRecordMutation,
+  useUpdateRecordMutation,
+} from "@/store/services/academicRecordsApi";
 
-// Form
-import { useForm } from "react-hook-form";
+import {
+  useGetContactsQuery,
+  useAddContactMutation,
+  useDeleteContactMutation,
+} from "@/store/services/contactsApi";
 
-export default function AddStudentModal({ isOpen, onClose }) {
-  if (!isOpen) return null;
+/* ================= helpers ================= */
+const clean = (v) => {
+  const s = String(v ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  return s === "" ? null : s;
+};
 
+export default function AddStudentModal({ isOpen, onClose, student }) {
+  /* ================= meta ================= */
+  const total = 8;
+  const isEdit = !!student;
+
+  /* ================= state ================= */
   const [step, setStep] = useState(1);
-
-  const [studentId, setStudentId] = useState(null);
-  const [familyId, setFamilyId] = useState(null);
-  const [fatherGuardianId, setFatherGuardianId] = useState(null);
-  const [motherGuardianId, setMotherGuardianId] = useState(null);
+  const [studentId, setStudentId] = useState(student?.id ?? null);
+  const [familyId, setFamilyId] = useState(student?.family_id ?? null);
+  const [guardians, setGuardians] = useState([]);
+  const [academicRecordId, setAcademicRecordId] = useState(null);
+  const [existingContacts, setExistingContacts] = useState([]);
+  const [enrollmentContractId, setEnrollmentContractId] = useState(null);
 
   const [showFamilyCheck, setShowFamilyCheck] = useState(false);
-  const [existingFamilyData, setExistingFamilyData] = useState(null);
+  const [familyCandidate, setFamilyCandidate] = useState(null);
+  const [pendingEnrollment, setPendingEnrollment] = useState(null);
 
+  /* ================= APIs ================= */
+  const { handleAddEnrollment } = useAddEnrollment();
+
+  const { data: recordsRes } = useGetRecordsQuery(
+    studentId ? { student_id: studentId } : skipToken
+  );
+
+  const { data: contactsRes } = useGetContactsQuery(
+    studentId ? { student_id: studentId } : skipToken
+  );
+
+  const [addRecord] = useAddRecordMutation();
+  const [updateRecord] = useUpdateRecordMutation();
+  const [addContact] = useAddContactMutation();
+  const [deleteContact] = useDeleteContactMutation();
+
+  /* ================= Forms ================= */
   const form1 = useForm({ mode: "onTouched" });
   const form2 = useForm({ mode: "onTouched" });
   const form3 = useForm({ mode: "onTouched" });
   const form4 = useForm({ mode: "onTouched" });
-  const form5 = useForm({ mode: "onTouched" });
 
-  const [addEnrollment] = useAddEnrollmentMutation();
-  const [addRecord] = useAddRecordMutation();
-  const [addContact] = useAddContactMutation();
-
-  // ---------------- Step 1 ----------------
-  const handleStep1 = async () => {
-    const ok = await form1.trigger();
-    if (!ok) return;
-    setStep(2);
-  };
-
-  // ---------------- Step 2 ----------------
-  const handleStep2 = async () => {
-    const ok = await form2.trigger();
-    if (!ok) return;
-    setStep(3);
-  };
-
-  // ---------------- Step 3 (Parents) ----------------
-  const handleStep3 = async () => {
-    const ok = await form3.trigger();
-    if (!ok) return;
-
-    const student = {
-      ...form1.getValues(),
-      ...form2.getValues(),
-    };
-
-    const p = form3.getValues();
-
-    const fatherData = {
-      first_name: p.father_first_name,
-      last_name: p.father_last_name,
-      national_id: p.father_national_id || null,
-      phone: p.father_phone || null,
-      occupation: p.father_occupation || null,
-      address: p.father_address || null,
-    };
-
-    const motherData = {
-      first_name: p.mother_first_name,
-      last_name: p.mother_last_name,
-      national_id: p.mother_national_id || null,
-      phone: p.mother_phone || null,
-      occupation: p.mother_occupation || null,
-      address: p.mother_address || null,
-    };
-
-    // إرسال الطلب
-    try {
-      const res = await addEnrollment({
-        student,
-        father: fatherData,
-        mother: motherData,
-      }).unwrap();
-
-      setStudentId(res.data.id);
-      setFamilyId(res.data.family_id);
-      setFatherGuardianId(res.data.father_guardian_id);
-      setMotherGuardianId(res.data.mother_guardian_id);
-
-      setStep(4);
-    } catch (e) {
-      console.log("Enrollment Error:", e);
-
-      // --------------------------
-      // فحص هل الخطأ بسبب وجود أهل
-      // --------------------------
-      const err = e?.data?.errors;
-
-      if (
-        err?.["father.national_id"]?.[0] ===
-          "The father.national id has already been taken." ||
-        err?.["mother.national_id"]?.[0] ===
-          "The mother.national id has already been taken."
-      ) {
-        // عرض مودال ربط الأهل
-        setExistingFamilyData({
-          father: fatherData,
-          mother: motherData,
-        });
-        setShowFamilyCheck(true);
-        return;
-      }
-
-      alert(e?.data?.message || "خطأ غير متوقع");
-    }
-  };
-
-  // عند قبول ربط الطالب بالأهل
-  const confirmAttachFamily = async () => {
-    setShowFamilyCheck(false);
-
-    try {
-      const res = await addEnrollment({
-        student: {
-          ...form1.getValues(),
-          ...form2.getValues(),
-        },
-        family_id: existingFamilyData.family_id, // لازم تجي من API
-      }).unwrap();
-
-      setStudentId(res.data.id);
-      setFamilyId(res.data.family_id);
-      setFatherGuardianId(res.data.father_guardian_id);
-      setMotherGuardianId(res.data.mother_guardian_id);
-
-      setStep(4);
-    } catch (e) {
-      alert("فشل ربط الطالب بالعائلة");
-    }
-  };
-
-  // ---------------- Step 4 ----------------
-  const handleStep4 = async () => {
-    const ok = await form4.trigger();
-    if (!ok) return;
-
-    try {
-      await addRecord({
-        student_id: studentId,
-        ...form4.getValues(),
-      }).unwrap();
-
-      setStep(5);
-    } catch (e) {
-      alert("خطأ أثناء إضافة السجل الأكاديمي");
-    }
-  };
-
-  // ---------------- Step 5 ----------------
-  const handleStep5 = async () => {
-    const ok = await form5.trigger();
-    if (!ok) return;
-
-    try {
-      await addContact({
-        guardian_id: fatherGuardianId || motherGuardianId,
-        ...form5.getValues(),
-      }).unwrap();
-
-      setStep(6);
-    } catch (e) {
-      alert("خطأ أثناء إضافة بيانات الاتصال");
-    }
-  };
-
+  /* ================= Reset ================= */
   const resetAll = () => {
+    setStep(1);
+    setStudentId(null);
+    setFamilyId(null);
+    setGuardians([]);
+    setAcademicRecordId(null);
+    setExistingContacts([]);
+    setEnrollmentContractId(null);
+    setShowFamilyCheck(false);
+    setFamilyCandidate(null);
+    setPendingEnrollment(null);
+
     form1.reset();
     form2.reset();
     form3.reset();
     form4.reset();
-    form5.reset();
-    setStep(1);
   };
 
+  useEffect(() => {
+    if (!isOpen) resetAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  /* ================= Edit Fill ================= */
+  useEffect(() => {
+    if (!student) return;
+
+    form1.reset({
+      first_name: student.first_name,
+      last_name: student.last_name,
+      birth_place: student.birth_place,
+      date_of_birth: student.date_of_birth,
+      national_id: student.national_id,
+      gender: student.gender,
+      branch_id: student.branch_id,
+      institute_branch_id: student.institute_branch_id,
+    });
+
+    form2.reset({
+      enrollment_date: student.enrollment_date,
+      start_attendance_date: student.start_attendance_date,
+      previous_school_name: student.previous_school_name,
+      how_know_institute: student.how_know_institute,
+      city_id: student.city_id,
+      status_id: student.status_id,
+      bus_id: student.bus_id,
+      health_status: student.health_status,
+      psychological_status: student.psychological_status,
+      notes: student.notes,
+    });
+
+    setStudentId(student.id);
+    setFamilyId(student.family_id);
+    setStep(1);
+  }, [student]);
+
+  /* ================= Academic Record ================= */
+  useEffect(() => {
+    const record = recordsRes?.data?.[0];
+    if (!record) return;
+
+    form4.reset({
+      record_type: record.record_type,
+      total_score: record.total_score,
+      year: record.year,
+      description: record.description,
+    });
+
+    setAcademicRecordId(record.id);
+  }, [recordsRes]);
+
+  /* ================= Contacts ================= */
+  useEffect(() => {
+    if (contactsRes?.data) {
+      setExistingContacts(contactsRes.data);
+    }
+  }, [contactsRes]);
+
+  if (!isOpen) return null;
+
+  const handleClose = () => {
+    resetAll();
+    onClose();
+  };
+
+  /* ================= Steps Logic ================= */
+
+  const handleStep1 = async () => {
+    if (await form1.trigger()) setStep(2);
+  };
+
+  const handleStep2 = async () => {
+    if (await form2.trigger()) setStep(3);
+  };
+
+  const handleStep3 = async () => {
+    if (!(await form3.trigger())) return;
+
+    if (isEdit) {
+      setStep(4);
+      return;
+    }
+
+    const studentData = { ...form1.getValues(), ...form2.getValues() };
+    const p = form3.getValues();
+
+    const payload = {
+      student: {
+        ...studentData,
+        first_name: clean(studentData.first_name),
+        last_name: clean(studentData.last_name),
+      },
+      father: {
+        first_name: clean(p.father_first_name),
+        last_name: clean(p.father_last_name),
+        national_id: clean(p.father_national_id),
+        phone: clean(p.father_phone),
+      },
+      mother: {
+        first_name: clean(p.mother_first_name),
+        last_name: clean(p.mother_last_name),
+        national_id: clean(p.mother_national_id),
+        phone: clean(p.mother_phone),
+      },
+    };
+
+    setPendingEnrollment(payload);
+
+    const res = await handleAddEnrollment(payload);
+
+    if (res?.message?.includes("تم العثور على عائلة موجودة")) {
+      setFamilyCandidate(res?.data?.family || null);
+      setShowFamilyCheck(true);
+      return;
+    }
+
+    setStudentId(res.data.id);
+    setFamilyId(res.data.family_id);
+    setGuardians(res.data.guardians || []);
+    setStep(4);
+  };
+
+  const confirmAttachFamily = async () => {
+    setShowFamilyCheck(false);
+    const res = await handleAddEnrollment({
+      ...pendingEnrollment,
+      __sendFamilyDecision: true,
+      is_existing_family_confirmed: true,
+    });
+
+    setStudentId(res.data.id);
+    setFamilyId(res.data.family_id);
+    setGuardians(res.data.guardians || []);
+    setStep(4);
+  };
+
+  const confirmNewFamily = async () => {
+    setShowFamilyCheck(false);
+    const res = await handleAddEnrollment({
+      ...pendingEnrollment,
+      __sendFamilyDecision: true,
+      is_existing_family_confirmed: false,
+    });
+
+    setStudentId(res.data.id);
+    setFamilyId(res.data.family_id);
+    setGuardians(res.data.guardians || []);
+    setStep(4);
+  };
+
+  const handleStep4 = async () => {
+    if (!(await form4.trigger())) return;
+
+    const payload = {
+      student_id: studentId,
+      ...form4.getValues(),
+    };
+
+    if (academicRecordId) {
+      await updateRecord({ id: academicRecordId, ...payload }).unwrap();
+    } else {
+      await addRecord(payload).unwrap();
+    }
+
+    setStep(5);
+  };
+
+  const handleSaveContacts = async (contactsPayload) => {
+    for (const c of existingContacts) {
+      await deleteContact(c.id).unwrap();
+    }
+    for (const item of contactsPayload) {
+      await addContact(item).unwrap();
+    }
+    setStep(6);
+  };
+
+  /* ================= render ================= */
   return (
     <>
       {showFamilyCheck && (
         <FamilyCheckModal
-          fatherData={existingFamilyData?.father}
-          motherData={existingFamilyData?.mother}
-          onConfirm={confirmAttachFamily}
-          onCancel={() => setShowFamilyCheck(false)}
+          family={familyCandidate}
+          onConfirmAttach={confirmAttachFamily}
+          onConfirmNew={confirmNewFamily}
+          onClose={() => setShowFamilyCheck(false)}
         />
       )}
 
-      <div className="fixed inset-0 bg-black/40 flex justify-start z-50">
-        <div className="w-[500px] bg-white h-full shadow-xl p-6 overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[#6F013F] font-semibold">إضافة طالب جديد</h2>
-            <button onClick={onClose}>
-              <X className="w-5 h-5 text-gray-500" />
+      <div className="fixed inset-0 bg-black/40 z-50 flex">
+        <div className="w-[520px] bg-white h-full p-6 overflow-y-auto">
+          <div className="flex justify-between mb-4">
+            <h2 className="text-[#6F013F] font-semibold">
+              {isEdit ? "تعديل طالب" : "إضافة طالب"}
+            </h2>
+            <button onClick={handleClose}>
+              <X />
             </button>
           </div>
 
-          {/* Stepper */}
-          <Stepper current={step} total={6} />
+          <Stepper current={step} total={total} />
 
           <div className="mt-6">
             {step === 1 && (
               <Step1Student
+                control={form1.control}
                 register={form1.register}
                 errors={form1.formState.errors}
-                setValue={form1.setValue}
-                watch={form1.watch}
                 onNext={handleStep1}
               />
             )}
 
             {step === 2 && (
               <Step2StudentExtra
+                control={form2.control}
                 register={form2.register}
                 errors={form2.formState.errors}
-                setValue={form2.setValue}
                 watch={form2.watch}
                 onNext={handleStep2}
                 onBack={() => setStep(1)}
@@ -249,6 +329,7 @@ export default function AddStudentModal({ isOpen, onClose }) {
                 register={form3.register}
                 errors={form3.formState.errors}
                 setValue={form3.setValue}
+                watch={form3.watch}
                 onNext={handleStep3}
                 onBack={() => setStep(2)}
               />
@@ -256,6 +337,7 @@ export default function AddStudentModal({ isOpen, onClose }) {
 
             {step === 4 && (
               <Step4Record
+                control={form4.control}
                 register={form4.register}
                 errors={form4.formState.errors}
                 onNext={handleStep4}
@@ -265,15 +347,37 @@ export default function AddStudentModal({ isOpen, onClose }) {
 
             {step === 5 && (
               <Step5Contacts
-                register={form5.register}
-                errors={form5.formState.errors}
-                setValue={form5.setValue}
-                onNext={handleStep5}
+                guardians={guardians}
+                existingContacts={existingContacts}
+                onSaveAll={handleSaveContacts}
                 onBack={() => setStep(4)}
               />
             )}
 
-            {step === 6 && <StepSuccess onReset={resetAll} onClose={onClose} />}
+            {step === 6 && (
+              <Step6EnrollmentContract
+                studentId={studentId}
+                onBack={() => setStep(5)}
+                onNext={(id) => {
+                  setEnrollmentContractId(id);
+                  setStep(7);
+                }}
+              />
+            )}
+
+            {step === 7 && (
+              <Step7Payment
+                studentId={studentId}
+                instituteBranchId={form1.getValues("institute_branch_id")}
+                enrollmentContractId={enrollmentContractId}
+                onBack={() => setStep(6)}
+                onFinish={() => setStep(8)}
+              />
+            )}
+
+            {step === 8 && (
+              <StepSuccess onReset={resetAll} onClose={handleClose} />
+            )}
           </div>
         </div>
       </div>

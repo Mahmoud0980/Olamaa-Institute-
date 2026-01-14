@@ -1,23 +1,28 @@
 "use client";
 
 import InputField from "@/components/common/InputField";
+import SearchableSelect from "@/components/common/SearchableSelect";
+import StepButtonsSmart from "@/components/common/StepButtonsSmart";
+import { Controller } from "react-hook-form";
 
-// APIs
 import { useGetAcademicBranchesQuery } from "@/store/services/academicBranchesApi";
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
 
 export default function Step1Student({
+  control,
   register,
   errors,
-  setValue,
-  watch,
   onNext,
+  onBack,
 }) {
-  const { data: branches } = useGetAcademicBranchesQuery();
-  const { data: institutes } = useGetInstituteBranchesQuery();
+  const { data: branchesRes } = useGetAcademicBranchesQuery();
+  const { data: institutesRes } = useGetInstituteBranchesQuery();
+
+  const branches = branchesRes?.data || [];
+  const institutes = institutesRes?.data || [];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <InputField
         label="اسم الطالب"
         required
@@ -62,88 +67,72 @@ export default function Step1Student({
 
       <InputField
         label="الرقم الوطني"
-        type="number"
+        type="text"
         placeholder="10 أرقام فقط"
         required
         register={register("national_id", {
           required: "الرقم الوطني مطلوب",
-          minLength: { value: 10, message: "10 أرقام فقط" },
-          maxLength: { value: 10, message: "10 أرقام فقط" },
+          pattern: {
+            value: /^[0-9]{10}$/,
+            message: "يجب إدخال 10 أرقام فقط",
+          },
+          onChange: (e) => {
+            // يمنع إدخال أكثر من 10 أرقام
+            e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+          },
         })}
         error={errors.national_id?.message}
       />
 
-      {/* الفرع الدراسي */}
-      <div className="flex flex-col">
-        <label className="text-sm">الفرع الدراسي</label>
-
-        <select
-          defaultValue=""
-          className="border rounded-xl p-2 text-sm"
-          {...register("branch_id", {
-            required: "الفرع الدراسي مطلوب",
-          })}
-        >
-          <option value="" disabled>
-            اختر الفرع
-          </option>
-          {branches?.data?.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-
-        <p className="text-xs text-red-500">{errors.branch_id?.message}</p>
-      </div>
-
-      {/* فرع المعهد */}
-      <div className="flex flex-col">
-        <label className="text-sm">فرع المعهد</label>
-
-        <select
-          defaultValue=""
-          className="border rounded-xl p-2 text-sm"
-          {...register("institute_branch_id", {
-            required: "فرع المعهد مطلوب",
-          })}
-        >
-          <option value="" disabled>
-            اختر فرع المعهد
-          </option>
-          {institutes?.data?.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.name}
-            </option>
-          ))}
-        </select>
-
-        <p className="text-xs text-red-500">
-          {errors.institute_branch_id?.message}
-        </p>
-      </div>
-
-      <InputField
-        label="المدرسة السابقة"
-        placeholder="مثلاً: مدرسة الأمل"
-        register={register("previous_school_name")}
-        error={errors.previous_school_name?.message}
+      {/* branch_id */}
+      <Controller
+        control={control}
+        name="branch_id"
+        rules={{ required: "الفرع الدراسي مطلوب" }}
+        render={({ field }) => (
+          <SearchableSelect
+            label="الفرع الدراسي"
+            required
+            value={field.value || ""}
+            onChange={field.onChange}
+            options={branches.map((b, idx) => ({
+              key: `${b.id}-${idx}`,
+              value: String(b.id),
+              label: b.name,
+            }))}
+            placeholder="اختر الفرع"
+            allowClear
+          />
+        )}
       />
+      <p className="text-xs text-red-500">{errors.branch_id?.message}</p>
 
-      <InputField
-        label="كيف عرفت بالمعهد؟"
-        placeholder="اكتب الطريقة"
-        register={register("how_know_institute")}
-        error={errors.how_know_institute?.message}
+      {/* institute_branch_id */}
+      <Controller
+        control={control}
+        name="institute_branch_id"
+        rules={{ required: "فرع المعهد مطلوب" }}
+        render={({ field }) => (
+          <SearchableSelect
+            label="فرع المعهد"
+            required
+            value={field.value || ""}
+            onChange={field.onChange}
+            options={institutes.map((i, idx) => ({
+              key: `${i.id}-${idx}`,
+              value: String(i.id),
+              label: i.name,
+            }))}
+            placeholder="اختر فرع المعهد"
+            allowClear
+          />
+        )}
       />
+      <p className="text-xs text-red-500">
+        {errors.institute_branch_id?.message}
+      </p>
 
-      <button
-        type="button"
-        onClick={onNext}
-        className="w-full bg-[#6F013F] text-white py-2 rounded-lg mt-4"
-      >
-        التالي
-      </button>
+      <StepButtonsSmart step={1} total={6} onNext={onNext} onBack={onBack} />
     </div>
   );
 }

@@ -114,9 +114,10 @@ export default function SearchableSelect({
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-gray-500">لا يوجد نتائج</div>
             ) : (
-              filtered.map((opt) => (
+              filtered.map((opt, idx) => (
                 <button
-                  key={opt.value}
+                  // ✅ fix: key لازم يكون unique حتى لو opt.value متكرر (مثل "دمشق")
+                  key={opt.key ?? `${opt.value}-${idx}`}
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();

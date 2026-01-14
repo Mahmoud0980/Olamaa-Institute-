@@ -70,7 +70,7 @@ export default function Menu() {
           href: "/attendance",
           roles: ["admin", "accountant"],
         },
-        { name: "الشعب", href: "/batches", roles: ["admin", "accountant"] },
+
         { name: "المدن", href: "/cities", roles: ["admin", "accountant"] },
         { name: "الباصات", href: "/buses", roles: ["admin"] },
         {
@@ -82,6 +82,7 @@ export default function Menu() {
         { name: "المواد", href: "/subjects", roles: ["admin"] },
         { name: "طرق المعرفة بنا", href: "/knowWays", roles: ["admin"] },
         { name: "القاعات الدراسية", href: "/classRooms", roles: ["admin"] },
+        { name: "المدارس", href: "/schools", roles: ["admin"] },
       ],
     },
 
@@ -121,7 +122,7 @@ export default function Menu() {
           href: "/students",
           roles: ["admin", "employee"],
         },
-        { name: "إضافة طالب", href: "/students/add", roles: ["admin"] },
+        // { name: "إضافة طالب", href: "/students?add=1", roles: ["admin"] },
       ],
     },
     {
@@ -155,8 +156,8 @@ export default function Menu() {
       icon: "/icons/Export.svg",
       roles: ["admin"],
       sub: [
-        { name: "قائمة الدورات", href: "/courses", roles: ["admin"] },
-        { name: "إضافة دورة", href: "/courses/add", roles: ["admin"] },
+        { name: "قائمة الدورات", href: "/batches", roles: ["admin"] },
+        // { name: "إضافة دورة", href: "/courses/add", roles: ["admin"] },
       ],
     },
     {

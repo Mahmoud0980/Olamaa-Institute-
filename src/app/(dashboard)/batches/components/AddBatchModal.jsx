@@ -146,9 +146,7 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
             label="اسم الشعبة"
             required
             value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
           <SelectInput
@@ -215,18 +213,14 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
             type="date"
             label="تاريخ البداية"
             value={form.start_date}
-            register={{
-              onChange: (e) => setForm({ ...form, start_date: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, start_date: e.target.value })}
           />
 
           <FormInput
             type="date"
             label="تاريخ النهاية"
             value={form.end_date}
-            register={{
-              onChange: (e) => setForm({ ...form, end_date: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, end_date: e.target.value })}
           />
 
           <SelectInput

@@ -21,6 +21,7 @@ const dictionary = {
   knowWays: "طرق المعرفة بنا",
   classRooms: "القاعات الدراسية",
   attendance: "سجلات الحضور والغياب",
+  schools: "المدارس",
 };
 
 export default function Breadcrumb() {

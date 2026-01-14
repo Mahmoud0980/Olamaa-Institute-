@@ -1,124 +1,213 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { Edit2, Trash2 } from "lucide-react";
-import Image from "next/image";
-import StudentsSkeleton from "./StudentsSkeleton";
 
+import { useEffect, useMemo, useState } from "react";
+import Pagination from "@/components/common/Pagination";
+import ActionsMenu from "@/components/common/ActionsMenu";
+
+/* ================= helpers ================= */
+const genderLabel = (g) => {
+  if (g === "male") return "ذكر";
+  if (g === "female") return "أنثى";
+  return "—";
+};
+
+/* ================= component ================= */
 export default function StudentsTable({
-  students,
-  isLoading,
-  selectAll,
-  setSelectAll,
+  students = [],
+  isLoading = false,
+  selectedIds = [],
+  onSelectChange,
+
+  onViewDetails,
+  onEditStudentInfo,
+  onEditFamily,
+  onEditAcademic,
+  onEditContacts,
+  onEditPayments,
 }) {
-  const [selectedStudents, setSelectedStudents] = useState([]);
+  const safeStudents = Array.isArray(students) ? students : [];
 
-  // يبقى يُستدعى بكل رندر (ما في returns قبله)
+  /* ================= Pagination ================= */
+  const [page, setPage] = useState(1);
+  const pageSize = 4;
+
+  const totalPages = Math.ceil(safeStudents.length / pageSize) || 1;
+  const paginated = safeStudents.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => setPage(1), [safeStudents.length]);
   useEffect(() => {
-    if (selectAll) {
-      setSelectedStudents((students || []).map((s, i) => s?.id ?? i));
-    } else {
-      setSelectedStudents([]);
-    }
-  }, [selectAll, students]);
+    if (page > totalPages) setPage(1);
+  }, [page, totalPages]);
 
-  const toggleStudent = (id) => {
-    setSelectedStudents((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+  /* ================= Selection ================= */
+  const toggleSelect = (row) => {
+    if (!onSelectChange) return;
+
+    const sid = String(row.id);
+    const updated = selectedIds.includes(sid)
+      ? selectedIds.filter((id) => id !== sid)
+      : [...selectedIds, sid];
+
+    onSelectChange(updated);
   };
 
-  return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden overflow-x-auto p-5">
-      {/* حالات التحميل / لا يوجد بيانات */}
-      {isLoading ? (
-        <div className="py-10 text-center text-gray-500">
-          {/* <StudentsSkeleton /> */}
-          جاري تحميل البيانات
-        </div>
-      ) : !students?.length ? (
-        <div className="py-10 text-center text-gray-400">
-          لا يوجد طلاب حالياً.
-        </div>
-      ) : (
-        <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-          <thead>
-            <tr className="bg-pink-50 text-gray-700 rounded-t-xl">
-              <th className="p-3 w-10 text-center rounded-tr-xl">
-                <input
-                  type="checkbox"
-                  checked={!!selectAll}
-                  onChange={(e) => setSelectAll?.(e.target.checked)}
-                  className="accent-[#6F013F] cursor-pointer"
-                />
-              </th>
-              <th className="p-3">#</th>
-              <th className="p-3">الاسم</th>
-              <th className="p-3">الكنية</th>
-              <th className="p-3 text-center rounded-tl-xl">الإجراءات</th>
-            </tr>
-          </thead>
+  /* ================= ActionsMenu ================= */
+  const [openMenuId, setOpenMenuId] = useState(null);
 
-          <tbody>
-            {students.map((student, index) => {
-              const id = student?.id ?? index; // fallback لو مافي id
-              const isSelected = selectedStudents.includes(id);
-              return (
-                <tr
-                  key={id}
-                  className={`bg-white hover:bg-pink-50 transition ${
-                    isSelected ? "bg-pink-100" : ""
-                  }`}
-                >
-                  <td className="p-3 text-center rounded-r-xl">
+  const menuItems = useMemo(() => {
+    return (row) => [
+      {
+        label: "عرض تفاصيل الطالب",
+        onClick: () => onViewDetails?.(row),
+      },
+      {
+        label: "تعديل بيانات الطالب",
+        onClick: () => onEditStudentInfo?.(row),
+      },
+      {
+        label: "تعديل بيانات العائلة",
+        onClick: () => onEditFamily?.(row),
+      },
+      {
+        label: "تعديل المعلومات الأكاديمية",
+        onClick: () => onEditAcademic?.(row),
+      },
+      {
+        label: "تعديل معلومات التواصل",
+        onClick: () => onEditContacts?.(row),
+      },
+      {
+        label: "تعديل الدفعات",
+        onClick: () => onEditPayments?.(row),
+      },
+    ];
+  }, [
+    onViewDetails,
+    onEditStudentInfo,
+    onEditFamily,
+    onEditAcademic,
+    onEditContacts,
+    onEditPayments,
+  ]);
+
+  /* ================= render ================= */
+  return (
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
+      {isLoading ? (
+        <div className="py-10 text-center text-gray-400">جارٍ التحميل...</div>
+      ) : !paginated.length ? (
+        <div className="py-10 text-center text-gray-400">لا يوجد طلاب.</div>
+      ) : (
+        <>
+          {/* ================= DESKTOP ================= */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
+              <thead>
+                <tr className="bg-pink-50 text-gray-700">
+                  <th className="p-3 text-center rounded-r-xl">#</th>
+                  <th className="p-3">الاسم</th>
+                  <th className="p-3">الكنية</th>
+                  <th className="p-3">الجنس</th>
+                  <th className="p-3">فرع المعهد</th>
+                  <th className="p-3">الشعبة</th>
+                  <th className="p-3 text-center rounded-l-xl">الإجراءات</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {paginated.map((row, index) => (
+                  <tr
+                    key={row.id}
+                    className="bg-white hover:bg-pink-50 transition"
+                  >
+                    <td className="p-3 text-center rounded-r-xl">
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-[#6F013F]"
+                          checked={selectedIds.includes(String(row.id))}
+                          onChange={() => toggleSelect(row)}
+                        />
+                        <span>{(page - 1) * pageSize + index + 1}</span>
+                      </div>
+                    </td>
+
+                    <td className="p-3 font-medium">{row.first_name}</td>
+                    <td className="p-3">{row.last_name}</td>
+                    <td className="p-3">{genderLabel(row.gender)}</td>
+                    <td className="p-3">{row.institute_branch?.name ?? "—"}</td>
+                    <td className="p-3">{row.batch?.name ?? "—"}</td>
+
+                    <td className="p-3 text-center rounded-l-xl">
+                      <ActionsMenu
+                        menuId={`student-${row.id}`}
+                        openMenuId={openMenuId}
+                        setOpenMenuId={setOpenMenuId}
+                        items={menuItems(row)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ================= MOBILE ================= */}
+          <div className="md:hidden space-y-4 mt-4">
+            {paginated.map((row, index) => (
+              <div
+                key={row.id}
+                className="border border-gray-200 rounded-xl p-4 shadow-sm"
+              >
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">#</span>
+                    <span className="font-semibold">
+                      {(page - 1) * pageSize + index + 1}
+                    </span>
                     <input
                       type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleStudent(id)}
-                      className="accent-[#6F013F] cursor-pointer"
+                      className="w-4 h-4 accent-[#6F013F]"
+                      checked={selectedIds.includes(String(row.id))}
+                      onChange={() => toggleSelect(row)}
                     />
-                  </td>
-                  <td className="p-3 whitespace-nowrap">{index + 1}</td>
-                  <td className="p-3 whitespace-nowrap">
-                    {student.first_name}
-                  </td>
-                  <td className="p-3 whitespace-nowrap">{student.last_name}</td>
+                  </div>
 
-                  <td className="p-3 whitespace-nowrap text-center rounded-l-xl">
-                    <div className="flex items-center justify-center gap-4">
-                      <button
-                        onClick={() => console.log("حذف الطالب:", id)}
-                        className="cursor-pointer"
-                        title="حذف"
-                      >
-                        <Image
-                          src={"/icons/Trash.png"}
-                          alt="حذف"
-                          width={18}
-                          height={18}
-                          quality={85}
-                        />
-                      </button>
-                      <button
-                        onClick={() => console.log("تعديل الطالب:", id)}
-                        className="cursor-pointer"
-                        title="تعديل"
-                      >
-                        <Image
-                          src={"/icons/Edit.png"}
-                          alt="حذف"
-                          width={18}
-                          height={18}
-                          quality={85}
-                        />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  <ActionsMenu
+                    menuId={`student-m-${row.id}`}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
+                    items={menuItems(row)}
+                  />
+                </div>
+
+                <Info label="الاسم" value={row.first_name} />
+                <Info label="الكنية" value={row.last_name} />
+                <Info label="الجنس" value={genderLabel(row.gender)} />
+                <Info label="فرع المعهد" value={row.institute_branch?.name} />
+                <Info label="الشعبة" value={row.batch?.name} />
+              </div>
+            ))}
+          </div>
+
+          {/* ================= PAGINATION ================= */}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </>
       )}
+    </div>
+  );
+}
+
+/* ================= Small component ================= */
+function Info({ label, value }) {
+  return (
+    <div className="flex justify-between mb-2">
+      <span className="text-gray-500">{label}:</span>
+      <span className="font-medium">{value ?? "—"}</span>
     </div>
   );
 }

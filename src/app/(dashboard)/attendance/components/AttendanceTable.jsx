@@ -57,7 +57,7 @@ export default function AttendanceTable({
   branchesById = {},
 }) {
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 4;
 
   const safe = Array.isArray(records) ? records : [];
   const totalPages = Math.ceil(safe.length / pageSize) || 1;
@@ -149,7 +149,11 @@ export default function AttendanceTable({
                   </td>
 
                   <td className="p-3 whitespace-nowrap">{branchName}</td>
-                  <td className="p-3 whitespace-nowrap">{batchName}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    <div className="max-w-[220px] whitespace-normal break-words leading-5">
+                      {batchName}
+                    </div>
+                  </td>
 
                   <td className="p-3 whitespace-nowrap">{day}</td>
                   <td className="p-3 whitespace-nowrap">

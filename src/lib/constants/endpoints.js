@@ -16,6 +16,8 @@ const ENDPOINTS = {
   KNOW_WAYS: "/knowledge-sources",
   CLASS_ROOMS: "/class-rooms",
   ATTENDANCE: "/attendance",
+  SCHOOLS: "/schools",
+  GUARDIANS: "/guardians",
 };
 
 export default ENDPOINTS;

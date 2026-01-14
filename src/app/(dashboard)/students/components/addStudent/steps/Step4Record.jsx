@@ -1,33 +1,48 @@
 "use client";
 
 import InputField from "@/components/common/InputField";
+import SearchableSelect from "@/components/common/SearchableSelect";
+import StepButtonsSmart from "@/components/common/StepButtonsSmart";
+import { Controller } from "react-hook-form";
 
-export default function Step4Record({ register, errors, onNext, onBack }) {
+const RECORD_TYPES = [
+  { key: "ninth_grade", value: "ninth_grade", label: "ناجح تاسع" },
+  { key: "bac_passed", value: "bac_passed", label: "ناجح بكالوريا" },
+  { key: "bac_failed", value: "bac_failed", label: "راسب بكالوريا" },
+  { key: "other", value: "other", label: "أخرى" },
+];
+
+export default function Step4Record({
+  control,
+  register,
+  errors,
+  onNext,
+  onBack,
+}) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <h3 className="text-[#6F013F] font-semibold text-sm">
         السجل الأكاديمي للطالب
       </h3>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">
-          نوع السجل الأكاديمي
-        </label>
-
-        <select
-          {...register("record_type", { required: "نوع السجل مطلوب" })}
-          className="border border-gray-200 rounded-xl py-2.5 px-3 text-sm outline-none"
-          defaultValue=""
-        >
-          <option value="">اختر نوع السجل</option>
-          <option value="ninth_grade">ناجح تاسع</option>
-          <option value="bac_passed">ناجح بكالوريا</option>
-          <option value="bac_failed">راسب بكالوريا</option>
-          <option value="other">أخرى</option>
-        </select>
-
-        <p className="text-xs text-red-500">{errors.record_type?.message}</p>
-      </div>
+      {/* record_type (SearchableSelect) */}
+      <Controller
+        control={control}
+        name="record_type"
+        rules={{ required: "نوع السجل مطلوب" }}
+        render={({ field }) => (
+          <SearchableSelect
+            label="نوع السجل الأكاديمي"
+            required
+            value={field.value || ""}
+            onChange={field.onChange}
+            options={RECORD_TYPES}
+            placeholder="اختر نوع السجل"
+            allowClear
+          />
+        )}
+      />
+      <p className="text-xs text-red-500">{errors.record_type?.message}</p>
 
       <InputField
         label="المجموع"
@@ -35,16 +50,30 @@ export default function Step4Record({ register, errors, onNext, onBack }) {
         required
         register={register("total_score", {
           required: "المجموع مطلوب",
+          valueAsNumber: true,
         })}
         error={errors.total_score?.message}
       />
 
+      {/* year (number) + منع غير أرقام */}
       <InputField
         label="السنة"
         type="number"
         required
         register={register("year", {
           required: "السنة مطلوبة",
+          valueAsNumber: true,
+          min: { value: 1900, message: "السنة غير صحيحة" },
+          max: {
+            value: new Date().getFullYear() + 1,
+            message: "السنة غير صحيحة",
+          },
+          onChange: (e) => {
+            // يمنع إدخال أحرف + يحدها 4 خانات
+            e.target.value = String(e.target.value)
+              .replace(/\D/g, "")
+              .slice(0, 4);
+          },
         })}
         error={errors.year?.message}
       />
@@ -53,20 +82,10 @@ export default function Step4Record({ register, errors, onNext, onBack }) {
         rows={3}
         {...register("description")}
         placeholder="الوصف (اختياري)"
-        className="border rounded-xl p-2 text-sm w-full"
+        className="rounded-xl p-2 text-sm w-full border border-gray-200 outline-none"
       />
 
-      <div className="flex justify-between mt-4">
-        <button onClick={onBack} className="bg-gray-200 px-4 py-2 rounded-lg">
-          السابق
-        </button>
-        <button
-          onClick={onNext}
-          className="bg-[#6F013F] text-white px-4 py-2 rounded-lg"
-        >
-          التالي
-        </button>
-      </div>
+      <StepButtonsSmart step={4} total={6} onNext={onNext} onBack={onBack} />
     </div>
   );
 }

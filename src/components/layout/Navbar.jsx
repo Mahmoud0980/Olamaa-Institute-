@@ -44,6 +44,8 @@ export default function Navbar() {
     ? "teachers"
     : pathname.startsWith("/subjects")
     ? "subjects"
+    : pathname.startsWith("/students")
+    ? "students"
     : pathname.startsWith("/attendance")
     ? "attendance"
     : "employees";
