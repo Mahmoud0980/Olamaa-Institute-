@@ -12,6 +12,7 @@ import {
   useGetAttendanceQuery,
   useDeleteAttendanceMutation,
 } from "@/store/services/attendanceApi";
+import { useGetStudentsDetailsQuery } from "@/store/services/studentsApi";
 
 import { useGetBatchesQuery } from "@/store/services/batchesApi";
 import { useGetStudentsQuery } from "@/store/services/studentsApi";
@@ -104,7 +105,8 @@ export default function AttendancePage() {
   const branches = branchesRes?.data || [];
 
   // studentsApi عندك بيرجع Array مباشرة
-  const { data: allStudents = [] } = useGetStudentsQuery();
+  const { data: studentsRes } = useGetStudentsDetailsQuery();
+  const allStudents = studentsRes?.data || [];
 
   // ===== Maps =====
   const studentsById = useMemo(() => {

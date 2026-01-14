@@ -183,20 +183,11 @@ export default function AddClassRoomModal({
             label="اسم القاعة"
             required
             value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
           {/* ✅ الكود ممنوع إدخاله */}
-          <FormInput
-            label="الكود"
-            value={form.code}
-            register={{
-              readOnly: true,
-              disabled: true,
-            }}
-          />
+          <FormInput label="الكود" value={form.code} readOnly disabled />
 
           <div>
             <FormInput
@@ -204,12 +195,10 @@ export default function AddClassRoomModal({
               label="السعة"
               required
               value={form.capacity}
-              register={{
-                min: 1,
-                max: 40,
-                step: 1,
-                onChange: handleCapacityChange, // ✅ فحص لحظي
-              }}
+              onChange={handleCapacityChange}
+              min={1}
+              max={40}
+              step={1}
             />
 
             {/* ✅ رسالة تحت الحقل */}
@@ -221,9 +210,7 @@ export default function AddClassRoomModal({
           <FormInput
             label="ملاحظات"
             value={form.notes}
-            register={{
-              onChange: (e) => setForm({ ...form, notes: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
 
           <StepButtonsSmart

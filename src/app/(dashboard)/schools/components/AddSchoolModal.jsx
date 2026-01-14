@@ -142,9 +142,7 @@ export default function AddSchoolModal({ isOpen, onClose, school }) {
             required
             placeholder="مثال: ثانوية ابن رشد"
             value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
           {/* ✅ TYPE (SearchableSelect) */}
@@ -176,9 +174,7 @@ export default function AddSchoolModal({ isOpen, onClose, school }) {
             label="ملاحظات"
             placeholder="مثال: مدرسة حكومية"
             value={form.notes}
-            register={{
-              onChange: (e) => setForm({ ...form, notes: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
 
           {/* ACTIVE */}

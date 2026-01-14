@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import SelectInput from "@/components/common/SelectInput";
-import FormInput from "@/components/common/InputField";
+import InputField from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 
@@ -200,12 +200,12 @@ export default function EditTeacherBatchesModal({ isOpen, onClose, teacher }) {
             }
           />
 
-          <FormInput
+          <InputField
             label="ملاحظات"
             value={form.notes}
-            register={{
-              onChange: (e) =>
-                setForm((p) => ({ ...p, notes: e.target.value })),
+            onChange={(e) => {
+              console.log("typing:", e.target.value);
+              setForm((p) => ({ ...p, notes: e.target.value }));
             }}
           />
 

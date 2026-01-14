@@ -155,9 +155,7 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
               required
               placeholder="مثال: Bus A"
               value={form.name}
-              register={{
-                onChange: (e) => setForm({ ...form, name: e.target.value }),
-              }}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
 
             {suggestions.length > 0 && (
@@ -186,15 +184,13 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
             required
             placeholder="مثال: 30"
             value={form.capacity}
-            register={{
-              onChange: (e) => {
-                const value = Number(e.target.value);
-                if (value > 40) {
-                  toast.error("الحد الأقصى للسعة هو 40");
-                  return;
-                }
-                setForm({ ...form, capacity: e.target.value });
-              },
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (value > 40) {
+                toast.error("الحد الأقصى للسعة هو 40");
+                return;
+              }
+              setForm({ ...form, capacity: e.target.value });
             }}
           />
 
@@ -203,10 +199,7 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
             label="اسم السائق"
             placeholder="مثال: John Doe"
             value={form.driver_name}
-            register={{
-              onChange: (e) =>
-                setForm({ ...form, driver_name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, driver_name: e.target.value })}
           />
 
           {/* وصف الطريق */}
@@ -214,10 +207,9 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
             label="وصف الطريق"
             placeholder="مثال: الطريق من A إلى B"
             value={form.route_description}
-            register={{
-              onChange: (e) =>
-                setForm({ ...form, route_description: e.target.value }),
-            }}
+            onChange={(e) =>
+              setForm({ ...form, route_description: e.target.value })
+            }
           />
 
           {/* الحالة */}

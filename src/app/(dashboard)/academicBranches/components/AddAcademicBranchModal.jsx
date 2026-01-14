@@ -92,9 +92,7 @@ export default function AddAcademicBranchModal({ isOpen, onClose, branch }) {
             required
             placeholder="مثال: علوم الحاسوب"
             value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
           <FormInput
@@ -102,10 +100,7 @@ export default function AddAcademicBranchModal({ isOpen, onClose, branch }) {
             required
             placeholder="أدخل وصف الفرع"
             value={form.description}
-            register={{
-              onChange: (e) =>
-                setForm({ ...form, description: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
 
           <StepButtonsSmart

@@ -113,17 +113,13 @@ export default function AddInstituteBranchModal({
             label="اسم الفرع"
             required
             value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
 
           <FormInput
             label="كود الفرع"
             value={form.code}
-            register={{
-              onChange: (e) => setForm({ ...form, code: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, code: e.target.value })}
           />
 
           {/* ✅ PhoneInputSimple */}
@@ -134,31 +130,23 @@ export default function AddInstituteBranchModal({
               setForm((prev) => ({ ...prev, [key]: val }))
             }
           />
-
           <FormInput
             label="البريد الإلكتروني"
             type="email"
             value={form.email}
-            register={{
-              onChange: (e) => setForm({ ...form, email: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
 
           <FormInput
             label="اسم المدير"
             value={form.manager_name}
-            register={{
-              onChange: (e) =>
-                setForm({ ...form, manager_name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, manager_name: e.target.value })}
           />
 
           <FormInput
             label="العنوان"
             value={form.address}
-            register={{
-              onChange: (e) => setForm({ ...form, address: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
 
           <SelectInput

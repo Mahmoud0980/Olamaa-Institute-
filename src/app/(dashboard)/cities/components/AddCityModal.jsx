@@ -110,9 +110,7 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
               label="اسم المدينة"
               required
               value={form.name}
-              register={{
-                onChange: (e) => setForm({ ...form, name: e.target.value }),
-              }}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
 
             {suggestions.length > 0 && (
@@ -136,10 +134,7 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
           <FormInput
             label="الوصف"
             value={form.description}
-            register={{
-              onChange: (e) =>
-                setForm({ ...form, description: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
 
           <StepButtonsSmart

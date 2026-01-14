@@ -129,27 +129,20 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
             label="الاسم"
             required
             value={form.first_name}
-            register={{
-              onChange: (e) => setForm({ ...form, first_name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, first_name: e.target.value })}
           />
 
           <FormInput
             label="الكنية"
             required
             value={form.last_name}
-            register={{
-              onChange: (e) => setForm({ ...form, last_name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, last_name: e.target.value })}
           />
-
           <FormInput
             label="المسمى الوظيفي"
             required
             value={form.job_title}
-            register={{
-              onChange: (e) => setForm({ ...form, job_title: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, job_title: e.target.value })}
           />
 
           <SelectInput
@@ -168,9 +161,7 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
             type="date"
             label="تاريخ التعيين"
             value={form.hire_date}
-            register={{
-              onChange: (e) => setForm({ ...form, hire_date: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, hire_date: e.target.value })}
           />
 
           <PhoneInput

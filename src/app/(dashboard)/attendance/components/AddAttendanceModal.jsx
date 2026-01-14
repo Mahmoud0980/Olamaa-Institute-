@@ -10,6 +10,7 @@ import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
 
 // APIs
+import { useGetStudentsDetailsQuery } from "@/store/services/studentsApi";
 import {
   useAddAttendanceMutation,
   useUpdateAttendanceMutation,
@@ -37,7 +38,8 @@ export default function AddAttendanceModal({ isOpen, onClose, record }) {
   const { data: batchesRes } = useGetBatchesQuery();
   const batches = batchesRes?.data || [];
 
-  const { data: allStudents = [] } = useGetStudentsQuery();
+  const { data: studentsRes } = useGetStudentsDetailsQuery();
+  const allStudents = studentsRes?.data || [];
 
   const [loading, setLoading] = useState(false);
   const step = 1;
@@ -235,10 +237,9 @@ export default function AddAttendanceModal({ isOpen, onClose, record }) {
             label="التاريخ"
             required
             value={form.attendance_date}
-            register={{
-              onChange: (e) =>
-                setForm((p) => ({ ...p, attendance_date: e.target.value })),
-            }}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, attendance_date: e.target.value }))
+            }
           />
 
           {/* الحالة */}

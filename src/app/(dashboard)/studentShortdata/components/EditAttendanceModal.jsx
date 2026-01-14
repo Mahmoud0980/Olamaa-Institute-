@@ -135,13 +135,12 @@ export default function EditAttendanceModal({
             type="time"
             value={form.arrival_time}
             disabled={form.check === "absent"}
-            register={{
-              onChange: (e) =>
-                setForm({
-                  ...form,
-                  arrival_time: e.target.value,
-                }),
-            }}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                arrival_time: e.target.value,
+              })
+            }
           />
         </div>
 
@@ -152,13 +151,12 @@ export default function EditAttendanceModal({
             type="time"
             value={form.leave_time}
             disabled={form.check === "absent"}
-            register={{
-              onChange: (e) =>
-                setForm({
-                  ...form,
-                  leave_time: e.target.value,
-                }),
-            }}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                leave_time: e.target.value,
+              })
+            }
           />
         </div>
 

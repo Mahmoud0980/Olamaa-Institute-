@@ -59,13 +59,10 @@ export default function AddKnowWayModal({ isOpen, onClose, item }) {
             <X />
           </button>
         </div>
-
         <FormInput
           label="طريقة المعرفة"
           value={name}
-          register={{
-            onChange: (e) => setName(e.target.value),
-          }}
+          onChange={(e) => setName(e.target.value)}
         />
 
         <StepButtonsSmart

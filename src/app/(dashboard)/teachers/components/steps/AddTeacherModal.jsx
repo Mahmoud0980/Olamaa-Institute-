@@ -193,9 +193,7 @@ export default function AddTeacherModal({ isOpen, onClose }) {
               label="اسم الأستاذ"
               required
               value={form.name}
-              register={{
-                onChange: (e) => setForm({ ...form, name: e.target.value }),
-              }}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
 
             <PhoneInput
@@ -208,10 +206,9 @@ export default function AddTeacherModal({ isOpen, onClose }) {
               label="الاختصاص"
               required
               value={form.specialization}
-              register={{
-                onChange: (e) =>
-                  setForm({ ...form, specialization: e.target.value }),
-              }}
+              onChange={(e) =>
+                setForm({ ...form, specialization: e.target.value })
+              }
             />
 
             <FormInput
@@ -219,10 +216,7 @@ export default function AddTeacherModal({ isOpen, onClose }) {
               label="تاريخ التعيين"
               required
               value={form.hire_date}
-              register={{
-                onChange: (e) =>
-                  setForm({ ...form, hire_date: e.target.value }),
-              }}
+              onChange={(e) => setForm({ ...form, hire_date: e.target.value })}
             />
 
             <SelectInput

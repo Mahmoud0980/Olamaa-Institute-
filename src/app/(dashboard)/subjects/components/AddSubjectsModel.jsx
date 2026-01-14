@@ -126,9 +126,7 @@ export default function AddSubjectModal({ isOpen, onClose, subject }) {
             required
             placeholder="مثال: فيزياء"
             value={form.name}
-            register={{
-              onChange: (e) => setForm({ ...form, name: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
             error={!form.name ? "اسم المادة مطلوب" : ""}
           />
 
@@ -136,10 +134,7 @@ export default function AddSubjectModal({ isOpen, onClose, subject }) {
             label="الوصف"
             placeholder="وصف اختياري"
             value={form.description}
-            register={{
-              onChange: (e) =>
-                setForm({ ...form, description: e.target.value }),
-            }}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
 
           <SelectInput
