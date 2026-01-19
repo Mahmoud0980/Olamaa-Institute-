@@ -5,14 +5,17 @@ import ENDPOINTS from "@/lib/constants/endpoints";
 /* ================= baseQuery ================= */
 const axiosBaseQuery =
   ({ baseUrl } = { baseUrl: "" }) =>
-  async ({ url, method, data, params }) => {
+  async ({ url, method, data, params, responseType, headers }) => {
     try {
       const result = await axios({
         url: baseUrl + url,
         method,
         data,
         params,
+        responseType, // ✅ لدعم تحميل الملفات (blob)
+        headers, // ✅ لدعم Accept أو غيره
       });
+
       return { data: result.data };
     } catch (axiosError) {
       const err = axiosError;
@@ -90,6 +93,19 @@ export const studentsApi = createApi({
       }),
       invalidatesTags: [{ type: "Students", id: "DETAILS_LIST" }],
     }),
+
+    /* ================= DOWNLOAD STUDENT REPORT (DOCX) ================= */
+    downloadStudentReport: builder.mutation({
+      query: (id) => ({
+        url: `/students/${id}/report/download`,
+        method: "GET",
+        responseType: "blob", // ✅ يرجع ملف
+        headers: {
+          Accept:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        },
+      }),
+    }),
   }),
 });
 
@@ -103,4 +119,5 @@ export const {
   useAddStudentMutation,
   useUpdateStudentMutation,
   useDeleteStudentMutation,
+  useDownloadStudentReportMutation, // ✅ الجديد
 } = studentsApi;

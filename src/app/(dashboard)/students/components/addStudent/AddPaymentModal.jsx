@@ -126,18 +126,18 @@ export default function AddPaymentModal({
 
   /* ================= render ================= */
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
+    <div className="fixed inset-0 z-50 flex justify-start bg-black/40">
       <div className="bg-white w-[420px] h-full flex flex-col shadow-xl">
         {/* ===== Header ===== */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
             <h3 className="font-semibold text-[#6F013F] text-lg">إضافة دفعة</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            {/* <p className="text-xs text-gray-500 mt-0.5">
               المبلغ المتبقي على العقد:
               <span className="font-semibold text-[#6F013F] ms-1">
                 {remainingAmountUsd.toFixed(2)} $
               </span>
-            </p>
+            </p> */}
           </div>
 
           <button

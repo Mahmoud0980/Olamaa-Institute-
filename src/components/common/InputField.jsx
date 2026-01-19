@@ -1,25 +1,36 @@
 "use client";
 import React from "react";
 
-export default function FormInput({
+export default function InputField({
   label,
   placeholder,
   required,
+
+  // controlled props (Controller/state)
   value,
   onChange,
-  register, // ✅ دعم قديم
+
+  // react-hook-form register object: register("fieldName", rules)
+  register,
+
   type = "text",
   error,
 
-  // props إضافية
   readOnly = false,
   disabled = false,
   min,
   max,
   step,
 }) {
-  // 🧠 اختر onChange الصحيح
-  const handleChange = onChange ?? register?.onChange;
+  const isControlled = value !== undefined; // ✅ فقط إذا value انمررت فعلاً
+
+  // ✅ دمج onChange (إذا موجود) مع register.onChange (إذا موجود)
+  const handleChange = (e) => {
+    // أولاً onChange الخارجي (مفيد للتنظيف/الفلترة)
+    if (onChange) onChange(e);
+    // ثم RHF
+    if (register?.onChange) register.onChange(e);
+  };
 
   return (
     <div className="flex flex-col gap-1">
@@ -32,8 +43,6 @@ export default function FormInput({
 
       <input
         type={type}
-        value={value ?? ""}
-        onChange={handleChange}
         placeholder={placeholder}
         readOnly={readOnly}
         disabled={disabled}
@@ -45,6 +54,12 @@ export default function FormInput({
           ${error ? "border-red-400" : ""}
           ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}
         `}
+        // ✅ إذا RHF register موجود: مرّره (name/ref/onBlur...)
+        {...(register ? { ...register } : {})}
+        // ✅ إذا controlled: مرّر value + onChange
+        {...(isControlled
+          ? { value: value ?? "", onChange: handleChange }
+          : { onChange: handleChange })}
       />
 
       {error && <span className="text-xs text-red-500">{error}</span>}

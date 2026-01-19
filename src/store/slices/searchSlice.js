@@ -17,6 +17,7 @@ const searchSlice = createSlice({
       classRooms: "",
       branch: "",
       attendance: "",
+      payments: "",
     },
   },
   reducers: {

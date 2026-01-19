@@ -1,8 +1,37 @@
 "use client";
 
 import Image from "next/image";
+import toast from "react-hot-toast";
+import { useDownloadStudentReportMutation } from "@/store/services/studentsApi";
 
-export default function StepSuccess({ onClose, onReset }) {
+export default function StepSuccess({ studentId, onClose, onReset }) {
+  const [downloadReport, { isLoading }] = useDownloadStudentReportMutation();
+
+  const handleDownload = async () => {
+    try {
+      if (!studentId) {
+        toast.error("معرف الطالب غير موجود");
+        return;
+      }
+
+      const blob = await downloadReport(studentId).unwrap();
+
+      // ✅ تنزيل ملف
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `student-report-${studentId}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("تم تحميل التقرير");
+    } catch (e) {
+      toast.error("فشل تحميل التقرير");
+    }
+  };
+
   return (
     <div
       dir="rtl"
@@ -36,10 +65,11 @@ export default function StepSuccess({ onClose, onReset }) {
         </button>
 
         <button
-          onClick={() => window.print()}
-          className="px-4 py-1.5 text-sm border border-[#D40078] text-[#6F013F] rounded-md hover:bg-pink-50 transition"
+          onClick={handleDownload}
+          disabled={isLoading}
+          className="px-4 py-1.5 text-sm border border-[#D40078] text-[#6F013F] rounded-md hover:bg-pink-50 transition disabled:opacity-60"
         >
-          طباعة التقرير
+          {isLoading ? "جاري التحميل..." : "طباعة التقرير"}
         </button>
       </div>
     </div>

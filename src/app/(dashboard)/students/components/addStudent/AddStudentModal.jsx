@@ -376,7 +376,11 @@ export default function AddStudentModal({ isOpen, onClose, student }) {
             )}
 
             {step === 8 && (
-              <StepSuccess onReset={resetAll} onClose={handleClose} />
+              <StepSuccess
+                studentId={studentId}
+                onReset={resetAll}
+                onClose={handleClose}
+              />
             )}
           </div>
         </div>

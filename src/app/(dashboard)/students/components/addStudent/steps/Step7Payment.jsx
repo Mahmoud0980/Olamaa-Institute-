@@ -54,7 +54,6 @@ export default function Step7Payment({
         studentId={studentId}
         instituteBranchId={instituteBranchId}
         enrollmentContractId={enrollmentContractId}
-        remainingAmountUsd={remainingAmountUsd}
       />
     </>
   );

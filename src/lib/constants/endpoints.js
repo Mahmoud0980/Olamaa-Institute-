@@ -18,6 +18,10 @@ const ENDPOINTS = {
   ATTENDANCE: "/attendance",
   SCHOOLS: "/schools",
   GUARDIANS: "/guardians",
+
+  PAYMENTS: "/payments",
+  PAYMENTS_LATEST_PER_STUDENT: "/payments/latest-per-student",
+  PAYMENTS_STUDENT_LATE: "/payments/student-late",
 };
 
 export default ENDPOINTS;

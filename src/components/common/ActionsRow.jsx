@@ -16,6 +16,9 @@ export default function ActionsRow({
   onViewAll,
   viewAllLabel = "عرض كل البيانات",
 
+  // ✅ Extra buttons (مثل دفعات الطلاب والمتأخرين)
+  extraButtons = [],
+
   // labels
   addLabel = "إضافة عنصر",
   viewLabel = "عرض البيانات",
@@ -64,6 +67,18 @@ export default function ActionsRow({
           onClick={onToggleSelectAll}
         />
       )}
+
+      {/* ✅ أزرار إضافية */}
+      {Array.isArray(extraButtons) &&
+        extraButtons.map((btn, idx) => (
+          <DashboardButton
+            key={btn.key ?? idx}
+            label={btn.label}
+            icon={btn.icon}
+            color={btn.color ?? "green"}
+            onClick={btn.onClick}
+          />
+        ))}
     </div>
   );
 }
