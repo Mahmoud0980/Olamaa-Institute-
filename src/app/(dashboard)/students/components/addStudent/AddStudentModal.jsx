@@ -42,7 +42,7 @@ const clean = (v) => {
 
 export default function AddStudentModal({ isOpen, onClose, student }) {
   /* ================= meta ================= */
-  const total = 8;
+  const total = 7; //8
   const isEdit = !!student;
 
   /* ================= state ================= */
@@ -360,12 +360,12 @@ export default function AddStudentModal({ isOpen, onClose, student }) {
                 onBack={() => setStep(5)}
                 onNext={(id) => {
                   setEnrollmentContractId(id);
-                  setStep(7);
+                  setStep(7); //7
                 }}
               />
             )}
 
-            {step === 7 && (
+            {/* {step === 7 && (
               <Step7Payment
                 studentId={studentId}
                 instituteBranchId={form1.getValues("institute_branch_id")}
@@ -373,9 +373,9 @@ export default function AddStudentModal({ isOpen, onClose, student }) {
                 onBack={() => setStep(6)}
                 onFinish={() => setStep(8)}
               />
-            )}
+            )} */}
 
-            {step === 8 && (
+            {step === 7 && (
               <StepSuccess
                 studentId={studentId}
                 onReset={resetAll}
