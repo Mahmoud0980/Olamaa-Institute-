@@ -73,8 +73,11 @@ function normalizeStudentDetailsResponse(res) {
 /* ================= component ================= */
 export default function StudentsPage() {
   /* ================= API (list) ================= */
-  const { data: studentsDetailsRes, isLoading: loadingStudents } =
-    useGetStudentsDetailsQuery();
+  const {
+    data: studentsDetailsRes,
+    isLoading: loadingStudents,
+    refetch: refetchStudents,
+  } = useGetStudentsDetailsQuery();
 
   const studentsDetails = useMemo(
     () => normalizeStudentsDetailsResponse(studentsDetailsRes),
@@ -528,6 +531,10 @@ export default function StudentsPage() {
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         student={null}
+        onAdded={() => {
+          refetchStudents();
+          setIsAddOpen(false);
+        }}
       />
     </div>
   );

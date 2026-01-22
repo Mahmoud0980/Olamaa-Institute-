@@ -40,7 +40,7 @@ const clean = (v) => {
   return s === "" ? null : s;
 };
 
-export default function AddStudentModal({ isOpen, onClose, student }) {
+export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   /* ================= meta ================= */
   const total = 7; //8
   const isEdit = !!student;
@@ -378,7 +378,10 @@ export default function AddStudentModal({ isOpen, onClose, student }) {
             {step === 7 && (
               <StepSuccess
                 studentId={studentId}
-                onReset={resetAll}
+                onReset={() => {
+                  resetAll();
+                  onAdded?.();
+                }}
                 onClose={handleClose}
               />
             )}
