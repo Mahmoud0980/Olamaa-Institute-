@@ -166,7 +166,7 @@ export default function StudentDetailsModal({ open, onClose, student }) {
       title={
         <div className="flex items-center justify-between w-full">
           <span>معلومات الطالب</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mr-2">
             <PrintButton onClick={handlePrint} />
             <ExcelButton onClick={handleExcel} />
           </div>

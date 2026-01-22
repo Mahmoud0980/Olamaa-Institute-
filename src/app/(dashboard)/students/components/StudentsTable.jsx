@@ -17,7 +17,7 @@ export default function StudentsTable({
   isLoading = false,
   selectedIds = [],
   onSelectChange,
-
+  onAddToBatch,
   onViewDetails,
   onEditStudentInfo,
   onEditFamily,
@@ -76,10 +76,10 @@ export default function StudentsTable({
         label: "تعديل معلومات التواصل",
         onClick: () => onEditContacts?.(row),
       },
-      {
-        label: "تعديل الدفعات",
-        onClick: () => onEditPayments?.(row),
-      },
+      // {
+      //   label: "إضافة الطالب إلى شعبة",
+      //   onClick: () => onAddToBatch?.(row),
+      // },
     ];
   }, [
     onViewDetails,

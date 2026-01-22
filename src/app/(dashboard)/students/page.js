@@ -32,6 +32,7 @@ import {
   useDeleteStudentMutation,
 } from "@/store/services/studentsApi";
 import StudentsPageSkeleton from "./components/StudentsPageSkeleton";
+import AddStudentToBatchModal from "./components/AddStudentToBatchModal";
 
 /* ================= helpers ================= */
 function esc(s) {
@@ -119,6 +120,12 @@ export default function StudentsPage() {
   const [openContacts, setOpenContacts] = useState(false);
   const [openAcademic, setOpenAcademic] = useState(false);
   const [openPayments, setOpenPayments] = useState(false);
+  const [openAddToBatch, setOpenAddToBatch] = useState(false);
+  const onAddToBatch = async (row) => {
+    closeAllModals();
+    setOpenAddToBatch(true);
+    await ensureStudentDetails(row);
+  };
 
   /* ================= Prepare rows for StudentsTable =================
      StudentsTable يعتمد first_name/last_name + institute_branch + batch
@@ -459,6 +466,7 @@ export default function StudentsPage() {
         onEditFamily={onEditFamily}
         onEditAcademic={onEditAcademic}
         onEditContacts={onEditContacts}
+        onAddToBatch={onAddToBatch}
       />
 
       {/* ============ DETAILS MODAL ============ */}
@@ -534,6 +542,18 @@ export default function StudentsPage() {
         onAdded={() => {
           refetchStudents();
           setIsAddOpen(false);
+        }}
+      />
+      <AddStudentToBatchModal
+        open={openAddToBatch}
+        onClose={() => setOpenAddToBatch(false)}
+        student={activeStudent}
+        onUpdated={async () => {
+          await refetchStudents(); // 🔥 تحديث الجدول
+          if (activeStudentId) {
+            const res = await fetchStudentDetails(activeStudentId).unwrap();
+            setActiveStudent(res.data ?? res);
+          }
         }}
       />
     </div>
