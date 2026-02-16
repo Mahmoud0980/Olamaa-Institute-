@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
-
+import { notify } from "@/lib/helpers/toastify";
 import Stepper from "@/components/common/Stepper";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
@@ -73,8 +72,8 @@ export default function AddAttendanceModal({ isOpen, onClose, record }) {
   }, [isOpen, record]);
 
   const handleSubmit = async () => {
-    if (!form.student_id) return toast.error("يرجى اختيار الطالب");
-    if (!form.status) return toast.error("يرجى اختيار الحالة");
+    if (!form.student_id) return notify.error("يرجى اختيار الطالب");
+    if (!form.status) return notify.error("يرجى اختيار الحالة");
 
     try {
       setLoading(true);
@@ -86,7 +85,7 @@ export default function AddAttendanceModal({ isOpen, onClose, record }) {
           status: form.status,
         }).unwrap();
 
-        toast.success("تم تسجيل الحضور بنجاح");
+        notify.success("تم تسجيل الحضور بنجاح");
         onClose?.();
         return;
       }
@@ -101,10 +100,10 @@ export default function AddAttendanceModal({ isOpen, onClose, record }) {
         status: form.status,
       }).unwrap();
 
-      toast.success("تم تعديل السجل بنجاح");
+      notify.success("تم تعديل السجل بنجاح");
       onClose?.();
     } catch (err) {
-      toast.error(err?.data?.message || "حدث خطأ أثناء الحفظ");
+      notify.error(err?.data?.message || "حدث خطأ أثناء الحفظ");
     } finally {
       setLoading(false);
     }

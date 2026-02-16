@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+
+import { notify } from "@/lib/helpers/toastify";
 
 import ActionsRow from "@/components/common/ActionsRow";
 import PrintButton from "@/components/common/PrintButton";
@@ -30,7 +31,6 @@ import {
   useDeletePaymentMutation,
 } from "@/store/services/paymentsApi";
 
-/* ================= helpers ================= */
 function esc(s) {
   return String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -55,35 +55,56 @@ const rowId = (r) =>
   String(
     r?.payment_id ??
       r?.id ??
+      r?.installment_id ?? // ✅ للـ late mode
       `${r?.student_id ?? "s"}-${r?.paid_date ?? r?.due_date ?? "d"}`
   );
 
+// رح يجيب تفاصيل الدفعة للتعديل عبر useGetPaymentByIdQuery
+
 const moneyLabel = (r) => {
-  if (r?.amount_usd) return `${r.amount_usd}$`;
+  // ✅ late mode amount
+  if (
+    r?.amount !== undefined &&
+    r?.amount !== null &&
+    String(r?.amount) !== ""
+  ) {
+    return `${r.amount}$`;
+  }
+
+  const c = String(r?.currency || "").toUpperCase();
+
+  if (c === "SYP") {
+    const s = r?.amount_syp ? `${r.amount_syp} ل.س` : "—";
+    const u = r?.amount_usd ? ` (≈ ${r.amount_usd}$)` : "";
+    return s + u;
+  }
+
+  if (c === "USD") {
+    return r?.amount_usd ? `${r.amount_usd}$` : "—";
+  }
+
+  if (r?.amount_syp && r?.amount_usd)
+    return `${r.amount_syp} ل.س (≈ ${r.amount_usd}$)`;
+
   if (r?.amount_syp) return `${r.amount_syp} ل.س`;
+  if (r?.amount_usd) return `${r.amount_usd}$`;
   return "—";
 };
 
-/* ================= component ================= */
 export default function PaymentsPage() {
-  /* ================= mode ================= */
-  const [mode, setMode] = useState("latest"); // latest | late
-
-  /* ================= global filters (navbar) ================= */
+  const [mode, setMode] = useState("latest");
+  const [pendingMap, setPendingMap] = useState({});
   const search = useSelector((s) => s.search.values.payments || "");
   const branchId = useSelector((s) => s.search.values.branch || "");
 
-  /* ================= local filters ================= */
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
 
-  /* ================= options ================= */
   const { data: studentsRes } = useGetStudentsDetailsQuery();
   const students = useMemo(() => normalizeArray(studentsRes), [studentsRes]);
 
   const { data: batchesRes } = useGetBatchesQuery();
 
-  /* ================= API (مرة واحدة فقط) ================= */
   const { data: latestRes, isLoading: loadingLatest } =
     useGetLatestPaymentsPerStudentQuery();
 
@@ -92,15 +113,59 @@ export default function PaymentsPage() {
 
   const loading = mode === "latest" ? loadingLatest : loadingLate;
 
-  /* ================= rows (LOCAL FILTERING) ================= */
   const rows = useMemo(() => {
-    const base =
-      mode === "latest" ? normalizeArray(latestRes) : normalizeArray(lateRes);
-
     const q = search.toLowerCase().trim();
 
-    return base.filter((r) => {
-      const fullName = `${r.first_name ?? ""} ${r.last_name ?? ""}`
+    // ===== latest mode =====
+    if (mode === "latest") {
+      const base = normalizeArray(latestRes);
+
+      return base.filter((r) => {
+        const fullName = `${r.first_name ?? ""} ${r.last_name ?? ""}`
+          .toLowerCase()
+          .trim();
+
+        const matchSearch = !q || fullName.includes(q);
+        const matchStudent =
+          !selectedStudentId ||
+          String(r.student_id) === String(selectedStudentId);
+        const matchBatch =
+          !selectedBatchId || String(r.batch_id) === String(selectedBatchId);
+        const matchBranch =
+          !branchId || String(r.institute_branch_id) === String(branchId);
+
+        return matchSearch && matchStudent && matchBatch && matchBranch;
+      });
+    }
+
+    // ===== late mode (API: student_name + late_installments[]) =====
+    const baseLate = normalizeArray(lateRes);
+
+    const flattened = baseLate.flatMap((s) => {
+      const studentId = s?.student_id;
+      const studentName = s?.student_name ?? "—";
+
+      const installments = Array.isArray(s?.late_installments)
+        ? s.late_installments
+        : [];
+
+      return installments.map((inst) => ({
+        student_id: studentId,
+        installment_id: inst?.installment_id,
+
+        student_name: studentName,
+        due_date: inst?.due_date,
+        amount: inst?.amount,
+        status: inst?.status,
+
+        // optional for filters if exist in response
+        batch_id: s?.batch_id,
+        institute_branch_id: s?.institute_branch_id,
+      }));
+    });
+
+    return flattened.filter((r) => {
+      const fullName = String(r.student_name ?? "")
         .toLowerCase()
         .trim();
 
@@ -125,27 +190,36 @@ export default function PaymentsPage() {
     branchId,
   ]);
 
-  /* ================= selection ================= */
   const [selectedIds, setSelectedIds] = useState([]);
   const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
+  const markPending = (paymentId, type) => {
+    if (!paymentId) return;
+    setPendingMap((p) => ({
+      ...p,
+      [String(paymentId)]: { type, at: Date.now() },
+    }));
+  };
 
+  const clearPending = (paymentId) => {
+    if (!paymentId) return;
+    setPendingMap((p) => {
+      const copy = { ...p };
+      delete copy[String(paymentId)];
+      return copy;
+    });
+  };
   useEffect(() => {
     setSelectedIds([]);
   }, [mode, search, selectedStudentId, selectedBatchId, branchId]);
 
-  /* ================= CRUD ================= */
   const [addPayment, { isLoading: adding }] = useAddPaymentMutation();
   const [updatePayment, { isLoading: updating }] = useUpdatePaymentMutation();
   const [deletePayment, { isLoading: deleting }] = useDeletePaymentMutation();
 
-  /* ================= details ================= */
   const [activePaymentId, setActivePaymentId] = useState(null);
-
-  // ✅ للـ details modal (ملخص الطالب) — لازم نخزن الطالب اللي ضغطنا عليه
   const [activeStudentId, setActiveStudentId] = useState(null);
   const [activeRow, setActiveRow] = useState(null);
 
-  // (اختياري) إذا بتحتاج تفاصيل دفعة واحدة للتعديل أو لشي ثاني
   const { data: paymentDetailsRes } = useGetPaymentByIdQuery(activePaymentId, {
     skip: !activePaymentId,
   });
@@ -155,24 +229,46 @@ export default function PaymentsPage() {
     [paymentDetailsRes]
   );
 
-  /* ================= modals ================= */
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDetails, setOpenDetails] = useState(false);
+  const editFromDetails = (row) => {
+    const id = row?.id ?? row?.payment_id;
+    if (!id) {
+      notify.error("لا يوجد معرف للدفعة للتعديل");
+      return;
+    }
+
+    setActivePaymentId(id); // ✅ هيك صح
+    setOpenDetails(false); // ✅ سكّر التفاصيل
+    setOpenEdit(true); // ✅ افتح مودال التعديل
+  };
 
   const [openDelete, setOpenDelete] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
 
-  /* ================= actions ================= */
   const handleViewDetails = (row) => {
     setActiveRow(row);
-    setActiveStudentId(row.student_id); // ✅ أهم سطر
-    setActivePaymentId(row.payment_id ?? row.id);
+    setActiveStudentId(row.student_id);
+
+    // ✅ في late mode ما في payment_id عادة
+    const id = row.payment_id ?? row.id;
+    if (!id) {
+      notify.error("لا يوجد معرف دفعة لعرض التفاصيل");
+      return;
+    }
+
+    setActivePaymentId(id);
     setOpenDetails(true);
   };
 
   const handleEdit = (row) => {
-    setActivePaymentId(row.payment_id ?? row.id);
+    const id = row.payment_id ?? row.id;
+    if (!id) {
+      notify.error("لا يوجد معرف دفعة للتعديل");
+      return;
+    }
+    setActivePaymentId(id);
     setOpenEdit(true);
   };
 
@@ -183,22 +279,67 @@ export default function PaymentsPage() {
 
   const confirmDelete = async () => {
     try {
-      // انتبه: عندك بالجدول payment_id — بس بالـ delete عم تستخدم id
       const idToDelete = paymentToDelete?.payment_id ?? paymentToDelete?.id;
+      if (!idToDelete) return notify.error("لا يوجد معرف للدفعة");
 
-      await deletePayment(idToDelete).unwrap();
-      toast.success("تم حذف الدفعة بنجاح");
+      const res = await deletePayment({
+        id: idToDelete,
+        reason: "طلب حذف",
+      }).unwrap();
+
+      notify.success(res?.message || "تمت العملية");
+
+      const isPending =
+        res?.data?.status === "pending" ||
+        String(res?.message || "").includes("ينتظر موافقة") ||
+        String(res?.message || "").includes("تم إرسال طلب");
+
+      if (isPending) {
+        markPending(idToDelete, "delete");
+      } else {
+        clearPending(idToDelete);
+      }
+
       setOpenDelete(false);
       setPaymentToDelete(null);
-    } catch {
-      toast.error("فشل حذف الدفعة");
+    } catch (e) {
+      notify.error(e?.data?.message || "فشل حذف الدفعة");
     }
   };
 
-  /* ================= Print ================= */
+  const deleteFromDetails = async (row) => {
+    try {
+      const id = row?.id ?? row?.payment_id;
+      if (!id) return notify.error("لا يوجد معرف للدفعة");
+
+      const res = await deletePayment({ id, reason: "طلب حذف" }).unwrap();
+      notify.success(res?.message || "تمت العملية");
+
+      const isPending =
+        res?.data?.status === "pending" ||
+        String(res?.message || "").includes("ينتظر موافقة") ||
+        String(res?.message || "").includes("تم إرسال طلب");
+
+      if (isPending) {
+        markPending(id, "delete"); // ✅ يبين معلّق بالجدول
+        // ✅ خليه يضل فاتح تفاصيل الطالب إذا بدك، بس أنت سكرتو.. تمام
+      } else {
+        clearPending(id); // ✅ admin حذف فعلي
+      }
+
+      setOpenDetails(false);
+      setActivePaymentId(null);
+      setActiveRow(null);
+    } catch (e) {
+      notify.error(e?.data?.message || "فشل حذف الدفعة");
+    }
+  };
+
   const handlePrint = () => {
-    if (!selectedIds.length)
-      return toast.error("يرجى تحديد عنصر واحد على الأقل");
+    if (!selectedIds.length) {
+      notify.error("يرجى تحديد عنصر واحد على الأقل");
+      return;
+    }
 
     const selectedRows = rows.filter((r) => selectedIds.includes(rowId(r)));
 
@@ -232,8 +373,10 @@ export default function PaymentsPage() {
                   (r, i) => `
                   <tr>
                     <td>${i + 1}</td>
-                    <td>${esc(r.first_name)}</td>
-                    <td>${esc(r.last_name)}</td>
+                    <td>${esc(
+                      mode === "late" ? r.student_name : r.first_name
+                    )}</td>
+                    <td>${esc(mode === "late" ? "—" : r.last_name)}</td>
                     <td>${esc(moneyLabel(r))}</td>
                     <td>${esc(r.paid_date ?? r.due_date ?? "—")}</td>
                   </tr>`
@@ -252,16 +395,17 @@ export default function PaymentsPage() {
     w.print();
   };
 
-  /* ================= Excel ================= */
   const handleExcel = () => {
-    if (!selectedIds.length)
-      return toast.error("يرجى تحديد عنصر واحد على الأقل");
+    if (!selectedIds.length) {
+      notify.error("يرجى تحديد عنصر واحد على الأقل");
+      return;
+    }
 
     const data = rows
       .filter((r) => selectedIds.includes(rowId(r)))
       .map((r) => ({
-        الاسم: r.first_name,
-        الكنية: r.last_name,
+        الاسم: mode === "late" ? r.student_name : r.first_name,
+        الكنية: mode === "late" ? "—" : r.last_name,
         المبلغ: moneyLabel(r),
         التاريخ: r.paid_date ?? r.due_date,
       }));
@@ -272,13 +416,13 @@ export default function PaymentsPage() {
 
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(new Blob([buf]), "payments.xlsx");
+    notify.success("تم تصدير الإكسل");
   };
 
-  /* ================= submit ================= */
   const submitAdd = async (payload) => {
     try {
       await addPayment(payload).unwrap();
-      toast.success("تمت إضافة الدفعة");
+      notify.success("تمت إضافة الدفعة");
       setOpenAdd(false);
     } catch (err) {
       console.log("ADD PAYMENT ERROR:", err);
@@ -289,39 +433,49 @@ export default function PaymentsPage() {
         (typeof err?.data === "string" ? err.data : null) ||
         "فشل الإضافة";
 
-      // لو في errors مفصلة (validation)
       const details = err?.data?.errors
         ? Object.values(err.data.errors).flat().join(" - ")
         : null;
 
-      toast.error(details ? `${msg}: ${details}` : msg);
+      notify.error(details ? `${msg}: ${details}` : msg);
     }
   };
 
   const submitEdit = async (payload) => {
     try {
-      await updatePayment({
+      const res = await updatePayment({
         id: activePaymentId,
         ...payload,
       }).unwrap();
-      toast.success("تم التحديث");
+
+      notify.success(res?.message || "تم إرسال الطلب");
+
+      // ✅ إذا مو admin بيرجع pending (حسب كلامك)
+      const isPending =
+        res?.data?.status === "pending" ||
+        String(res?.message || "").includes("ينتظر موافقة");
+
+      if (isPending) {
+        markPending(activePaymentId, "edit");
+      } else {
+        // admin: تعديل فوري -> شيل أي pending قديم
+        clearPending(activePaymentId);
+      }
+
       setOpenEdit(false);
-    } catch {
-      toast.error("فشل التحديث");
+    } catch (err) {
+      notify.error(err?.data?.message || "فشل التحديث");
     }
   };
 
-  /* ================= Render ================= */
   return (
     <div dir="rtl" className="p-6 space-y-6">
-      {/* ================= TITLE + BREADCRUMB ================= */}
       <div className="flex flex-col md:flex-row gap-2 justify-between items-start">
         <div className="space-y-1">
           <h1 className="text-lg font-semibold">الدفعات</h1>
           <Breadcrumb />
         </div>
 
-        {/* ================= FILTERS ================= */}
         <div className="flex flex-col gap-4 items-start md:items-end">
           <div className="flex flex-wrap gap-4">
             <SearchableSelect
@@ -335,6 +489,7 @@ export default function PaymentsPage() {
                   label: s.full_name,
                 })),
               ]}
+              allowClear
             />
 
             <SearchableSelect
@@ -348,6 +503,7 @@ export default function PaymentsPage() {
                   label: b.name,
                 })),
               ]}
+              allowClear
             />
           </div>
 
@@ -358,7 +514,6 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* ================= ACTIONS ================= */}
       <ActionsRow
         showSelectAll
         viewLabel=""
@@ -377,7 +532,6 @@ export default function PaymentsPage() {
         ]}
       />
 
-      {/* ================= TABLE ================= */}
       {loading ? (
         <PaymentsTableSkeleton />
       ) : (
@@ -389,15 +543,21 @@ export default function PaymentsPage() {
           onViewDetails={handleViewDetails}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onOpenStudentPaymentsFromLate={(row) => {
+            notify.info(`دفعات الطالب: ${row?.student_name ?? "—"}`);
+          }}
+          pendingMap={pendingMap}
         />
       )}
 
-      {/* ================= MODALS ================= */}
       <PaymentDetailsModal
         open={openDetails}
         onClose={() => setOpenDetails(false)}
-        studentId={activeStudentId} // ✅ صح
-        payment={activeRow} // ✅ صف الجدول
+        studentId={activeStudentId}
+        payment={activeRow}
+        onDeletePayment={deleteFromDetails}
+        onEditPayment={editFromDetails}
+        pendingMap={pendingMap}
       />
 
       <PaymentAddModal

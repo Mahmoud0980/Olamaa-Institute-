@@ -9,13 +9,19 @@ const clean = (v) =>
     .trim()
     .replace(/\s+/g, " ");
 
+const reqTrim = (msg) => (v) => {
+  const s = clean(v);
+  return s.length > 0 || msg;
+};
+
 export default function Step3Parents({
   register,
-  errors,
+  errors, // موجود للأب (toast) بس ما منعرضه هون
   setValue,
   watch,
   onNext,
   onBack,
+  loading = false,
 }) {
   const fatherPhone = watch("father_phone") || "";
   const motherPhone = watch("mother_phone") || "";
@@ -23,8 +29,20 @@ export default function Step3Parents({
   return (
     <div className="space-y-6">
       {/* hidden registrations */}
-      <input type="hidden" {...register("father_phone")} />
-      <input type="hidden" {...register("mother_phone")} />
+      <input
+        type="hidden"
+        {...register("father_phone", {
+          validate: reqTrim("رقم هاتف الأب مطلوب"),
+          setValueAs: (v) => clean(v),
+        })}
+      />
+      <input
+        type="hidden"
+        {...register("mother_phone", {
+          validate: reqTrim("رقم هاتف الأم مطلوب"),
+          setValueAs: (v) => clean(v),
+        })}
+      />
 
       {/* الأب */}
       <div className="space-y-3 border border-gray-200 rounded-xl p-4">
@@ -36,8 +54,13 @@ export default function Step3Parents({
           register={register("father_first_name", {
             required: "اسم الأب مطلوب",
             setValueAs: (v) => clean(v),
+            minLength: { value: 2, message: "اسم الأب لا يجب أن يقل عن حرفين" },
+            maxLength: {
+              value: 50,
+              message: "اسم الأب لا يجب أن يتجاوز 50 محرف",
+            },
+            validate: reqTrim("اسم الأب مطلوب"),
           })}
-          error={errors.father_first_name?.message}
         />
 
         <InputField
@@ -46,8 +69,16 @@ export default function Step3Parents({
           register={register("father_last_name", {
             required: "كنية الأب مطلوبة",
             setValueAs: (v) => clean(v),
+            minLength: {
+              value: 2,
+              message: "كنية الأب لا يجب أن تقل عن حرفين",
+            },
+            maxLength: {
+              value: 50,
+              message: "كنية الأب لا يجب أن تتجاوز 50 محرف",
+            },
+            validate: reqTrim("كنية الأب مطلوبة"),
           })}
-          error={errors.father_last_name?.message}
         />
 
         <InputField
@@ -57,35 +88,42 @@ export default function Step3Parents({
           register={register("father_national_id", {
             setValueAs: (v) => clean(v),
             validate: (v) => {
-              if (!v) return true; // مو إجباري
-              return /^[0-9]{10}$/.test(v) || "يجب إدخال 10 أرقام فقط";
+              const s = clean(v);
+              if (!s) return true; // اختياري
+              return /^[0-9]{10}$/.test(s) || "يجب إدخال 10 أرقام فقط";
             },
             onChange: (e) => {
               e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
             },
           })}
         />
-        <p className="text-xs text-red-500">
-          {errors.father_national_id?.message}
-        </p>
 
         <PhoneInput
           name="father_phone"
           value={fatherPhone}
           setValue={setValue}
-          error={errors.father_phone?.message}
+          error={undefined}
         />
 
         <InputField
           label="مهنة الأب"
           register={register("father_occupation", {
             setValueAs: (v) => clean(v),
+            maxLength: {
+              value: 200,
+              message: "مهنة الأب لا يجب أن تتجاوز 200 محرف",
+            },
           })}
         />
+
         <InputField
           label="عنوان الأب"
           register={register("father_address", {
             setValueAs: (v) => clean(v),
+            maxLength: {
+              value: 200,
+              message: "عنوان الأب لا يجب أن يتجاوز 200 محرف",
+            },
           })}
         />
       </div>
@@ -100,8 +138,13 @@ export default function Step3Parents({
           register={register("mother_first_name", {
             required: "اسم الأم مطلوب",
             setValueAs: (v) => clean(v),
+            minLength: { value: 2, message: "اسم الأم لا يجب أن يقل عن حرفين" },
+            maxLength: {
+              value: 50,
+              message: "اسم الأم لا يجب أن يتجاوز 50 محرف",
+            },
+            validate: reqTrim("اسم الأم مطلوب"),
           })}
-          error={errors.mother_first_name?.message}
         />
 
         <InputField
@@ -110,8 +153,16 @@ export default function Step3Parents({
           register={register("mother_last_name", {
             required: "كنية الأم مطلوبة",
             setValueAs: (v) => clean(v),
+            minLength: {
+              value: 2,
+              message: "كنية الأم لا يجب أن تقل عن حرفين",
+            },
+            maxLength: {
+              value: 50,
+              message: "كنية الأم لا يجب أن تتجاوز 50 محرف",
+            },
+            validate: reqTrim("كنية الأم مطلوبة"),
           })}
-          error={errors.mother_last_name?.message}
         />
 
         <InputField
@@ -121,40 +172,53 @@ export default function Step3Parents({
           register={register("mother_national_id", {
             setValueAs: (v) => clean(v),
             validate: (v) => {
-              if (!v) return true; // مو إجباري
-              return /^[0-9]{10}$/.test(v) || "يجب إدخال 10 أرقام فقط";
+              const s = clean(v);
+              if (!s) return true; // اختياري
+              return /^[0-9]{10}$/.test(s) || "يجب إدخال 10 أرقام فقط";
             },
             onChange: (e) => {
               e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
             },
           })}
         />
-        <p className="text-xs text-red-500">
-          {errors.mother_national_id?.message}
-        </p>
 
         <PhoneInput
           name="mother_phone"
           value={motherPhone}
           setValue={setValue}
-          error={errors.mother_phone?.message}
+          error={undefined}
         />
 
         <InputField
           label="مهنة الأم"
           register={register("mother_occupation", {
             setValueAs: (v) => clean(v),
+            maxLength: {
+              value: 200,
+              message: "مهنة الأم لا يجب أن تتجاوز 200 محرف",
+            },
           })}
         />
+
         <InputField
           label="عنوان الأم"
           register={register("mother_address", {
             setValueAs: (v) => clean(v),
+            maxLength: {
+              value: 200,
+              message: "عنوان الأم لا يجب أن يتجاوز 200 محرف",
+            },
           })}
         />
       </div>
 
-      <StepButtonsSmart step={3} total={6} onNext={onNext} onBack={onBack} />
+      <StepButtonsSmart
+        step={3}
+        total={6}
+        onNext={onNext}
+        onBack={onBack}
+        loading={loading}
+      />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SlidersHorizontal } from "lucide-react";
 export default function Menu() {
   const [openMenu, setOpenMenu] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
@@ -16,6 +15,7 @@ export default function Menu() {
     if (auth) {
       try {
         const parsed = JSON.parse(auth);
+        console.log("Parsed auth:", parsed);
         setUserRoles(parsed?.user?.roles || []);
       } catch {
         setUserRoles([]);
@@ -37,7 +37,7 @@ export default function Menu() {
       const auth = localStorage.getItem("auth");
       const token = auth ? JSON.parse(auth)?.token : null;
 
-      await fetch("http://abd990-001-site1.qtempurl.com/api/logout", {
+      await fetch("https://norma910-001-site1.mtempurl.com/api/logout", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -181,13 +181,18 @@ export default function Menu() {
         { name: "أفرع المعهد", href: "/instituteBranches", roles: ["admin"] },
         {
           name: "السجلات",
-          href: "",
-          roles: ["admin", "accountant"],
+          href: "/logs",
+          roles: ["admin"],
         },
         {
           name: "الإعدادات",
           href: "",
-          roles: ["admin", "accountant"],
+          roles: ["admin", ""],
+        },
+        {
+          name: "الطلبات",
+          href: "/requests",
+          roles: ["admin", ""],
         },
       ],
     },

@@ -10,16 +10,23 @@ const rowId = (row) =>
   String(
     row?.payment_id ??
       row?.id ??
-      row?.installment_id ??
+      row?.installment_id ?? // ✅ مهم للـ late mode
       `${row?.student_id ?? "s"}-${row?.due_date ?? row?.paid_date ?? "d"}`
   );
 
 const moneyLabel = (row) => {
+  // ✅ late mode
+  const amount = row?.amount;
+  if (amount !== undefined && amount !== null && String(amount) !== "")
+    return `${amount}$`;
+
   const usd = row?.amount_usd ?? row?.amountUsd ?? row?.amount;
   if (usd !== undefined && usd !== null && String(usd) !== "") return `${usd}$`;
+
   const syp = row?.amount_syp ?? row?.amountSyp;
   if (syp !== undefined && syp !== null && String(syp) !== "")
     return `${syp} ل.س`;
+
   return "—";
 };
 
@@ -28,6 +35,7 @@ const receiptLabel = (row) =>
   row?.receipt_no ??
   row?.voucher_number ??
   row?.payment_id ??
+  row?.installment_id ?? // ✅ للـ late mode
   "—";
 
 /* ================= Component ================= */
@@ -38,7 +46,7 @@ export default function PaymentsTable({
   isLoading = false,
   selectedIds = [],
   onSelectChange,
-
+  pendingMap = {},
   onViewDetails,
   onEdit,
   onDelete,
@@ -141,6 +149,8 @@ export default function PaymentsTable({
               <tbody>
                 {paginated.map((row, index) => {
                   const id = rowId(row);
+                  const pid = row?.payment_id ?? row?.id ?? row?.installment_id;
+                  const pending = pendingMap?.[String(pid)];
                   return (
                     <tr
                       key={id}
@@ -158,13 +168,37 @@ export default function PaymentsTable({
                         </div>
                       </td>
 
-                      <td className="p-3 font-medium">{receiptLabel(row)}</td>
-
                       <td className="p-3 font-medium">
-                        {row.first_name ?? "—"}
+                        <div className="flex items-center gap-2">
+                          <span>{receiptLabel(row)}</span>
+
+                          {pending && (
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full
+          ${
+            pending.type === "delete"
+              ? "bg-red-100 text-red-700"
+              : "bg-orange-100 text-orange-700"
+          }
+        `}
+                            >
+                              {pending.type === "delete"
+                                ? "طلب حذف معلّق"
+                                : "طلب تعديل معلّق"}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
-                      <td className="p-3">{row.last_name ?? "—"}</td>
+                      <td className="p-3 font-medium">
+                        {mode === "late"
+                          ? row.student_name ?? "—"
+                          : row.first_name ?? "—"}
+                      </td>
+
+                      <td className="p-3">
+                        {mode === "late" ? "—" : row.last_name ?? "—"}
+                      </td>
 
                       <td className="p-3">{moneyLabel(row)}</td>
 
@@ -227,8 +261,14 @@ export default function PaymentsTable({
                   </div>
 
                   <Info label="رقم الإيصال" value={receiptLabel(row)} />
-                  <Info label="الاسم" value={row.first_name} />
-                  <Info label="الكنية" value={row.last_name} />
+                  <Info
+                    label="الاسم"
+                    value={mode === "late" ? row.student_name : row.first_name}
+                  />
+                  <Info
+                    label="الكنية"
+                    value={mode === "late" ? "—" : row.last_name}
+                  />
                   <Info
                     label={mode === "latest" ? "الدفعة" : "القسط/المبلغ"}
                     value={moneyLabel(row)}

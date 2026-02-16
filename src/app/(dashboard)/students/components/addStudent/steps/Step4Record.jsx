@@ -6,10 +6,9 @@ import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import { Controller } from "react-hook-form";
 
 const RECORD_TYPES = [
-  { key: "ninth_grade", value: "ninth_grade", label: "ناجح تاسع" },
-  { key: "bac_passed", value: "bac_passed", label: "ناجح بكالوريا" },
-  { key: "bac_failed", value: "bac_failed", label: "راسب بكالوريا" },
-  { key: "other", value: "other", label: "أخرى" },
+  { value: "ninth_grade", label: "ناجح تاسع" },
+  { value: "bac_passed", label: "ناجح بكالوريا" },
+  { value: "bac_failed", label: "راسب بكالوريا" },
 ];
 
 export default function Step4Record({
@@ -18,6 +17,7 @@ export default function Step4Record({
   errors,
   onNext,
   onBack,
+  loading = false,
 }) {
   return (
     <div className="space-y-4">
@@ -25,7 +25,7 @@ export default function Step4Record({
         السجل الأكاديمي للطالب
       </h3>
 
-      {/* record_type (SearchableSelect) */}
+      {/* record_type */}
       <Controller
         control={control}
         name="record_type"
@@ -34,16 +34,19 @@ export default function Step4Record({
           <SearchableSelect
             label="نوع السجل الأكاديمي"
             required
-            value={field.value || ""}
-            onChange={field.onChange}
+            value={field.value ? String(field.value) : ""}
+            onChange={(v) => {
+              const val = typeof v === "object" ? v?.value : v;
+              field.onChange(val ? String(val) : "");
+            }}
             options={RECORD_TYPES}
             placeholder="اختر نوع السجل"
-            allowClear
+            allowClear={false}
           />
         )}
       />
-      <p className="text-xs text-red-500">{errors.record_type?.message}</p>
 
+      {/* total_score */}
       <InputField
         label="المجموع"
         type="number"
@@ -51,41 +54,59 @@ export default function Step4Record({
         register={register("total_score", {
           required: "المجموع مطلوب",
           valueAsNumber: true,
+          validate: (v) => {
+            if (v === null || v === undefined || v === "")
+              return "المجموع مطلوب";
+            if (Number.isNaN(Number(v))) return "المجموع غير صالح";
+            return true;
+          },
         })}
-        error={errors.total_score?.message}
       />
 
-      {/* year (number) + منع غير أرقام */}
+      {/* year (YYYY فقط) */}
       <InputField
         label="السنة"
-        type="number"
+        type="text"
         required
+        placeholder="YYYY"
         register={register("year", {
           required: "السنة مطلوبة",
-          valueAsNumber: true,
-          min: { value: 1900, message: "السنة غير صحيحة" },
-          max: {
-            value: new Date().getFullYear() + 1,
-            message: "السنة غير صحيحة",
-          },
-          onChange: (e) => {
-            // يمنع إدخال أحرف + يحدها 4 خانات
-            e.target.value = String(e.target.value)
+          setValueAs: (v) =>
+            String(v ?? "")
               .replace(/\D/g, "")
-              .slice(0, 4);
+              .slice(0, 4),
+          validate: (v) => {
+            const y = Number(String(v ?? "").replace(/\D/g, ""));
+            const currentYear = new Date().getFullYear();
+            if (!y) return "السنة مطلوبة";
+            if (String(y).length !== 4) return "أدخل السنة من 4 أرقام";
+            if (y < 1900 || y > currentYear) return "السنة غير صحيحة";
+            return true;
           },
         })}
-        error={errors.year?.message}
       />
 
+      {/* description */}
       <textarea
         rows={3}
-        {...register("description")}
-        placeholder="الوصف (اختياري)"
+        {...register("description", {
+          required: "الوصف مطلوب",
+          maxLength: { value: 200, message: "الوصف لا يجب أن يتجاوز 200 محرف" },
+          setValueAs: (v) => String(v ?? "").trim(),
+          validate: (v) =>
+            String(v ?? "").trim().length ? true : "الوصف مطلوب",
+        })}
+        placeholder="اكتب الوصف (مطلوب) - بحد أقصى 200 محرف"
         className="rounded-xl p-2 text-sm w-full border border-gray-200 outline-none"
       />
 
-      <StepButtonsSmart step={4} total={6} onNext={onNext} onBack={onBack} />
+      <StepButtonsSmart
+        step={4}
+        total={6}
+        onNext={onNext}
+        onBack={onBack}
+        loading={loading}
+      />
     </div>
   );
 }

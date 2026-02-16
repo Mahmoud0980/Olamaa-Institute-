@@ -7,30 +7,31 @@ import InputField from "@/components/common/InputField";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import PhoneInputSplit from "@/components/common/PhoneInputSplit";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
+import GradientButton from "@/components/common/GradientButton";
 
-/* ================= constants ================= */
+import { notify } from "@/lib/helpers/toastify";
+
+/* constants */
 const TYPE_OPTIONS = [
   { key: "phone", value: "phone", label: "هاتف" },
   { key: "whatsapp", value: "whatsapp", label: "واتساب" },
-  { key: "email", value: "email", label: "إيميل" },
 ];
 
 const TYPE_LABEL = {
   phone: "هاتف",
   whatsapp: "واتساب",
-  email: "إيميل",
 };
 
 const clean = (v) => String(v ?? "").trim();
 
-/* ================= component ================= */
 export default function Step5Contacts({
   guardians = [],
   existingContacts = [],
   onSaveAll,
   onBack,
+  loading = false,
 }) {
-  /* ---------- guardians options ---------- */
+  /* guardians options */
   const guardianOptions = useMemo(() => {
     return (guardians || []).map((g, idx) => {
       const full =
@@ -53,11 +54,10 @@ export default function Step5Contacts({
     });
   }, [guardians]);
 
-  /* ---------- state ---------- */
+  /* state */
   const [draft, setDraft] = useState({
     guardian_id: "",
     type: "",
-    value: "",
     country_code: "",
     phone_number: "",
     notes: "",
@@ -66,67 +66,18 @@ export default function Step5Contacts({
 
   const [items, setItems] = useState([]);
 
-  /* ---------- helpers ---------- */
-  const canAdd = () => {
-    if (!draft.guardian_id) return false;
-    if (!draft.type) return false;
+  /* derived */
+  const hasPhonePrimary = useMemo(
+    () => items.some((x) => x.type === "phone" && x.is_primary),
+    [items]
+  );
 
-    if (draft.type === "email") {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.value);
-    }
+  const phonePrimaryOwner = useMemo(() => {
+    const it = items.find((x) => x.type === "phone" && x.is_primary);
+    return it?.guardian_id ? String(it.guardian_id) : null;
+  }, [items]);
 
-    // phone / whatsapp
-    return !!draft.country_code && !!draft.phone_number;
-  };
-
-  const addItem = () => {
-    if (!canAdd()) return;
-
-    const payload = {
-      guardian_id: Number(draft.guardian_id),
-      type: draft.type,
-      value:
-        draft.type === "email" ? clean(draft.value) : clean(draft.phone_number),
-      country_code: draft.type === "email" ? null : clean(draft.country_code),
-      phone_number: draft.type === "email" ? null : clean(draft.phone_number),
-      notes: clean(draft.notes) || "",
-      is_primary: !!draft.is_primary,
-    };
-
-    setItems((prev) => {
-      let next = [...prev, payload];
-
-      // واحد primary لكل ولي أمر
-      if (payload.is_primary) {
-        next = next.map((x) =>
-          x.guardian_id === payload.guardian_id && x !== payload
-            ? { ...x, is_primary: false }
-            : x
-        );
-      }
-
-      return next;
-    });
-
-    setDraft((d) => ({
-      guardian_id: d.guardian_id,
-      type: "",
-      value: "",
-      country_code: "",
-      phone_number: "",
-      notes: "",
-      is_primary: false,
-    }));
-  };
-
-  const removeItem = (idx) => {
-    setItems((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleSave = () => {
-    onSaveAll?.(items);
-  };
-
+  /* helpers */
   const guardianName = (gid) => {
     const g = guardians.find((x) => String(x?.id) === String(gid));
     if (!g) return `#${gid}`;
@@ -146,16 +97,86 @@ export default function Step5Contacts({
     return rel ? `${rel} — ${full}` : full;
   };
 
-  /* ================= render ================= */
+  const canAdd = () => {
+    if (!draft.guardian_id) return false;
+    if (!draft.type) return false;
+
+    if (!draft.country_code) return false;
+    if (!draft.phone_number) return false;
+
+    const n = clean(draft.notes);
+    if (n.length > 200) return false; // notes optional
+
+    return true;
+  };
+
+  const addItem = () => {
+    if (!canAdd()) {
+      notify.error("يرجى تعبئة جميع الحقول المطلوبة", "تحقق من البيانات");
+      return;
+    }
+
+    if (draft.type === "phone" && draft.is_primary && hasPhonePrimary) {
+      notify.error(
+        "مسموح رقم هاتف واحد فقط كجهة اتصال أساسية (Primary)",
+        "تنبيه"
+      );
+      return;
+    }
+
+    const payload = {
+      guardian_id: Number(draft.guardian_id),
+      type: draft.type,
+      value: clean(draft.phone_number),
+      country_code: clean(draft.country_code),
+      phone_number: clean(draft.phone_number),
+      notes: clean(draft.notes) || "",
+      is_primary: !!draft.is_primary,
+    };
+
+    setItems((prev) => [...prev, payload]);
+
+    setDraft((d) => ({
+      guardian_id: d.guardian_id,
+      type: "",
+      country_code: "",
+      phone_number: "",
+      notes: "",
+      is_primary: false,
+    }));
+  };
+
+  const removeItem = (idx) => {
+    setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSave = () => {
+    if (!items.length) {
+      notify.error("أضف جهة تواصل واحدة على الأقل", "تحقق من البيانات");
+      return;
+    }
+    onSaveAll?.(items);
+  };
+
+  const showPrimaryCheckbox =
+    !!draft.type &&
+    (draft.type === "whatsapp" || (draft.type === "phone" && !hasPhonePrimary));
+
+  const primaryHint =
+    draft.type === "phone" && hasPhonePrimary
+      ? `هناك رقم هاتف أساسي محدد مسبقًا (${guardianName(
+          phonePrimaryOwner
+        )}). لا يمكن تحديد رقم هاتف أساسي آخر.`
+      : "";
+
   return (
     <div className="space-y-4">
       <h3 className="text-[#6F013F] font-semibold text-sm">معلومات التواصل</h3>
 
-      {/* إضافة جهة تواصل */}
+      {/* add contact */}
       <div className="space-y-3 border border-gray-200 rounded-xl p-4">
         <p className="text-sm font-medium text-gray-700">إضافة جهة تواصل</p>
 
-        {/* guardian */}
         <SearchableSelect
           label="اختر ولي الأمر"
           required
@@ -163,10 +184,9 @@ export default function Step5Contacts({
           onChange={(v) => setDraft((d) => ({ ...d, guardian_id: v }))}
           options={guardianOptions}
           placeholder="اختر الأب أو الأم"
-          allowClear
+          allowClear={false}
         />
 
-        {/* type */}
         <SearchableSelect
           label="نوع جهة الاتصال"
           required
@@ -175,92 +195,69 @@ export default function Step5Contacts({
             setDraft((d) => ({
               ...d,
               type: v,
-              value: "",
               country_code: "",
               phone_number: "",
+              notes: "",
+              is_primary: false,
             }))
           }
           options={TYPE_OPTIONS}
           placeholder="اختر النوع"
-          allowClear
+          allowClear={false}
         />
 
-        {/* phone / whatsapp */}
         {(draft.type === "phone" || draft.type === "whatsapp") && (
           <PhoneInputSplit
             countryCode={draft.country_code}
             phoneNumber={draft.phone_number}
             onChange={({ country_code, phone_number }) =>
-              setDraft((d) => ({
-                ...d,
-                country_code,
-                phone_number,
-                value: phone_number,
-              }))
+              setDraft((d) => ({ ...d, country_code, phone_number }))
             }
           />
         )}
 
-        {/* email */}
-        {draft.type === "email" && (
-          <InputField
-            label="البريد الإلكتروني"
-            type="email"
-            required
-            placeholder="example@email.com"
-            register={{
-              name: "email",
-              value: draft.value,
-              onChange: (e) =>
-                setDraft((d) => ({ ...d, value: e.target.value })),
-            }}
-            error=""
-          />
-        )}
-
-        {/* notes */}
         <InputField
           label="ملاحظات (اختياري)"
-          placeholder="..."
+          placeholder="200 محرف كحد أقصى"
           register={{
             name: "notes",
             value: draft.notes,
-            onChange: (e) => setDraft((d) => ({ ...d, notes: e.target.value })),
+            onChange: (e) => {
+              const v = e.target.value;
+              if (String(v).length > 200) return;
+              setDraft((d) => ({ ...d, notes: v }));
+            },
           }}
           error=""
         />
 
-        {/* primary */}
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            className="accent-[#6F013F]"
-            checked={!!draft.is_primary}
-            onChange={(e) =>
-              setDraft((d) => ({
-                ...d,
-                is_primary: e.target.checked,
-              }))
-            }
-          />
-          جهة الاتصال الأساسية (Primary)
-        </label>
+        {showPrimaryCheckbox ? (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              className="accent-[#6F013F]"
+              checked={!!draft.is_primary}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, is_primary: e.target.checked }))
+              }
+            />
+            جهة الاتصال الأساسية (Primary)
+          </label>
+        ) : primaryHint ? (
+          <div className="text-xs text-gray-500">{primaryHint}</div>
+        ) : null}
 
-        <button
+        <GradientButton
           type="button"
           onClick={addItem}
           disabled={!canAdd()}
-          className={`w-full py-2 rounded-lg text-sm transition ${
-            canAdd()
-              ? "bg-[#6F013F] text-white hover:bg-[#580131]"
-              : "bg-gray-200 text-gray-500 cursor-not-allowed"
-          }`}
+          className="flex justify-end py-2"
         >
           إضافة
-        </button>
+        </GradientButton>
       </div>
 
-      {/* القائمة */}
+      {/* list */}
       <div className="space-y-2">
         {items.length === 0 ? (
           <p className="text-xs text-gray-500">
@@ -276,21 +273,18 @@ export default function Step5Contacts({
                 <p className="text-sm font-medium text-gray-800">
                   {guardianName(it.guardian_id)}
                 </p>
+
                 <p className="text-xs text-gray-600">
                   النوع: {TYPE_LABEL[it.type] || it.type}
                 </p>
 
-                {it.type === "email" ? (
-                  <p className="text-xs text-gray-600">القيمة: {it.value}</p>
-                ) : (
-                  <p className="text-xs text-gray-600">
-                    الرقم: {it.country_code} {it.phone_number}
-                  </p>
-                )}
+                <p className="text-xs text-gray-600">
+                  الرقم: {it.country_code} {it.phone_number}
+                </p>
 
-                {it.notes && (
+                {it.notes ? (
                   <p className="text-xs text-gray-500">ملاحظات: {it.notes}</p>
-                )}
+                ) : null}
 
                 {it.is_primary && (
                   <span className="inline-block mt-1 text-[11px] px-2 py-0.5 rounded-full bg-pink-100 text-[#6F013F]">
@@ -299,25 +293,23 @@ export default function Step5Contacts({
                 )}
               </div>
 
-              <button
+              <GradientButton
                 type="button"
                 onClick={() => removeItem(idx)}
-                className="text-gray-500 hover:text-red-500 transition"
-                title="حذف"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                className="px-2 py-1 bg-gradient-to-r from-red-500 to-rose-600"
+                leftIcon={<X className="w-4 h-4" />}
+              />
             </div>
           ))
         )}
       </div>
 
-      {/* أزرار الخطوة */}
       <StepButtonsSmart
         step={5}
         total={6}
         onNext={handleSave}
         onBack={onBack}
+        loading={loading}
       />
     </div>
   );

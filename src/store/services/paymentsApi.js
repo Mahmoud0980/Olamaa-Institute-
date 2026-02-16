@@ -2,14 +2,12 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseApiConfig } from "@/store/services/baseApi";
 
-/* ================= API ================= */
 export const paymentsApi = createApi({
   reducerPath: "paymentsApi",
-  ...baseApiConfig, // ✅ يعتمد على baseQuery المشتركة
+  ...baseApiConfig,
   tagTypes: ["Payments"],
 
   endpoints: (builder) => ({
-    /* ================= ADD ================= */
     addPayment: builder.mutation({
       query: (payload) => ({
         url: "/payments",
@@ -19,51 +17,44 @@ export const paymentsApi = createApi({
       invalidatesTags: ["Payments"],
     }),
 
-    /* ================= GET ALL PAYMENTS ================= */
     getPayments: builder.query({
-      query: () => ({
-        url: "/payments",
-        method: "GET",
-      }),
+      query: () => ({ url: "/payments", method: "GET" }),
       providesTags: ["Payments"],
     }),
 
-    /* ================= GET SINGLE PAYMENT ================= */
     getPaymentById: builder.query({
-      query: (id) => ({
-        url: `/payments/${id}`,
-        method: "GET",
-      }),
+      query: (id) => ({ url: `/payments/${id}`, method: "GET" }),
       providesTags: (r, e, id) => [{ type: "Payments", id }],
     }),
 
-    /* ================= UPDATE ================= */
     updatePayment: builder.mutation({
-      query: ({ id, ...payload }) => ({
+      query: ({ id, reason = null, proposed_changes = null, ...payload }) => ({
         url: `/payments/${id}`,
         method: "PUT",
-        data: payload,
+        data: {
+          ...payload,
+          reason,
+          proposed_changes,
+        },
       }),
       invalidatesTags: ["Payments"],
     }),
 
-    /* ================= DELETE ================= */
     deletePayment: builder.mutation({
-      query: (id) => ({
+      query: ({ id, reason = null }) => ({
         url: `/payments/${id}`,
         method: "DELETE",
-        data: {}, // axios يحتاج data حتى مع delete
+        data: {
+          proposed_changes: {}, // مهم لتفادي proposed_changes null بالباك
+          reason,
+        },
       }),
       invalidatesTags: ["Payments"],
     }),
 
-    /* ================= LATEST PER STUDENT =================
-       GET /payments/latest-per-student?student_id=&batch_id=&institute_branch_id=
-    */
     getLatestPaymentsPerStudent: builder.query({
       query: ({ student_id, batch_id, institute_branch_id } = {}) => {
         const params = new URLSearchParams();
-
         if (student_id) params.append("student_id", student_id);
         if (batch_id) params.append("batch_id", batch_id);
         if (institute_branch_id)
@@ -78,13 +69,9 @@ export const paymentsApi = createApi({
       providesTags: ["Payments"],
     }),
 
-    /* ================= STUDENT LATE =================
-       GET /payments/student-late?student_id=&batch_id=
-    */
     getStudentLatePayments: builder.query({
       query: ({ student_id, batch_id } = {}) => {
         const params = new URLSearchParams();
-
         if (student_id) params.append("student_id", student_id);
         if (batch_id) params.append("batch_id", batch_id);
 
@@ -99,15 +86,11 @@ export const paymentsApi = createApi({
   }),
 });
 
-/* ================= hooks ================= */
 export const {
-  // queries
   useGetPaymentsQuery,
   useGetPaymentByIdQuery,
   useGetLatestPaymentsPerStudentQuery,
   useGetStudentLatePaymentsQuery,
-
-  // mutations
   useAddPaymentMutation,
   useUpdatePaymentMutation,
   useDeletePaymentMutation,

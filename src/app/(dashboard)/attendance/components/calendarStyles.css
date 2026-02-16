@@ -121,3 +121,18 @@
 .edit-attendance-modal input[type="time"]:focus {
   outline: none;
 }
+/* preview hover range (بين start و hover) */
+.my-calendar .range-hover abbr {
+  background: rgba(111, 1, 63, 0.12);
+  border-radius: 10px;
+  padding: 6px 8px;
+  display: inline-block;
+}
+
+/* خليه أقوى للبداية */
+.my-calendar .range-start abbr {
+  background: rgba(111, 1, 63, 0.22);
+  border-radius: 10px;
+  padding: 6px 8px;
+  display: inline-block;
+}

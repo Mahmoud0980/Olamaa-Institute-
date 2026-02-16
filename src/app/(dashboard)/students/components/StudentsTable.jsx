@@ -10,6 +10,25 @@ const genderLabel = (g) => {
   if (g === "female") return "أنثى";
   return "—";
 };
+const guardianFullName = (g) => {
+  if (!g) return "—";
+  const f = String(g.first_name || "").trim();
+  const l = String(g.last_name || "").trim();
+  const full = `${f} ${l}`.trim();
+  return full || "—";
+};
+
+const getFatherName = (row) => {
+  const gs = row?.family?.guardians || [];
+  const father = gs.find((g) => g.relationship === "father");
+  return guardianFullName(father);
+};
+
+const getMotherName = (row) => {
+  const gs = row?.family?.guardians || [];
+  const mother = gs.find((g) => g.relationship === "mother");
+  return guardianFullName(mother);
+};
 
 /* ================= component ================= */
 export default function StudentsTable({
@@ -107,6 +126,9 @@ export default function StudentsTable({
                   <th className="p-3 text-center rounded-r-xl">#</th>
                   <th className="p-3">الاسم</th>
                   <th className="p-3">الكنية</th>
+                  <th className="p-3">اسم الأب</th>
+                  <th className="p-3">اسم الأم</th>
+
                   <th className="p-3">الجنس</th>
                   <th className="p-3">فرع المعهد</th>
                   <th className="p-3">الشعبة</th>
@@ -134,6 +156,8 @@ export default function StudentsTable({
 
                     <td className="p-3 font-medium">{row.first_name}</td>
                     <td className="p-3">{row.last_name}</td>
+                    <td className="p-3">{getFatherName(row)}</td>
+                    <td className="p-3">{getMotherName(row)}</td>
                     <td className="p-3">{genderLabel(row.gender)}</td>
                     <td className="p-3">{row.institute_branch?.name ?? "—"}</td>
                     <td className="p-3">{row.batch?.name ?? "—"}</td>

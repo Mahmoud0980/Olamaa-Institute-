@@ -29,6 +29,7 @@ export default function StudentSidePanel({
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [monthListOpen, setMonthListOpen] = useState(false);
+  const [hoverDate, setHoverDate] = useState(null);
 
   const months = [
     "January",
@@ -44,6 +45,12 @@ export default function StudentSidePanel({
     "November",
     "December",
   ];
+  function inPreviewRange(d, start, hover) {
+    if (!start || !hover) return false;
+    const { min, max } = normalizeRange(start, hover);
+    const y = toYMD(d);
+    return y >= min && y <= max;
+  }
 
   const lastClickRef = useRef({ time: 0, ymd: "" });
   const DOUBLE_CLICK_MS = 450;
@@ -95,9 +102,18 @@ export default function StudentSidePanel({
     const s = attendanceRange?.start || null;
     const e = attendanceRange?.end || null;
 
+    // لا يوجد شي محدد
     if (!s && !e) return "";
-    if (s && !e) return isSameDay(date, s) ? "range-start" : "";
 
+    // ✅ حالة: محدد start فقط → اعمل preview بالهوفر
+    if (s && !e) {
+      const base = isSameDay(date, s) ? "range-start" : "";
+      const preview =
+        hoverDate && inPreviewRange(date, s, hoverDate) ? "range-hover" : "";
+      return [base, preview].filter(Boolean).join(" ");
+    }
+
+    // ✅ حالة: range مثبت (start + end)
     const { min, max } = normalizeRange(s, e);
     const d = toYMD(date);
     if (!min || !max || !d) return "";
@@ -121,7 +137,7 @@ export default function StudentSidePanel({
         <div className="scale-[0.9]">
           <Avatar
             fullName={student?.full_name || " "}
-            image={student?.profile_photo_url || student?.profile_photo || null}
+            image={student?.photo || null}
           />
         </div>
 
@@ -203,6 +219,17 @@ export default function StudentSidePanel({
           value={calendarValue}
           onClickDay={handleDayClick}
           tileClassName={tileClassName}
+          onMouseLeave={() => setHoverDate(null)}
+          tileContent={({ date, view }) => {
+            if (view !== "month") return null;
+
+            return (
+              <div
+                onMouseEnter={() => setHoverDate(date)}
+                className="w-full h-full"
+              />
+            );
+          }}
         />
       </div>
     </div>

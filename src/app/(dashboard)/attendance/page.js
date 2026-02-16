@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useDispatch, useSelector } from "react-redux";
 import { clearSearchValue, setSearchValue } from "@/store/slices/searchSlice";
-
+import { notify } from "@/lib/helpers/toastify";
 // ===== APIs =====
 import {
   useGetAttendanceQuery,
   useDeleteAttendanceMutation,
 } from "@/store/services/attendanceApi";
 import { useGetStudentsDetailsQuery } from "@/store/services/studentsApi";
-
 import { useGetBatchesQuery } from "@/store/services/batchesApi";
-import { useGetStudentsQuery } from "@/store/services/studentsApi";
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
 
 // ===== Components =====
@@ -223,6 +221,32 @@ export default function AttendancePage() {
     studentsById,
     batchesById,
   ]);
+  // ✅ آخر سجل لكل طالب (بعد الفلاتر)
+  const latestPerStudent = useMemo(() => {
+    const map = new Map(); // key: student_id, value: latest record
+
+    for (const r of filtered) {
+      const key = r.student_id;
+      const prev = map.get(key);
+
+      // قارن بالتاريخ + recorded_at إذا موجود
+      const prevKey = `${prev?.attendance_date || ""} ${
+        prev?.recorded_at || ""
+      }`;
+      const currKey = `${r.attendance_date || ""} ${r.recorded_at || ""}`;
+
+      if (!prev || currKey > prevKey) {
+        map.set(key, r);
+      }
+    }
+
+    // ترتيب تنازلي حسب التاريخ/الوقت
+    return Array.from(map.values()).sort((a, b) => {
+      const ak = `${a.attendance_date || ""} ${a.recorded_at || ""}`;
+      const bk = `${b.attendance_date || ""} ${b.recorded_at || ""}`;
+      return ak > bk ? -1 : 1;
+    });
+  }, [filtered]);
 
   // ===== Reset all filters (زر عرض كل البيانات) =====
   const resetAll = () => {
@@ -269,11 +293,13 @@ export default function AttendancePage() {
   // ===== Selection =====
   const [selectedIds, setSelectedIds] = useState([]);
 
+  const tableRecords = isDetailsOpen ? detailsRecords : latestPerStudent;
+
   const isAllSelected =
-    selectedIds.length > 0 && selectedIds.length === filtered.length;
+    selectedIds.length > 0 && selectedIds.length === tableRecords.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filtered.map((x) => x.id));
+    setSelectedIds(isAllSelected ? [] : tableRecords.map((x) => x.id));
   };
 
   useEffect(() => {
@@ -317,21 +343,21 @@ export default function AttendancePage() {
         batchId: recordToDelete.batch_id,
       }).unwrap();
 
-      toast.success("تم حذف السجل بنجاح");
+      notify.success("تم حذف السجل بنجاح");
       setIsDeleteOpen(false);
       setRecordToDelete(null);
       setSelectedIds([]);
     } catch (err) {
-      toast.error(err?.data?.message || "فشل حذف السجل");
+      notify.error(err?.data?.message || "فشل حذف السجل");
     }
   };
 
   // ===== Print =====
   const handlePrint = () => {
     if (!selectedIds.length)
-      return toast.error("يرجى تحديد سجل واحد على الأقل");
+      return notify.error("يرجى تحديد سجل واحد على الأقل");
 
-    const rows = filtered.filter((r) => selectedIds.includes(r.id));
+    const rows = tableRecords.filter((r) => selectedIds.includes(r.id));
 
     const html = `
       <html dir="rtl">
@@ -404,9 +430,9 @@ export default function AttendancePage() {
   // ===== Excel =====
   const handleExcel = () => {
     if (!selectedIds.length)
-      return toast.error("يرجى تحديد سجل واحد على الأقل");
+      return notify.error("يرجى تحديد سجل واحد على الأقل");
 
-    const rows = filtered.filter((r) => selectedIds.includes(r.id));
+    const rows = tableRecords.filter((r) => selectedIds.includes(r.id));
 
     const excelRows = rows.map((r) => {
       const st = studentsById?.[r.student_id];
@@ -528,7 +554,7 @@ export default function AttendancePage() {
             />
           ) : (
             <AttendanceTable
-              records={filtered}
+              records={latestPerStudent}
               isLoading={isLoading || isFetching}
               selectedIds={selectedIds}
               onSelectChange={setSelectedIds}

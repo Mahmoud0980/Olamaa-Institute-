@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+function safeUrl(url) {
+  if (!url) return "";
+
+  return url;
+}
 
 export default function Avatar({ fullName, image }) {
-  const [imgOk, setImgOk] = useState(!!image);
+  const src = useMemo(() => safeUrl(image), [image]);
+  const [imgOk, setImgOk] = useState(!!src);
 
   useEffect(() => {
-    setImgOk(!!image);
-  }, [image]);
+    setImgOk(!!src);
+  }, [src]);
 
-  // ✅ أول حرف من الاسم الأول + أول حرف من الاسم الثاني
-  const parts = (fullName || "").trim().split(/\s+/);
-  const firstInitial = parts[0]?.charAt(0)?.toUpperCase() || "";
-  const secondInitial = parts[1]?.charAt(0)?.toUpperCase() || "";
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
+  const firstInitial = parts[0]?.[0]?.toUpperCase() || "";
+  const secondInitial = parts[1]?.[0]?.toUpperCase() || "";
 
   return (
     <div
@@ -34,17 +40,19 @@ export default function Avatar({ fullName, image }) {
         select-none
       "
     >
-      {image && imgOk ? (
+      {src && imgOk ? (
         <img
-          src={image}
-          alt="student"
+          key={src}
+          src={src}
+          alt={fullName || "student"}
           className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
           onError={() => setImgOk(false)}
         />
       ) : (
-        <span>
-          {firstInitial}
-          {secondInitial}
+        <span className="flex items-center gap-1">
+          <span>{firstInitial}</span>
+          <span>{secondInitial}</span>
         </span>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useForm, Controller } from "react-hook-form";
@@ -19,6 +19,7 @@ import { useGetKnowWaysQuery } from "@/store/services/knowWaysApi";
 
 export default function EditStudentInfoModal({ isOpen, onClose, student }) {
   const [step, setStep] = useState(1);
+  const [showSpinner, setShowSpinner] = useState(false);
   const [updateStudent, { isLoading }] = useUpdateStudentMutation();
 
   const form = useForm({ mode: "onTouched" });
@@ -39,12 +40,44 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
   const buses = busesRes?.data || [];
   const knowWays = knowWaysRes?.data || [];
 
-  /* ================= init ================= */
+  /* ================= empty values (يمسح القديم فوراً) ================= */
+  const emptyValues = useMemo(
+    () => ({
+      first_name: "",
+      last_name: "",
+      birth_place: "",
+      date_of_birth: "",
+      national_id: "",
+      branch_id: "",
+      institute_branch_id: "",
+
+      enrollment_date: "",
+      start_attendance_date: "",
+      previous_school_name: "",
+      how_know_institute: "",
+      city_id: "",
+      status_id: "",
+      bus_id: "",
+      gender: "",
+      health_status: "",
+      psychological_status: "",
+      notes: "",
+    }),
+    []
+  );
+
+  /* ================= init / prevent old flash ================= */
   useEffect(() => {
     if (!isOpen) return;
 
+    // ✅ كل فتح مودال: لا تعرض القيم القديمة أبداً
     setStep(1);
+    setShowSpinner(true);
 
+    // ✅ امسح الفورم فوراً (حتى لو كان في طالب سابق)
+    reset(emptyValues);
+
+    // ✅ إذا الطالب موجود حالياً (أو وصل مباشرة) حط قيمه
     if (student) {
       reset({
         first_name: student.first_name ?? "",
@@ -69,8 +102,56 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
         psychological_status: student.psychological_status ?? "",
         notes: student.notes ?? "",
       });
+
+      // ✅ طفي السبينر بعد ما تتطبّق القيم (سلاسة)
+      const t = setTimeout(() => setShowSpinner(false), 150);
+      return () => clearTimeout(t);
     }
-  }, [isOpen, student, reset]);
+
+    // ✅ إذا لسه ما وصل student، خلي السبينر شغال
+  }, [isOpen, student, reset, emptyValues]);
+
+  // ✅ كمان: لما يتغير student والمودال مفتوح (طالب جديد) شغّل السبينر وطبّق القيم
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // إذا تغيّر الطالب ومو موجود، خليك على السبينر
+    if (!student) {
+      setShowSpinner(true);
+      reset(emptyValues);
+      return;
+    }
+
+    // طالب جديد وصل → سبينر لحظي → reset لقيمه → طفي
+    setShowSpinner(true);
+
+    reset({
+      first_name: student.first_name ?? "",
+      last_name: student.last_name ?? "",
+      birth_place: student.birth_place ?? "",
+      date_of_birth: student.date_of_birth ?? "",
+      national_id: student.national_id ?? "",
+      branch_id: student.branch_id ? String(student.branch_id) : "",
+      institute_branch_id: student.institute_branch_id
+        ? String(student.institute_branch_id)
+        : "",
+
+      enrollment_date: student.enrollment_date ?? "",
+      start_attendance_date: student.start_attendance_date ?? "",
+      previous_school_name: student.previous_school_name ?? "",
+      how_know_institute: student.how_know_institute ?? "",
+      city_id: student.city_id ? String(student.city_id) : "",
+      status_id: student.status_id ? String(student.status_id) : "",
+      bus_id: student.bus_id ? String(student.bus_id) : "",
+      gender: student.gender ?? "",
+      health_status: student.health_status ?? "",
+      psychological_status: student.psychological_status ?? "",
+      notes: student.notes ?? "",
+    });
+
+    const t = setTimeout(() => setShowSpinner(false), 150);
+    return () => clearTimeout(t);
+  }, [student?.id]); // ✅ المهم: يتفعّل فقط عند تغيير الطالب فعلياً
 
   if (!isOpen) return null;
 
@@ -160,205 +241,216 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
         </div>
 
         {/* ===== Body ===== */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {step === 1 && (
-            <>
-              <InputField
-                label="اسم الطالب"
-                required
-                register={register("first_name", { required: true })}
-              />
-
-              <InputField
-                label="كنية الطالب"
-                required
-                register={register("last_name", { required: true })}
-              />
-
-              <InputField
-                label="مكان الولادة"
-                required
-                register={register("birth_place", { required: true })}
-              />
-
-              <InputField
-                label="تاريخ الولادة"
-                type="date"
-                required
-                register={register("date_of_birth", { required: true })}
-              />
-
-              <InputField
-                label="الرقم الوطني"
-                required
-                register={register("national_id", {
-                  required: true,
-                  pattern: /^[0-9]{10}$/,
-                  onChange: (e) => {
-                    e.target.value = e.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 10);
-                  },
-                })}
-              />
-
-              <Controller
-                control={control}
-                name="branch_id"
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="الفرع الدراسي"
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {showSpinner ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3">
+              <Spinner />
+              <div className="text-sm text-gray-500">
+                جاري تحميل بيانات الطالب...
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {step === 1 && (
+                <>
+                  <InputField
+                    label="اسم الطالب"
                     required
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={branches.map((b) => ({
-                      key: b.id,
-                      value: String(b.id),
-                      label: b.name,
-                    }))}
-                    placeholder="اختر الفرع"
+                    register={register("first_name", { required: true })}
                   />
-                )}
-              />
 
-              <Controller
-                control={control}
-                name="institute_branch_id"
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="فرع المعهد"
+                  <InputField
+                    label="كنية الطالب"
                     required
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={institutes.map((i) => ({
-                      key: i.id,
-                      value: String(i.id),
-                      label: i.name,
-                    }))}
-                    placeholder="اختر فرع المعهد"
+                    register={register("last_name", { required: true })}
                   />
-                )}
-              />
-            </>
-          )}
 
-          {step === 2 && (
-            <>
-              <InputField
-                label="تاريخ التسجيل"
-                type="date"
-                required
-                register={register("enrollment_date", { required: true })}
-              />
-
-              <InputField
-                label="تاريخ بدء الحضور"
-                type="date"
-                register={register("start_attendance_date")}
-              />
-
-              <Controller
-                control={control}
-                name="gender"
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="الجنس"
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={[
-                      { key: "male", value: "male", label: "ذكر" },
-                      { key: "female", value: "female", label: "أنثى" },
-                    ]}
-                    placeholder="اختر الجنس"
+                  <InputField
+                    label="مكان الولادة"
+                    required
+                    register={register("birth_place", { required: true })}
                   />
-                )}
-              />
 
-              <Controller
-                control={control}
-                name="how_know_institute"
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="كيف عرفت بالمعهد؟"
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={knowWays.map((k, idx) => ({
-                      key: `${k.id ?? idx}`,
-                      value: k.name,
-                      label: k.name,
-                    }))}
-                    placeholder="اختر الطريقة"
+                  <InputField
+                    label="تاريخ الولادة"
+                    type="date"
+                    required
+                    register={register("date_of_birth", { required: true })}
                   />
-                )}
-              />
 
-              <Controller
-                control={control}
-                name="city_id"
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="المدينة"
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={cities.map((c) => ({
-                      key: c.id,
-                      value: String(c.id),
-                      label: c.name,
-                    }))}
-                    placeholder="اختر المدينة"
+                  <InputField
+                    label="الرقم الوطني"
+                    required
+                    register={register("national_id", {
+                      required: true,
+                      pattern: /^[0-9]{10}$/,
+                      onChange: (e) => {
+                        e.target.value = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+                      },
+                    })}
                   />
-                )}
-              />
 
-              <Controller
-                control={control}
-                name="status_id"
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="حالة الطالب"
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={statuses.map((s) => ({
-                      key: s.id,
-                      value: String(s.id),
-                      label: s.name,
-                    }))}
-                    placeholder="اختر الحالة"
+                  <Controller
+                    control={control}
+                    name="branch_id"
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="الفرع الدراسي"
+                        required
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={branches.map((b) => ({
+                          key: b.id,
+                          value: String(b.id),
+                          label: b.name,
+                        }))}
+                        placeholder="اختر الفرع"
+                      />
+                    )}
                   />
-                )}
-              />
 
-              <Controller
-                control={control}
-                name="bus_id"
-                render={({ field }) => (
-                  <SearchableSelect
-                    label="الحافلة"
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    options={buses.map((b) => ({
-                      key: b.id,
-                      value: String(b.id),
-                      label: b.name || b.code || `Bus #${b.id}`,
-                    }))}
-                    placeholder="اختر الحافلة"
+                  <Controller
+                    control={control}
+                    name="institute_branch_id"
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="فرع المعهد"
+                        required
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={institutes.map((i) => ({
+                          key: i.id,
+                          value: String(i.id),
+                          label: i.name,
+                        }))}
+                        placeholder="اختر فرع المعهد"
+                      />
+                    )}
                   />
-                )}
-              />
+                </>
+              )}
 
-              <InputField
-                label="الحالة الصحية"
-                register={register("health_status")}
-              />
-              <InputField
-                label="الحالة النفسية"
-                register={register("psychological_status")}
-              />
-              <InputField label="ملاحظات" register={register("notes")} />
-            </>
+              {step === 2 && (
+                <>
+                  <InputField
+                    label="تاريخ التسجيل"
+                    type="date"
+                    required
+                    register={register("enrollment_date", { required: true })}
+                  />
+
+                  <InputField
+                    label="تاريخ بدء الحضور"
+                    type="date"
+                    register={register("start_attendance_date")}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="gender"
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="الجنس"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={[
+                          { key: "male", value: "male", label: "ذكر" },
+                          { key: "female", value: "female", label: "أنثى" },
+                        ]}
+                        placeholder="اختر الجنس"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="how_know_institute"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="كيف عرفت بالمعهد؟"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={knowWays.map((k, idx) => ({
+                          key: `${k.id ?? idx}`,
+                          value: k.name,
+                          label: k.name,
+                        }))}
+                        placeholder="اختر الطريقة"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="city_id"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="المدينة"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={cities.map((c) => ({
+                          key: c.id,
+                          value: String(c.id),
+                          label: c.name,
+                        }))}
+                        placeholder="اختر المدينة"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="status_id"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="حالة الطالب"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={statuses.map((s) => ({
+                          key: s.id,
+                          value: String(s.id),
+                          label: s.name,
+                        }))}
+                        placeholder="اختر الحالة"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="bus_id"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        label="الحافلة"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={buses.map((b) => ({
+                          key: b.id,
+                          value: String(b.id),
+                          label: b.name || b.code || `Bus #${b.id}`,
+                        }))}
+                        placeholder="اختر الحافلة"
+                      />
+                    )}
+                  />
+
+                  <InputField
+                    label="الحالة الصحية"
+                    register={register("health_status")}
+                  />
+                  <InputField
+                    label="الحالة النفسية"
+                    register={register("psychological_status")}
+                  />
+                  <InputField label="ملاحظات" register={register("notes")} />
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -370,9 +462,18 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
             onBack={step === 1 ? onClose : handleBack}
             onNext={step === 2 ? handleSave : handleNext}
             loading={isLoading}
+            disabled={showSpinner} // ✅ اختياري: امنع ضغط أزرار أثناء التحميل
           />
         </div>
       </div>
     </div>
+  );
+}
+
+/* ================= UI PARTS ================= */
+
+function Spinner() {
+  return (
+    <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-[#6F013F] animate-spin" />
   );
 }

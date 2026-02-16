@@ -1,33 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
 
-import InputField from "@/components/common/InputField";
+import Stepper from "@/components/common/Stepper";
+import FormInput from "@/components/common/InputField";
+import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
+
 import { useAddPaymentMutation } from "@/store/services/paymentsApi";
 
-/* ================= constants ================= */
+/* ================= helpers ================= */
+function toNumOrNull(v) {
+  if (v === "" || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
 const CURRENCY_OPTIONS = [
-  { key: "USD", value: "USD", label: "دولار (USD)" },
-  { key: "SYP", value: "SYP", label: "ليرة سورية (SYP)" },
+  { value: "USD", label: "دولار (USD)" },
+  { value: "SYP", label: "ليرة سورية (SYP)" },
 ];
 
 export default function AddPaymentModal({
   isOpen,
   onClose,
+
   studentId,
   instituteBranchId,
   enrollmentContractId,
-  remainingAmountUsd,
+  remainingAmountUsd = 0,
 }) {
   const [addPayment, { isLoading }] = useAddPaymentMutation();
 
-  const [currency, setCurrency] = useState("USD");
+  const step = 1;
+  const total = 1;
+
+  const currencyOptions = useMemo(() => CURRENCY_OPTIONS, []);
 
   const [form, setForm] = useState({
     receipt_number: "",
+    currency: "USD",
     amount_usd: "",
     amount_syp: "",
     exchange_rate_at_payment: "",
@@ -35,189 +49,223 @@ export default function AddPaymentModal({
     description: "",
   });
 
-  if (!isOpen) return null;
+  // ✅ reset on open
+  useEffect(() => {
+    if (!isOpen) return;
+    setForm({
+      receipt_number: "",
+      currency: "USD",
+      amount_usd: "",
+      amount_syp: "",
+      exchange_rate_at_payment: "",
+      paid_date: "",
+      description: "",
+    });
+  }, [isOpen]);
 
-  /* ================= helpers ================= */
-  const handleChange = (name, value) => {
-    setForm((f) => ({ ...f, [name]: value }));
+  const validate = () => {
+    if (!studentId) return "الطالب غير محدد";
+    if (!instituteBranchId) return "فرع المعهد غير محدد";
+    if (!enrollmentContractId) return "رقم العقد غير محدد";
+
+    if (!form.receipt_number) return "رقم الإيصال مطلوب";
+    if (!form.paid_date) return "تاريخ الدفع مطلوب";
+    if (!form.currency) return "يرجى اختيار العملة";
+
+    if (form.currency === "USD") {
+      if (!form.amount_usd || Number(form.amount_usd) <= 0)
+        return "أدخل مبلغ صحيح بالدولار";
+    }
+
+    if (form.currency === "SYP") {
+      if (!form.amount_syp || Number(form.amount_syp) <= 0)
+        return "أدخل مبلغ صحيح بالليرة السورية";
+
+      if (
+        !form.exchange_rate_at_payment ||
+        Number(form.exchange_rate_at_payment) <= 0
+      )
+        return "أدخل سعر صرف صحيح";
+    }
+
+    return null;
   };
 
-  /* ================= submit ================= */
   const handleSubmit = async () => {
+    const err = validate();
+    if (err) return toast.error(err);
+
     try {
-      // ===== validations =====
-      if (!form.receipt_number) {
-        toast.error("رقم الإيصال مطلوب");
-        return;
-      }
-
-      if (!form.paid_date) {
-        toast.error("تاريخ الدفع مطلوب");
-        return;
-      }
-
       let amountUsd = 0;
       let exchangeRate = 1;
 
-      if (currency === "USD") {
-        if (!form.amount_usd || Number(form.amount_usd) <= 0) {
-          toast.error("أدخل مبلغ صحيح بالدولار");
-          return;
-        }
+      if (form.currency === "USD") {
         amountUsd = Number(form.amount_usd);
         exchangeRate = 1;
       } else {
-        if (!form.amount_syp || Number(form.amount_syp) <= 0) {
-          toast.error("أدخل مبلغ صحيح بالليرة السورية");
-          return;
-        }
-
-        if (
-          !form.exchange_rate_at_payment ||
-          Number(form.exchange_rate_at_payment) <= 0
-        ) {
-          toast.error("أدخل سعر صرف صحيح");
-          return;
-        }
-
         exchangeRate = Number(form.exchange_rate_at_payment);
         amountUsd = Number(form.amount_syp) / exchangeRate;
       }
 
-      // ===== remaining amount check =====
-      if (amountUsd > remainingAmountUsd) {
+      // ✅ remaining amount check
+      if (Number(amountUsd) > Number(remainingAmountUsd || 0)) {
         toast.error(
-          `المبلغ المدفوع (${amountUsd.toFixed(
+          `المبلغ المدفوع (${Number(amountUsd).toFixed(
             2
-          )}$) أكبر من المتبقي (${remainingAmountUsd.toFixed(2)}$)`
+          )}$) أكبر من المتبقي (${Number(remainingAmountUsd || 0).toFixed(2)}$)`
         );
         return;
       }
 
-      // ===== payload =====
       const payload = {
         receipt_number: form.receipt_number,
-        institute_branch_id: instituteBranchId,
-        student_id: studentId,
-        enrollment_contract_id: enrollmentContractId,
+        institute_branch_id: toNumOrNull(instituteBranchId),
+        student_id: toNumOrNull(studentId),
+        enrollment_contract_id: toNumOrNull(enrollmentContractId),
 
-        currency,
-        amount_usd: Number(amountUsd.toFixed(2)),
+        currency: form.currency,
+        amount_usd: Number(Number(amountUsd).toFixed(2)),
         exchange_rate_at_payment: exchangeRate,
 
         paid_date: form.paid_date,
         description: form.description || "دفعة نقدًا",
       };
 
-      if (currency === "SYP") {
-        payload.amount_syp = Number(form.amount_syp);
+      if (form.currency === "SYP") {
+        payload.amount_syp = toNumOrNull(form.amount_syp);
       }
-
-      console.log("📦 PAYMENT PAYLOAD", payload);
 
       await addPayment(payload).unwrap();
       toast.success("تمت إضافة الدفعة بنجاح");
-      onClose();
-    } catch (err) {
-      console.error(err?.data);
-      toast.error("فشل إضافة الدفعة");
+      onClose?.();
+    } catch (e) {
+      console.error(e?.data || e);
+      toast.error(e?.data?.message || "فشل إضافة الدفعة");
     }
   };
 
-  /* ================= render ================= */
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-start bg-black/40">
-      <div className="bg-white w-[420px] h-full flex flex-col shadow-xl">
-        {/* ===== Header ===== */}
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+    <div className="fixed inset-0 bg-black/40 justify-start z-50 backdrop-blur-md flex">
+      <div
+        dir="rtl"
+        className="w-full sm:w-[520px] bg-white h-full shadow-xl p-6 overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-semibold text-[#6F013F] text-lg">إضافة دفعة</h3>
-            {/* <p className="text-xs text-gray-500 mt-0.5">
-              المبلغ المتبقي على العقد:
+            <h2 className="text-[#6F013F] font-semibold">إضافة دفعة</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              المتبقي على العقد:
               <span className="font-semibold text-[#6F013F] ms-1">
-                {remainingAmountUsd.toFixed(2)} $
+                {Number(remainingAmountUsd || 0).toFixed(2)} $
               </span>
-            </p> */}
+            </p>
           </div>
 
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 transition"
-          >
-            <X />
+          <button onClick={onClose} type="button">
+            <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
           </button>
         </div>
 
-        {/* ===== Body ===== */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          <InputField
+        <Stepper current={step} total={total} />
+
+        <div className="mt-6 space-y-5">
+          <FormInput
             label="رقم الإيصال"
+            placeholder="REC-001"
             value={form.receipt_number}
-            onChange={(e) => handleChange("receipt_number", e.target.value)}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, receipt_number: e.target.value }))
+            }
           />
 
           <SearchableSelect
             label="العملة"
-            value={currency}
-            onChange={setCurrency}
-            options={CURRENCY_OPTIONS}
+            required
+            value={form.currency}
+            onChange={(v) => setForm((p) => ({ ...p, currency: v }))}
+            options={currencyOptions}
+            placeholder="اختر العملة..."
             allowClear={false}
           />
 
-          {currency === "USD" && (
-            <InputField
-              label="المبلغ بالدولار"
-              type="number"
-              value={form.amount_usd}
-              onChange={(e) => handleChange("amount_usd", e.target.value)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormInput
+              label="سعر الصرف"
+              required={form.currency === "SYP" || !!form.amount_syp}
+              placeholder="10000"
+              value={form.exchange_rate_at_payment}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  exchange_rate_at_payment: e.target.value,
+                }))
+              }
+              disabled={form.currency !== "SYP"}
             />
-          )}
 
-          {currency === "SYP" && (
-            <>
-              <InputField
-                label="المبلغ بالليرة السورية"
-                type="number"
-                value={form.amount_syp}
-                onChange={(e) => handleChange("amount_syp", e.target.value)}
-              />
+            <FormInput
+              label="تاريخ الدفع"
+              required
+              type="date"
+              value={form.paid_date}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, paid_date: e.target.value }))
+              }
+            />
+          </div>
 
-              <InputField
-                label="سعر الصرف"
-                type="number"
-                value={form.exchange_rate_at_payment}
-                onChange={(e) =>
-                  handleChange("exchange_rate_at_payment", e.target.value)
-                }
-              />
-            </>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormInput
+              label="المبلغ بالدولار"
+              required={form.currency === "USD"}
+              placeholder="100"
+              value={form.amount_usd}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, amount_usd: e.target.value }))
+              }
+              disabled={form.currency !== "USD"}
+              type="number"
+            />
 
-          <InputField
-            label="تاريخ الدفع"
-            type="date"
-            value={form.paid_date}
-            onChange={(e) => handleChange("paid_date", e.target.value)}
-          />
+            <FormInput
+              label="المبلغ بالليرة"
+              required={form.currency === "SYP"}
+              placeholder="1000000"
+              value={form.amount_syp}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, amount_syp: e.target.value }))
+              }
+              disabled={form.currency !== "SYP"}
+              type="number"
+            />
+          </div>
 
-          <InputField
+          <FormInput
             label="ملاحظات"
+            placeholder="دفعة نقدًا..."
             value={form.description}
-            onChange={(e) => handleChange("description", e.target.value)}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, description: e.target.value }))
+            }
           />
-        </div>
 
-        {/* ===== Footer ===== */}
-        <div className="px-5 py-4 border-t">
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading}
-            className="w-full bg-[#6F013F] text-white py-2.5 rounded-xl font-medium disabled:opacity-60"
-          >
-            حفظ الدفعة
-          </button>
+          <StepButtonsSmart
+            step={step}
+            total={total}
+            loading={isLoading}
+            onNext={handleSubmit}
+            onBack={onClose}
+            nextLabel="حفظ"
+          />
         </div>
       </div>
+
+      {/* click outside */}
+      <div className="flex-1" onClick={onClose} />
     </div>
   );
 }

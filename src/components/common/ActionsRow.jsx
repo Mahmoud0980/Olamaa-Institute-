@@ -26,13 +26,14 @@ export default function ActionsRow({
 }) {
   return (
     <div className="flex gap-2 flex-wrap items-center">
-      <DashboardButton
-        label={addLabel}
-        icon={<span className="text-md">+</span>}
-        color="pink"
-        onClick={onAdd}
-      />
-
+      {addLabel && (
+        <DashboardButton
+          label={addLabel}
+          icon={<span className="text-md">+</span>}
+          color="pink"
+          onClick={onAdd}
+        />
+      )}
       {viewLabel && (
         <DashboardButton
           label={viewLabel}

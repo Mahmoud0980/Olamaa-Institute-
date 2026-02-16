@@ -12,7 +12,27 @@ const g = (x) => (x === "male" ? "ذكر" : x === "female" ? "أنثى" : "—")
 const safe = (v) => (v === null || v === undefined || v === "" ? "—" : v);
 
 /* ================= component ================= */
-export default function StudentDetailsModal({ open, onClose, student }) {
+export default function StudentDetailsModal({
+  open,
+  onClose,
+  student,
+  isLoading = false, // ✅ جديد
+}) {
+  // ✅ عرض تحميل بدل "لا يوجد بيانات" أثناء التحميل
+  const showLoading = open && (isLoading || !student);
+
+  if (showLoading) {
+    return (
+      <BaseModal open={open} onClose={onClose} title="تفاصيل الطالب">
+        <div className="py-14 flex flex-col items-center justify-center gap-3">
+          <Spinner />
+          <div className="text-sm text-gray-500">جاري تحميل البيانات...</div>
+        </div>
+      </BaseModal>
+    );
+  }
+
+  // ✅ إذا انتهى التحميل وما في بيانات فعلاً
   if (!student) {
     return (
       <BaseModal open={open} onClose={onClose} title="تفاصيل الطالب">
@@ -255,10 +275,17 @@ function Section({ title, children }) {
 }
 
 function Grid({ children, cols = 2 }) {
+  // ✅ ملاحظة: Tailwind ما بيحب md:grid-cols-${cols} ديناميكي
+  // لذلك نخليها ثابتة حسب cols
+  const colsClass =
+    cols === 3
+      ? "md:grid-cols-3"
+      : cols === 4
+      ? "md:grid-cols-4"
+      : "md:grid-cols-2";
+
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-${cols} gap-4`}>
-      {children}
-    </div>
+    <div className={`grid grid-cols-1 ${colsClass} gap-4`}>{children}</div>
   );
 }
 
@@ -268,5 +295,11 @@ function Card({ label, value }) {
       <div className="text-xs text-gray-500 mb-1">{label}</div>
       <div className="font-medium">{safe(value)}</div>
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-[#6F013F] animate-spin" />
   );
 }

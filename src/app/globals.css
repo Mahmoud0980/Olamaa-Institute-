@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
     --line: #5b5b5b;
       /* لون الخط العمودي والوصلة الافتراضي */
       --accent: #BD036B;
@@ -41,7 +42,7 @@
 
 body {
   background: var(--background);
-  
+  background: #fff;
   font-family: Arial, Helvetica, sans-serif;
 }
 html[dir="rtl"] body {
@@ -109,4 +110,37 @@ thead tr:first-child th:first-child {
 thead tr:first-child th:last-child {
   border-top-left-radius: 0.5rem;
   border-bottom-left-radius: 0.5rem;
+}
+
+/* Toast animations */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px) translateY(6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(16px) translateY(6px) scale(0.98);
+  }
+}
+
+.animate-enter {
+  animation: toastIn 220ms ease-out both;
+}
+
+.animate-leave {
+  animation: toastOut 180ms ease-in both;
 }
