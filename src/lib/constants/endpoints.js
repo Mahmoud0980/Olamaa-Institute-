@@ -22,6 +22,7 @@ const ENDPOINTS = {
   PAYMENTS: "/payments",
   PAYMENTS_LATEST_PER_STUDENT: "/payments/latest-per-student",
   PAYMENTS_STUDENT_LATE: "/payments/student-late",
+  ENROLLMENTS: "/enrollments",
 };
 
 export default ENDPOINTS;
