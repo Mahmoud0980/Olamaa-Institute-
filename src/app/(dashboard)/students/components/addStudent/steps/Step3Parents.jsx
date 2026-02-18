@@ -82,15 +82,23 @@ export default function Step3Parents({
         />
 
         <InputField
-          label="الرقم الوطني للأب"
+          label="الرقم الوطني للأب (اختياري)"
           type="text"
           placeholder="10 أرقام فقط"
           register={register("father_national_id", {
             setValueAs: (v) => clean(v),
             validate: (v) => {
               const s = clean(v);
-              if (!s) return true; // اختياري
-              return /^[0-9]{10}$/.test(s) || "يجب إدخال 10 أرقام فقط";
+
+              // إذا فاضي → مقبول لأنه اختياري
+              if (!s) return true;
+
+              // إذا معبّى → لازم 10 أرقام
+              if (!/^\d{10}$/.test(s)) {
+                return "يجب إدخال 10 أرقام فقط";
+              }
+
+              return true;
             },
             onChange: (e) => {
               e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -166,15 +174,21 @@ export default function Step3Parents({
         />
 
         <InputField
-          label="الرقم الوطني للأم"
+          label="الرقم الوطني للأم (اختياري)"
           type="text"
           placeholder="10 أرقام فقط"
           register={register("mother_national_id", {
             setValueAs: (v) => clean(v),
             validate: (v) => {
               const s = clean(v);
-              if (!s) return true; // اختياري
-              return /^[0-9]{10}$/.test(s) || "يجب إدخال 10 أرقام فقط";
+
+              if (!s) return true;
+
+              if (!/^\d{10}$/.test(s)) {
+                return "يجب إدخال 10 أرقام فقط";
+              }
+
+              return true;
             },
             onChange: (e) => {
               e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
