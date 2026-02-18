@@ -88,17 +88,10 @@ export default function Step3Parents({
           register={register("father_national_id", {
             setValueAs: (v) => clean(v),
             validate: (v) => {
-              const s = clean(v);
+              const digits = String(v ?? "").replace(/\D/g, ""); // فقط أرقام
 
-              // إذا فاضي → مقبول لأنه اختياري
-              if (!s) return true;
-
-              // إذا معبّى → لازم 10 أرقام
-              if (!/^\d{10}$/.test(s)) {
-                return "يجب إدخال 10 أرقام فقط";
-              }
-
-              return true;
+              if (digits.length === 0) return true; // فاضي → مقبول (اختياري)
+              return digits.length === 10 || "يجب إدخال 10 أرقام فقط";
             },
             onChange: (e) => {
               e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -180,15 +173,9 @@ export default function Step3Parents({
           register={register("mother_national_id", {
             setValueAs: (v) => clean(v),
             validate: (v) => {
-              const s = clean(v);
-
-              if (!s) return true;
-
-              if (!/^\d{10}$/.test(s)) {
-                return "يجب إدخال 10 أرقام فقط";
-              }
-
-              return true;
+              const digits = String(v ?? "").replace(/\D/g, "");
+              if (digits.length === 0) return true;
+              return digits.length === 10 || "يجب إدخال 10 أرقام فقط";
             },
             onChange: (e) => {
               e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
