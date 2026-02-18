@@ -63,7 +63,7 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
       psychological_status: "",
       notes: "",
     }),
-    []
+    [],
   );
 
   /* ================= init / prevent old flash ================= */
@@ -435,6 +435,7 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
                           label: b.name || b.code || `Bus #${b.id}`,
                         }))}
                         placeholder="اختر الحافلة"
+                        allowClear
                       />
                     )}
                   />

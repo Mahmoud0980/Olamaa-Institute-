@@ -316,7 +316,7 @@ export default function Step2StudentExtra({
               { value: "female", label: "أنثى" },
             ]}
             placeholder="اختر الجنس"
-            allowClear={false}
+            allowClear
           />
         )}
       />
@@ -340,7 +340,7 @@ export default function Step2StudentExtra({
               { value: "خاص", label: "خاص" },
             ]}
             placeholder="اختر المدرسة"
-            allowClear={false}
+            allowClear
           />
         )}
       />
@@ -364,7 +364,7 @@ export default function Step2StudentExtra({
               label: k.name,
             }))}
             placeholder="اختر الطريقة"
-            allowClear={false}
+            allowClear
           />
         )}
       />
@@ -388,7 +388,7 @@ export default function Step2StudentExtra({
               label: c.name,
             }))}
             placeholder="اختر المدينة"
-            allowClear={false}
+            allowClear
           />
         )}
       />
@@ -412,7 +412,7 @@ export default function Step2StudentExtra({
               label: s.name,
             }))}
             placeholder="اختر الحالة"
-            allowClear={false}
+            allowClear
           />
         )}
       />
@@ -436,7 +436,7 @@ export default function Step2StudentExtra({
               label: b.name || b.code || `Bus #${b.id}`,
             }))}
             placeholder="اختر الحافلة"
-            allowClear={false}
+            allowClear
           />
         )}
       />

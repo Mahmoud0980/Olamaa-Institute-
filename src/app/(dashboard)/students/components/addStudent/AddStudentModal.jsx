@@ -15,7 +15,6 @@ import Step3Parents from "./steps/Step3Parents";
 import Step4Record from "./steps/Step4Record";
 import Step5Contacts from "./steps/Step5Contacts";
 import Step6EnrollmentContract from "./steps/Step6EnrollmentContract";
-import Step7Payment from "./steps/Step7Payment";
 import StepSuccess from "./steps/StepSuccess";
 
 import useAddEnrollment from "../../hooks/useAddEnrollment";
@@ -42,7 +41,7 @@ const clean = (v) => {
 
 export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   /* ================= meta ================= */
-  const total = 8; //8
+  const total = 7; //8
   const isEdit = !!student;
   const [loadingStep3, setLoadingStep3] = useState(false);
   const [loadingStep4, setLoadingStep4] = useState(false);
@@ -68,11 +67,11 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const { handleAddEnrollment } = useAddEnrollment();
 
   const { data: recordsRes } = useGetRecordsQuery(
-    studentId ? { student_id: studentId } : skipToken
+    studentId ? { student_id: studentId } : skipToken,
   );
 
   const { data: contactsRes } = useGetContactsQuery(
-    studentId ? { student_id: studentId } : skipToken
+    studentId ? { student_id: studentId } : skipToken,
   );
 
   const [addRecord] = useAddRecordMutation();
@@ -285,7 +284,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     if (!online) {
       notify.error(
         "لا يوجد  اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.",
-        "لا يوجد إنترنت"
+        "لا يوجد إنترنت",
       );
       return;
     }
@@ -336,7 +335,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       if (!onlineNow) {
         notify.error(
           "انقطع الاتصال أثناء الحفظ. تأكد من الإنترنت وحاول مرة ثانية.",
-          "مشكلة اتصال"
+          "مشكلة اتصال",
         );
       } else {
         notify.error("فشل تسجيل الطالب", "خطأ");
@@ -354,7 +353,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     if (!online) {
       notify.error(
         "لا يوجد  اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.",
-        "لا يوجد إنترنت"
+        "لا يوجد إنترنت",
       );
       return;
     }
@@ -377,7 +376,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       if (!onlineNow) {
         notify.error(
           "انقطع الاتصال أثناء الربط. تأكد من الإنترنت وحاول مرة ثانية.",
-          "مشكلة اتصال"
+          "مشكلة اتصال",
         );
       } else {
         notify.error("فشل ربط العائلة", "خطأ");
@@ -395,7 +394,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     if (!online) {
       notify.error(
         "لا يوجد اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.",
-        "لا يوجد إنترنت"
+        "لا يوجد إنترنت",
       );
       return;
     }
@@ -418,7 +417,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       if (!onlineNow) {
         notify.error(
           "انقطع الاتصال أثناء الإنشاء. تأكد من الإنترنت وحاول مرة ثانية.",
-          "مشكلة اتصال"
+          "مشكلة اتصال",
         );
       } else {
         notify.error("فشل إنشاء عائلة جديدة", "خطأ");
@@ -465,7 +464,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     setLoadingStep5(true);
     try {
       await Promise.all(
-        existingContacts.map((c) => deleteContact(c.id).unwrap())
+        existingContacts.map((c) => deleteContact(c.id).unwrap()),
       );
       await Promise.all(contactsPayload.map((it) => addContact(it).unwrap()));
       setStep(6);
@@ -578,7 +577,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
               />
             )}
 
-            {step === 7 && (
+            {/* {step === 7 && (
               <Step7Payment
                 studentId={studentId}
                 instituteBranchId={form1.getValues("institute_branch_id")}
@@ -586,9 +585,9 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
                 onBack={() => setStep(6)}
                 onFinish={() => setStep(8)}
               />
-            )}
+            )} */}
 
-            {step === 8 && (
+            {step === 7 && (
               <StepSuccess
                 studentId={studentId}
                 onReset={() => {

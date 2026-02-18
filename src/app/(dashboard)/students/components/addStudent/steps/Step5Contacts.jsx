@@ -43,8 +43,8 @@ export default function Step5Contacts({
         g?.relationship === "father"
           ? "الأب"
           : g?.relationship === "mother"
-          ? "الأم"
-          : "";
+            ? "الأم"
+            : "";
 
       return {
         key: `${g?.id}-${idx}`,
@@ -69,7 +69,7 @@ export default function Step5Contacts({
   /* derived */
   const hasPhonePrimary = useMemo(
     () => items.some((x) => x.type === "phone" && x.is_primary),
-    [items]
+    [items],
   );
 
   const phonePrimaryOwner = useMemo(() => {
@@ -91,8 +91,8 @@ export default function Step5Contacts({
       g?.relationship === "father"
         ? "الأب"
         : g?.relationship === "mother"
-        ? "الأم"
-        : "";
+          ? "الأم"
+          : "";
 
     return rel ? `${rel} — ${full}` : full;
   };
@@ -119,7 +119,7 @@ export default function Step5Contacts({
     if (draft.type === "phone" && draft.is_primary && hasPhonePrimary) {
       notify.error(
         "مسموح رقم هاتف واحد فقط كجهة اتصال أساسية (Primary)",
-        "تنبيه"
+        "تنبيه",
       );
       return;
     }
@@ -165,7 +165,7 @@ export default function Step5Contacts({
   const primaryHint =
     draft.type === "phone" && hasPhonePrimary
       ? `هناك رقم هاتف أساسي محدد مسبقًا (${guardianName(
-          phonePrimaryOwner
+          phonePrimaryOwner,
         )}). لا يمكن تحديد رقم هاتف أساسي آخر.`
       : "";
 
@@ -184,7 +184,7 @@ export default function Step5Contacts({
           onChange={(v) => setDraft((d) => ({ ...d, guardian_id: v }))}
           options={guardianOptions}
           placeholder="اختر الأب أو الأم"
-          allowClear={false}
+          allowClear
         />
 
         <SearchableSelect
@@ -203,7 +203,7 @@ export default function Step5Contacts({
           }
           options={TYPE_OPTIONS}
           placeholder="اختر النوع"
-          allowClear={false}
+          allowClear
         />
 
         {(draft.type === "phone" || draft.type === "whatsapp") && (

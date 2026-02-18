@@ -41,7 +41,7 @@ export default function Step4Record({
             }}
             options={RECORD_TYPES}
             placeholder="اختر نوع السجل"
-            allowClear={false}
+            allowClear
           />
         )}
       />
@@ -90,7 +90,6 @@ export default function Step4Record({
       <textarea
         rows={3}
         {...register("description", {
-          required: "الوصف مطلوب",
           maxLength: { value: 200, message: "الوصف لا يجب أن يتجاوز 200 محرف" },
           setValueAs: (v) => String(v ?? "").trim(),
           validate: (v) =>

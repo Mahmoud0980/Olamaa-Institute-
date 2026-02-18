@@ -82,7 +82,7 @@ export default function StudentsPage() {
 
   const studentsDetails = useMemo(
     () => normalizeStudentsDetailsResponse(studentsDetailsRes),
-    [studentsDetailsRes]
+    [studentsDetailsRes],
   );
 
   const { data: batchesRes } = useGetBatchesQuery();
@@ -245,7 +245,7 @@ export default function StudentsPage() {
       await deleteStudent(studentToDelete.id).unwrap();
       toast.success("تم حذف الطالب بنجاح");
       setSelectedIds((prev) =>
-        prev.filter((id) => id !== String(studentToDelete.id))
+        prev.filter((id) => id !== String(studentToDelete.id)),
       );
       setOpenDelete(false);
       setStudentToDelete(null);
@@ -312,7 +312,7 @@ export default function StudentsPage() {
     }
 
     const rows = filteredStudents.filter((s) =>
-      selectedIds.includes(String(s.id))
+      selectedIds.includes(String(s.id)),
     );
 
     const html = `
@@ -345,13 +345,13 @@ export default function StudentsPage() {
                 <tr>
                   <td>${i + 1}</td>
                   <td>${esc(
-                    s.full_name ?? `${s.first_name} ${s.last_name}`
+                    s.full_name ?? `${s.first_name} ${s.last_name}`,
                   )}</td>
                   <td>${esc(s.gender)}</td>
                   <td>${esc(s.institute_branch?.name)}</td>
                   <td>${esc(s.batch?.name)}</td>
                   <td>${esc(s.date_of_birth)}</td>
-                </tr>`
+                </tr>`,
                 )
                 .join("")}
             </tbody>
@@ -395,7 +395,7 @@ export default function StudentsPage() {
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
       new Blob([buf], { type: "application/octet-stream" }),
-      "students_details.xlsx"
+      "students_details.xlsx",
     );
   };
 
@@ -446,7 +446,7 @@ export default function StudentsPage() {
             isAllSelected={isAllSelected}
             onToggleSelectAll={() =>
               setSelectedIds(
-                isAllSelected ? [] : filteredStudents.map((s) => String(s.id))
+                isAllSelected ? [] : filteredStudents.map((s) => String(s.id)),
               )
             }
             addLabel="إضافة طالب"
