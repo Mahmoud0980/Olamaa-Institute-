@@ -14,7 +14,7 @@ export default function BusesTable({
   onDelete,
 }) {
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const safeBuses = Array.isArray(buses) ? buses : [];
 

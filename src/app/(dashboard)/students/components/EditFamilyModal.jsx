@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import { useForm } from "react-hook-form";
 
 import InputField from "@/components/common/InputField";
@@ -15,12 +15,12 @@ export default function EditFamilyModal({ open, onClose, student, onSaved }) {
 
   const father = useMemo(
     () => guardians.find((g) => g.relationship === "father"),
-    [guardians]
+    [guardians],
   );
 
   const mother = useMemo(
     () => guardians.find((g) => g.relationship === "mother"),
-    [guardians]
+    [guardians],
   );
 
   const [step, setStep] = useState(1);
@@ -54,11 +54,11 @@ export default function EditFamilyModal({ open, onClose, student, onSaved }) {
     for (const name of fields) {
       const msg = errors?.[name]?.message;
       if (msg) {
-        toast.error(msg);
+        notify.error(msg);
         return;
       }
     }
-    toast.error("يرجى التحقق من الحقول المطلوبة");
+    notify.error("يرجى التحقق من الحقول المطلوبة");
   };
 
   /* ================= steps ================= */
@@ -145,12 +145,12 @@ export default function EditFamilyModal({ open, onClose, student, onSaved }) {
         await updateGuardian(payloadMother).unwrap();
       }
 
-      toast.success("تم حفظ بيانات العائلة");
+      notify.success("تم حفظ بيانات العائلة");
       onSaved?.();
       onClose?.();
     } catch (e) {
       console.error("❌ UPDATE GUARDIAN ERROR", e);
-      toast.error(e?.data?.message || "فشل حفظ بيانات العائلة");
+      notify.error(e?.data?.message || "فشل حفظ بيانات العائلة");
     }
   };
 

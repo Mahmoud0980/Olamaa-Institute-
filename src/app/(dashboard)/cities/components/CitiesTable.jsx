@@ -15,7 +15,7 @@ export default function CitiesTable({
 }) {
   // ===== Pagination (مثل batches) =====
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const totalPages = Math.ceil(cities.length / pageSize) || 1;
   const paginated = cities.slice((page - 1) * pageSize, page * pageSize);

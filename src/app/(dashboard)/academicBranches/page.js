@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -77,7 +77,7 @@ export default function AcademicBranchesPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredBranches.some((r) => r.id === id)
+        filteredBranches.some((r) => r.id === id),
       );
 
       // ⛔ إذا ما في تغيير، لا نعمل setState
@@ -110,30 +110,30 @@ export default function AcademicBranchesPage() {
 
     try {
       await deleteAcademicBranch(branchToDelete.id).unwrap();
-      toast.success("تم حذف الفرع الأكاديمي بنجاح");
+      notify.success("تم حذف الفرع الأكاديمي بنجاح");
       setIsDeleteOpen(false);
       setBranchToDelete(null);
       setSelectedIds([]);
     } catch (err) {
-      toast.error(err?.data?.message || "حدث خطأ أثناء الحذف");
+      notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
   };
 
   // ===== Print (شرط: لازم تحديد) =====
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد فرع أكاديمي واحد على الأقل للطباعة");
+      notify.error("يرجى تحديد فرع أكاديمي واحد على الأقل للطباعة");
       return;
     }
 
     const rows = filteredBranches.filter((r) => selectedIds.includes(r.id));
     if (!rows.length) {
-      toast.error("لا توجد بيانات للطباعة");
+      notify.error("لا توجد بيانات للطباعة");
       return;
     }
 
     const showBranchCol = rows.some(
-      (r) => r?.institute_branch_id != null || r?.branch_id != null
+      (r) => r?.institute_branch_id != null || r?.branch_id != null,
     );
 
     const html = `
@@ -191,7 +191,7 @@ export default function AcademicBranchesPage() {
 
     const win = window.open("", "", "width=1200,height=800");
     if (!win) {
-      toast.error("المتصفح منع نافذة الطباعة");
+      notify.error("المتصفح منع نافذة الطباعة");
       return;
     }
 
@@ -203,13 +203,13 @@ export default function AcademicBranchesPage() {
   // ===== Excel (شرط: لازم تحديد) =====
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد فرع أكاديمي واحد على الأقل للتصدير");
+      notify.error("يرجى تحديد فرع أكاديمي واحد على الأقل للتصدير");
       return;
     }
 
     const rows = filteredBranches.filter((r) => selectedIds.includes(r.id));
     if (!rows.length) {
-      toast.error("لا توجد بيانات للتصدير");
+      notify.error("لا توجد بيانات للتصدير");
       return;
     }
 
@@ -227,7 +227,7 @@ export default function AcademicBranchesPage() {
 
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_الفروع_الأكاديمية.xlsx"
+      "قائمة_الفروع_الأكاديمية.xlsx",
     );
   };
 
@@ -278,6 +278,7 @@ export default function AcademicBranchesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         branch={selectedBranch}
+        branches={academicBranches}
       />
 
       <DeleteConfirmModal

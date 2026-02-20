@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
@@ -13,7 +13,7 @@ import {
   useUpdateAcademicBranchMutation,
 } from "@/store/services/academicBranchesApi";
 
-export default function AddAcademicBranchModal({ isOpen, onClose, branch }) {
+export default function AddAcademicBranchModal({ isOpen, onClose, branch, branches = [] }) {
   const [addBranch] = useAddAcademicBranchMutation();
   const [updateBranch] = useUpdateAcademicBranchMutation();
 
@@ -43,25 +43,37 @@ export default function AddAcademicBranchModal({ isOpen, onClose, branch }) {
     }
   }, [isOpen, branch]);
 
+  // ===== أسماء الفروع الأكاديمية (للتحقق عند الحفظ فقط)
+  const branchNames = branches
+    .filter((b) => !branch || b.id !== branch.id)
+    .map((b) => b.name?.toLowerCase().trim());
+
   const handleSubmit = async () => {
-    if (!form.name.trim()) return toast.error("اسم الفرع الأكاديمي مطلوب");
+    if (!form.name.trim()) return notify.error("اسم الفرع الأكاديمي مطلوب");
+    if (form.name.length > 100)
+      return notify.error("اسم الفرع الأكاديمي طويل جدًا");
+
+    const normalized = form.name.trim().toLowerCase();
+    if (branchNames.includes(normalized))
+      return notify.error("الفرع الأكاديمي موجود");
+
     if (!form.description.trim())
-      return toast.error("وصف الفرع الأكاديمي مطلوب");
+      return notify.error("وصف الفرع الأكاديمي مطلوب");
 
     try {
       setLoading(true);
 
       if (branch) {
         await updateBranch({ id: branch.id, ...form }).unwrap();
-        toast.success("تم تعديل الفرع الأكاديمي");
+        notify.success("تم تعديل الفرع الأكاديمي");
       } else {
         await addBranch(form).unwrap();
-        toast.success("تم إضافة الفرع الأكاديمي بنجاح");
+        notify.success("تم إضافة الفرع الأكاديمي بنجاح");
       }
 
       onClose();
     } catch {
-      toast.error("حدث خطأ أثناء الحفظ");
+      notify.error("حدث خطأ أثناء الحفظ");
     }
 
     setLoading(false);

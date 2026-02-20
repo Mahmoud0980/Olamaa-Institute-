@@ -15,7 +15,7 @@ export default function ClassRoomsTable({
 }) {
   // ===== Pagination =====
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const totalPages = Math.ceil(data.length / pageSize) || 1;
   const paginated = data.slice((page - 1) * pageSize, page * pageSize);

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -35,7 +35,7 @@ export default function KnowWaysPage() {
   // ===== Filter =====
   const filtered = useMemo(() => {
     return knowWays.filter((item) =>
-      item.name?.toLowerCase().includes((search || "").toLowerCase())
+      item.name?.toLowerCase().includes((search || "").toLowerCase()),
     );
   }, [knowWays, search]);
   useEffect(() => {
@@ -77,19 +77,19 @@ export default function KnowWaysPage() {
   const confirmDelete = async () => {
     try {
       await deleteKnowWay(itemToDelete.id).unwrap();
-      toast.success("تم الحذف بنجاح");
+      notify.success("تم الحذف بنجاح");
       setIsDeleteOpen(false);
       setItemToDelete(null);
       setSelectedIds([]);
-    } catch {
-      toast.error("فشل الحذف");
+    } catch (err) {
+      notify.error(err?.data?.message || "فشل الحذف");
     }
   };
 
   // ===== Print =====
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد عنصر واحد على الأقل للطباعة");
+      notify.error("يرجى تحديد عنصر واحد على الأقل للطباعة");
       return;
     }
 
@@ -122,7 +122,7 @@ export default function KnowWaysPage() {
                   <td>${i + 1}</td>
                   <td>${r.name}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -140,7 +140,7 @@ export default function KnowWaysPage() {
   // ===== Excel =====
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد عنصر واحد على الأقل للتصدير");
+      notify.error("يرجى تحديد عنصر واحد على الأقل للتصدير");
       return;
     }
 
@@ -158,7 +158,7 @@ export default function KnowWaysPage() {
 
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      "طرق_المعرفة.xlsx"
+      "طرق_المعرفة.xlsx",
     );
   };
 
@@ -198,6 +198,7 @@ export default function KnowWaysPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         item={editItem}
+        allNames={knowWays.map((k) => k.name)}
       />
 
       <DeleteConfirmModal

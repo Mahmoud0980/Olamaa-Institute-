@@ -57,14 +57,14 @@ export default function AttendanceTable({
   branchesById = {},
 }) {
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const safe = Array.isArray(records) ? records : [];
   const totalPages = Math.ceil(safe.length / pageSize) || 1;
 
   const paginated = useMemo(
     () => safe.slice((page - 1) * pageSize, page * pageSize),
-    [safe, page]
+    [safe, page],
   );
 
   useEffect(() => setPage(1), [safe]);
@@ -173,7 +173,7 @@ export default function AttendanceTable({
                   </td>
                   <td className="p-3 whitespace-nowrap">
                     {formatTime(
-                      rec.exit_at || rec.exit_time || rec.departure_time
+                      rec.exit_at || rec.exit_time || rec.departure_time,
                     )}
                   </td>
 
@@ -262,7 +262,7 @@ export default function AttendanceTable({
               <Row
                 label="وقت الانصراف"
                 value={formatTime(
-                  rec.exit_at || rec.exit_time || rec.departure_time
+                  rec.exit_at || rec.exit_time || rec.departure_time,
                 )}
               />
 

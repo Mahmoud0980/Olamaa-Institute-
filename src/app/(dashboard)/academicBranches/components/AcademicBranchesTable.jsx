@@ -25,13 +25,13 @@ export default function AcademicBranchesTable({
 
   const hasInstituteBranchId = useMemo(() => {
     return safeBranches.some(
-      (b) => b?.institute_branch_id != null || b?.branch_id != null
+      (b) => b?.institute_branch_id != null || b?.branch_id != null,
     );
   }, [safeBranches]);
 
   // ===== Pagination =====
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const totalPages = Math.ceil(safeBranches.length / pageSize) || 1;
   const paginated = safeBranches.slice((page - 1) * pageSize, page * pageSize);
@@ -104,7 +104,7 @@ export default function AcademicBranchesTable({
                     {hasInstituteBranchId && (
                       <td className="p-3">
                         {getInstituteBranchName(
-                          row?.institute_branch_id ?? row?.branch_id
+                          row?.institute_branch_id ?? row?.branch_id,
                         )}
                       </td>
                     )}
@@ -170,7 +170,7 @@ export default function AcademicBranchesTable({
                     <span className="text-gray-500">الفرع:</span>
                     <span>
                       {getInstituteBranchName(
-                        row?.institute_branch_id ?? row?.branch_id
+                        row?.institute_branch_id ?? row?.branch_id,
                       )}
                     </span>
                   </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -42,8 +42,9 @@ export default function SubjectsPage() {
   const { data: academicData } = useGetAcademicBranchesQuery();
   const academicBranches = academicData?.data || [];
 
-  const getAcademicName = (id) =>
-    academicBranches.find((a) => a.id === id)?.name || "-";
+  // const getAcademicName = (id) =>
+  //   academicBranches.find((a) => a.id === id)?.name || "-";
+  const getAcademicName = (subject) => subject.academic_branch?.name || "-";
 
   // ===== Filtering =====
   const filteredSubjects = useMemo(() => {
@@ -82,7 +83,7 @@ export default function SubjectsPage() {
   };
 
   const selectedRows = filteredSubjects.filter((s) =>
-    selectedIds.includes(s.id)
+    selectedIds.includes(s.id),
   );
 
   // ===== Modals =====
@@ -107,7 +108,7 @@ export default function SubjectsPage() {
 
   const handleAskDeleteMultiple = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مادة واحدة على الأقل");
+      notify.error("يرجى تحديد مادة واحدة على الأقل");
       return;
     }
     setDeleteMode("multiple");
@@ -122,22 +123,22 @@ export default function SubjectsPage() {
         await Promise.all(selectedIds.map((id) => deleteSubject(id).unwrap()));
       }
 
-      toast.success("تم الحذف بنجاح");
+      notify.success("تم الحذف بنجاح");
       setSelectedIds([]);
       setIsDeleteOpen(false);
 
       dispatch(
-        subjectsApi.util.invalidateTags([{ type: "Subjects", id: "LIST" }])
+        subjectsApi.util.invalidateTags([{ type: "Subjects", id: "LIST" }]),
       );
-    } catch {
-      toast.error("حدث خطأ أثناء الحذف");
+    } catch (err) {
+      notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
   };
 
   // ================= PRINT =================
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مادة واحدة على الأقل للطباعة");
+      notify.error("يرجى تحديد مادة واحدة على الأقل للطباعة");
       return;
     }
 
@@ -174,9 +175,9 @@ export default function SubjectsPage() {
               <tr>
                 <td>${i + 1}</td>
                 <td>${s.name}</td>
-                <td>${getAcademicName(s.academic_branch_id)}</td>
+                <td>${getAcademicName(s)}</td>
                 <td>${s.description || "-"}</td>
-              </tr>`
+              </tr>`,
               )
               .join("")}
           </tbody>
@@ -194,13 +195,13 @@ export default function SubjectsPage() {
   // ================= EXCEL =================
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مادة واحدة على الأقل للتصدير");
+      notify.error("يرجى تحديد مادة واحدة على الأقل للتصدير");
       return;
     }
 
     const rows = selectedRows.map((s) => ({
       "اسم المادة": s.name,
-      "الفرع الأكاديمي": getAcademicName(s.academic_branch_id),
+      "الفرع الأكاديمي": getAcademicName(s),
       الوصف: s.description || "-",
     }));
 
@@ -215,7 +216,7 @@ export default function SubjectsPage() {
 
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_المواد.xlsx"
+      "قائمة_المواد.xlsx",
     );
   };
 
@@ -263,6 +264,7 @@ export default function SubjectsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         subject={editingSubject}
+        subjects={subjects}
       />
 
       <DeleteConfirmModal

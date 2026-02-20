@@ -5,7 +5,8 @@ import Image from "next/image";
 import Pagination from "@/components/common/Pagination";
 
 // API
-import { useGetAcademicBranchesQuery } from "@/store/services/academicBranchesApi";
+
+import SubjectsTableSkeleton from "./SubjectsTableSkeleton";
 
 // ================= Skeleton =================
 function TableSkeleton() {
@@ -28,15 +29,17 @@ export default function SubjectsTable({
   onDelete,
 }) {
   // ===== Academic Branches =====
-  const { data: academicData } = useGetAcademicBranchesQuery();
-  const academicBranches = academicData?.data || [];
+  // const { data: academicData } = useGetAcademicBranchesQuery();
+  // const academicBranches = academicData?.data || [];
 
-  const getAcademicName = (id) =>
-    academicBranches.find((a) => a.id === id)?.name || "-";
+  // const getAcademicName = (id) =>
+  //   academicBranches.find((a) => a.id === id)?.name || "-";
+
+  const getAcademicName = (subject) => subject.academic_branch?.name || "-";
 
   // ===== Pagination =====
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const totalPages = Math.ceil(subjects.length / pageSize) || 1;
   const paginated = subjects.slice((page - 1) * pageSize, page * pageSize);
@@ -59,7 +62,7 @@ export default function SubjectsTable({
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
       {isLoading ? (
-        <TableSkeleton />
+        <SubjectsTableSkeleton />
       ) : (
         <>
           {/* ================= DESKTOP TABLE ================= */}
@@ -98,9 +101,7 @@ export default function SubjectsTable({
                     <td className="p-3 font-medium">{subject.name}</td>
 
                     {/* Academic Branch */}
-                    <td className="p-3">
-                      {getAcademicName(subject.academic_branch_id)}
-                    </td>
+                    <td className="p-3">{getAcademicName(subject)}</td>
 
                     {/* Description */}
                     <td className="p-3">{subject.description || "-"}</td>
@@ -177,7 +178,7 @@ export default function SubjectsTable({
 
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-500">الفرع الأكاديمي:</span>
-                  <span>{getAcademicName(subject.academic_branch_id)}</span>
+                  <span>{getAcademicName(subject)}</span>
                 </div>
 
                 <div className="flex justify-between mb-2">
@@ -187,7 +188,7 @@ export default function SubjectsTable({
                   </span>
                 </div>
 
-                <div className="flex justify-center gap-6 mt-3">
+                <div className="flex justify-center gap-2 mt-1">
                   <button
                     onClick={() => onEdit(subject.id)}
                     className="cursor-pointer"

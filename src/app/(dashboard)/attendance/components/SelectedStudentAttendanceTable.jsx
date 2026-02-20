@@ -32,14 +32,14 @@ export default function SelectedStudentAttendanceTable({
   onClose,
 }) {
   const [page, setPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 6;
 
   const safe = Array.isArray(records) ? records : [];
   const totalPages = Math.ceil(safe.length / pageSize) || 1;
 
   const paginated = useMemo(
     () => safe.slice((page - 1) * pageSize, page * pageSize),
-    [safe, page]
+    [safe, page],
   );
 
   useEffect(() => setPage(1), [student?.id, safe.length]);
@@ -62,7 +62,8 @@ export default function SelectedStudentAttendanceTable({
             تفاصيل حضور الطالب: {student?.full_name || "—"}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            موجود: {stats.present} | متأخر: {stats.late} | غائب: {stats.absent}{" "}
+            موجود: {stats.present} | متأخر: {stats.late} | غائب:{" "}
+            {stats.absent}{" "}
           </div>
         </div>
 
@@ -115,7 +116,7 @@ export default function SelectedStudentAttendanceTable({
                       <td className="p-3">{formatTime(r.recorded_at)}</td>
                       <td className="p-3 rounded-l-xl">
                         {formatTime(
-                          r.exit_at || r.exit_time || r.departure_time
+                          r.exit_at || r.exit_time || r.departure_time,
                         )}
                       </td>
                     </tr>
@@ -153,7 +154,7 @@ export default function SelectedStudentAttendanceTable({
                   <Row
                     label="وقت الانصراف"
                     value={formatTime(
-                      r.exit_at || r.exit_time || r.departure_time
+                      r.exit_at || r.exit_time || r.departure_time,
                     )}
                   />
                 </div>

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
+
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -85,7 +86,15 @@ export default function StudentsPage() {
     [studentsDetailsRes],
   );
 
-  const { data: batchesRes } = useGetBatchesQuery();
+  const { data: batchesRes, isLoading: batchesLoading } = useGetBatchesQuery();
+
+  const batchOptions = useMemo(() => {
+    return (batchesRes?.data || []).map((b) => ({
+      key: b.id,
+      value: String(b.id),
+      label: b.name,
+    }));
+  }, [batchesRes]);
 
   const [deleteStudent, { isLoading: deleting }] = useDeleteStudentMutation();
   const [activeAcademicRecordId, setActiveAcademicRecordId] = useState(null);
@@ -205,7 +214,7 @@ export default function StudentsPage() {
       setActiveStudent(normalized);
       return normalized;
     } catch (e) {
-      toast.error(e?.data?.message || "فشل جلب تفاصيل الطالب");
+      notify.error(e?.data?.message || "فشل جلب تفاصيل الطالب");
       return null;
     }
   };
@@ -243,14 +252,14 @@ export default function StudentsPage() {
 
     try {
       await deleteStudent(studentToDelete.id).unwrap();
-      toast.success("تم حذف الطالب بنجاح");
+      notify.success("تم حذف الطالب بنجاح");
       setSelectedIds((prev) =>
         prev.filter((id) => id !== String(studentToDelete.id)),
       );
       setOpenDelete(false);
       setStudentToDelete(null);
     } catch (e) {
-      toast.error(e?.data?.message || "فشل حذف الطالب");
+      notify.error(e?.data?.message || "فشل حذف الطالب");
     }
   };
 
@@ -284,13 +293,13 @@ export default function StudentsPage() {
 
     const student = await ensureStudentDetails(row);
     if (!student) {
-      toast.error("فشل جلب بيانات الطالب");
+      notify.error("فشل جلب بيانات الطالب");
       return;
     }
 
     const record = student.academic_records?.[0];
     if (!record?.id) {
-      toast.error("لا يوجد سجل أكاديمي لهذا الطالب");
+      notify.error("لا يوجد سجل أكاديمي لهذا الطالب");
       return;
     }
 
@@ -307,7 +316,7 @@ export default function StudentsPage() {
   /* ================= Print ================= */
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد طالب واحد على الأقل");
+      notify.error("يرجى تحديد طالب واحد على الأقل");
       return;
     }
 
@@ -369,7 +378,7 @@ export default function StudentsPage() {
   /* ================= Excel ================= */
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد طالب واحد على الأقل");
+      notify.error("يرجى تحديد طالب واحد على الأقل");
       return;
     }
 
@@ -549,12 +558,14 @@ export default function StudentsPage() {
         onClose={() => setOpenAddToBatch(false)}
         student={activeStudent}
         onUpdated={async () => {
-          await refetchStudents(); // 🔥 تحديث الجدول
+          await refetchStudents();
           if (activeStudentId) {
             const res = await fetchStudentDetails(activeStudentId).unwrap();
             setActiveStudent(res.data ?? res);
           }
         }}
+        batchOptions={batchOptions}
+        batchesLoading={batchesLoading}
       />
     </div>
   );

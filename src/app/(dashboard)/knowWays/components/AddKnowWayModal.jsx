@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import {
   useAddKnowWayMutation,
@@ -12,7 +12,7 @@ import {
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 
-export default function AddKnowWayModal({ isOpen, onClose, item }) {
+export default function AddKnowWayModal({ isOpen, onClose, item, allNames }) {
   const [addKnowWay] = useAddKnowWayMutation();
   const [updateKnowWay] = useUpdateKnowWayMutation();
 
@@ -25,22 +25,29 @@ export default function AddKnowWayModal({ isOpen, onClose, item }) {
   }, [isOpen, item]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) return toast.error("الاسم مطلوب");
+    if (!name.trim()) return notify.error("الاسم مطلوب");
+    if (name.length > 50) return notify.error("الاسم طويل");
+    // تحقق من التكرار (تجاهل حالة التعديل لنفس العنصر)
+    const isDuplicate = allNames
+      .filter((n) => !item || n !== item.name)
+      .map((n) => n.trim().toLowerCase())
+      .includes(name.trim().toLowerCase());
+    if (isDuplicate) return notify.error("الاسم مكرر");
 
     try {
       setLoading(true);
 
       if (item) {
         await updateKnowWay({ id: item.id, name }).unwrap();
-        toast.success("تم التعديل بنجاح");
+        notify.success("تم التعديل بنجاح");
       } else {
         await addKnowWay({ name }).unwrap();
-        toast.success("تمت الإضافة بنجاح");
+        notify.success("تمت الإضافة بنجاح");
       }
 
       onClose();
     } catch {
-      toast.error("حدث خطأ");
+      notify.error("حدث خطأ");
     } finally {
       setLoading(false);
     }

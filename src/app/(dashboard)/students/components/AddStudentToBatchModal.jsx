@@ -1,12 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import SearchableSelect from "@/components/common/SearchableSelect";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 
-import { useGetBatchesQuery } from "@/store/services/batchesApi";
 import {
   useAddBatchStudentMutation,
   useRemoveBatchStudentMutation,
@@ -17,26 +17,31 @@ export default function AddStudentToBatchModal({
   onClose,
   student,
   onUpdated,
+  batchOptions = [],
+  batchesLoading = false,
 }) {
-  const { control, handleSubmit } = useForm();
+  // ✅ hooks لازم تناديهم دائماً
+  const { control, handleSubmit, reset } = useForm();
 
-  const { data: batchesRes } = useGetBatchesQuery();
   const [addBatchStudent, { isLoading }] = useAddBatchStudentMutation();
   const [removeBatchStudent, { isLoading: removing }] =
     useRemoveBatchStudentMutation();
 
-  if (!open || !student) return null;
-
-  // ⛔ إخفاء الشعبة الحالية من القائمة
-  const batches = (batchesRes?.data || []).filter(
-    (b) => b.id !== student?.batch?.id
-  );
+  // ✅ useMemo دائماً ينادى (حتى لو student null)
+  const options = useMemo(() => {
+    const currentId = String(student?.batch?.id || "");
+    return (batchOptions || []).filter((o) => o.value !== currentId);
+  }, [batchOptions, student?.batch?.id]);
 
   /* ================= submit ================= */
   const onSubmit = async (values) => {
-    // حماية إضافية (حتى لو رجعت تظهر)
-    if (student?.batch?.id === Number(values.batch_id)) {
-      toast.error("الطالب موجود بالفعل في هذه الشعبة");
+    if (!student?.id) return;
+
+    if (
+      student?.batch?.id &&
+      String(student.batch.id) === String(values.batch_id)
+    ) {
+      notify.error("الطالب موجود بالفعل في هذه الشعبة");
       return;
     }
 
@@ -46,28 +51,34 @@ export default function AddStudentToBatchModal({
         batch_id: values.batch_id,
       }).unwrap();
 
-      toast.success("تمت إضافة الطالب إلى الشعبة");
+      notify.success("تمت إضافة الطالب إلى الشعبة");
       onUpdated?.();
-      onClose();
+      reset({ batch_id: "" });
+      onClose?.();
     } catch (e) {
-      toast.error(e?.data?.message || "فشل إضافة الطالب إلى الشعبة");
+      notify.error(e?.data?.message || "فشل إضافة الطالب إلى الشعبة");
     }
   };
 
   /* ================= remove ================= */
   const handleRemove = async () => {
+    if (!student?.id) return;
+
     try {
       await removeBatchStudent({
         student_id: student.id,
       }).unwrap();
 
-      toast.success("تمت إزالة الطالب من الشعبة");
+      notify.success("تمت إزالة الطالب من الشعبة");
       onUpdated?.();
-      onClose();
+      onClose?.();
     } catch (e) {
-      toast.error(e?.data?.message || "فشل إزالة الطالب من الشعبة");
+      notify.error(e?.data?.message || "فشل إزالة الطالب من الشعبة");
     }
   };
+
+  // ✅ شرط الإظهار بعد كل الـ hooks
+  if (!open || !student) return null;
 
   /* ================= render ================= */
   return (
@@ -121,13 +132,12 @@ export default function AddStudentToBatchModal({
                   required
                   value={field.value || ""}
                   onChange={field.onChange}
-                  options={batches.map((b) => ({
-                    key: b.id,
-                    value: String(b.id),
-                    label: b.name,
-                  }))}
-                  placeholder="اختر الشعبة"
+                  options={options}
+                  placeholder={
+                    batchesLoading ? "جاري التحميل..." : "اختر الشعبة"
+                  }
                   allowClear
+                  disabled={batchesLoading}
                 />
                 <p className="text-xs text-red-500">
                   {fieldState.error?.message}
@@ -139,7 +149,10 @@ export default function AddStudentToBatchModal({
           <StepButtonsSmart
             submitLabel="حفظ"
             loading={isLoading}
-            onBack={onClose}
+            onBack={() => {
+              reset({ batch_id: "" });
+              onClose?.();
+            }}
           />
         </form>
       </div>

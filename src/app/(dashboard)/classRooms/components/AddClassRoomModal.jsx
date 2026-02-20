@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import {
   useAddClassRoomMutation,
@@ -52,8 +52,7 @@ export default function AddClassRoomModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    // تنظيف أي Toast قديم متعلق بالسعة
-    toast.dismiss("capacity");
+    // تنظيف أي notify قديم متعلق بالسعة
 
     if (item) {
       setForm({
@@ -94,7 +93,7 @@ export default function AddClassRoomModal({
     // السماح بالفراغ أثناء الكتابة
     if (v === "") {
       setCapacityError("");
-      toast.dismiss("capacity");
+      notify.dismiss("capacity");
       return;
     }
 
@@ -102,41 +101,41 @@ export default function AddClassRoomModal({
 
     if (Number.isNaN(num)) {
       setCapacityError("السعة يجب أن تكون رقم");
-      toast.error("السعة يجب أن تكون رقم", { id: "capacity" });
+      notify.error("السعة يجب أن تكون رقم", { id: "capacity" });
       return;
     }
 
     if (num <= 0) {
       setCapacityError("السعة يجب أن تكون أكبر من 0");
-      toast.error("السعة يجب أن تكون أكبر من 0", { id: "capacity" });
+      notify.error("السعة يجب أن تكون أكبر من 0", { id: "capacity" });
       return;
     }
 
     if (num > 40) {
       setCapacityError("السعة لا يمكن أن تكون أكثر من 40");
-      toast.error("السعة لا يمكن أن تكون أكثر من 40", { id: "capacity" });
+      notify.error("السعة لا يمكن أن تكون أكثر من 40", { id: "capacity" });
       return;
     }
 
     // ✅ صالح
     setCapacityError("");
-    toast.dismiss("capacity");
+    notify.dismiss("capacity");
   };
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) return toast.error("اسم القاعة مطلوب");
+    if (!form.name.trim()) return notify.error("اسم القاعة مطلوب");
     if (form.capacity === "" || form.capacity === null)
-      return toast.error("السعة مطلوبة");
+      return notify.error("السعة مطلوبة");
 
     const capNum = Number(form.capacity);
 
     if (Number.isNaN(capNum) || capNum <= 0)
-      return toast.error("السعة يجب أن تكون رقم صحيح أكبر من 0");
+      return notify.error("السعة يجب أن تكون رقم صحيح أكبر من 0");
 
-    if (capNum > 40) return toast.error("السعة لا يمكن أن تكون أكثر من 40");
+    if (capNum > 40) return notify.error("السعة لا يمكن أن تكون أكثر من 40");
 
     // ✅ منع الحفظ إذا كان في خطأ لحظي
-    if (capacityError) return toast.error(capacityError);
+    if (capacityError) return notify.error(capacityError);
 
     try {
       setLoading(true);
@@ -150,15 +149,15 @@ export default function AddClassRoomModal({
 
       if (item) {
         await updateRoom({ id: item.id, ...payload }).unwrap();
-        toast.success("تم تعديل القاعة بنجاح");
+        notify.success("تم تعديل القاعة بنجاح");
       } else {
         await addRoom(payload).unwrap();
-        toast.success("تمت إضافة القاعة بنجاح");
+        notify.success("تمت إضافة القاعة بنجاح");
       }
 
       onClose();
     } catch {
-      toast.error("حدث خطأ أثناء الحفظ");
+      notify.error("حدث خطأ أثناء الحفظ");
     } finally {
       setLoading(false);
     }

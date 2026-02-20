@@ -95,10 +95,10 @@ export default function StudentsTable({
         label: "تعديل معلومات التواصل",
         onClick: () => onEditContacts?.(row),
       },
-      // {
-      //   label: "إضافة الطالب إلى شعبة",
-      //   onClick: () => onAddToBatch?.(row),
-      // },
+      {
+        label: "إضافة الطالب إلى شعبة",
+        onClick: () => onAddToBatch?.(row),
+      },
     ];
   }, [
     onViewDetails,

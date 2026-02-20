@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -84,7 +84,7 @@ export default function BusesPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredBuses.some((b) => b.id === id)
+        filteredBuses.some((b) => b.id === id),
       );
 
       // ✅ إذا ما تغير شي، لا نعمل setState
@@ -119,26 +119,26 @@ export default function BusesPage() {
 
     try {
       await deleteBus(busToDelete.id).unwrap();
-      toast.success("تم حذف الباص بنجاح");
+      notify.success("تم حذف الباص بنجاح");
       setIsDeleteOpen(false);
       setBusToDelete(null);
       setSelectedIds((prev) => prev.filter((id) => id !== busToDelete.id));
     } catch (err) {
-      toast.error(err?.data?.message || "حدث خطأ أثناء الحذف");
+      notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
   };
 
   // ===== Print (ممنوع بدون تحديد) =====
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد باص واحد على الأقل للطباعة");
+      notify.error("يرجى تحديد باص واحد على الأقل للطباعة");
       return;
     }
 
     const rows = filteredBuses.filter((b) => selectedIds.includes(b.id));
 
     if (!rows.length) {
-      toast.error("لا توجد بيانات للطباعة");
+      notify.error("لا توجد بيانات للطباعة");
       return;
     }
 
@@ -201,7 +201,7 @@ export default function BusesPage() {
 
     const win = window.open("", "", "width=1200,height=800");
     if (!win) {
-      toast.error("المتصفح منع نافذة الطباعة");
+      notify.error("المتصفح منع نافذة الطباعة");
       return;
     }
 
@@ -213,14 +213,14 @@ export default function BusesPage() {
   // ===== Excel (ممنوع بدون تحديد) =====
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد باص واحد على الأقل للتصدير");
+      notify.error("يرجى تحديد باص واحد على الأقل للتصدير");
       return;
     }
 
     const rows = filteredBuses.filter((b) => selectedIds.includes(b.id));
 
     if (!rows.length) {
-      toast.error("لا توجد بيانات للتصدير");
+      notify.error("لا توجد بيانات للتصدير");
       return;
     }
 
@@ -250,7 +250,7 @@ export default function BusesPage() {
 
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_الباصات.xlsx"
+      "قائمة_الباصات.xlsx",
     );
   };
 

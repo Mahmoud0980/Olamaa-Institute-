@@ -38,7 +38,7 @@ export default function Breadcrumb() {
   const current = dictionary[last] || last;
 
   return (
-    <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+    <div className="flex items-center gap-2 text-sm text-gray-500">
       <Link href="/" className="hover:underline">
         الجداول الرئيسية
       </Link>

@@ -69,8 +69,7 @@ export default function PhoneInputSplit({
   const handleCountryChange = (e) => {
     const iso = e.target.value;
     setSelectedCountry(iso);
-    setLocalNumber("");
-    emitChange(iso, "");
+    emitChange(iso, localNumber);
   };
 
   return (

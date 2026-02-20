@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -34,7 +34,7 @@ export default function ClassRoomsPage() {
   // ===== Filtering =====
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) =>
-      room.name?.toLowerCase().includes((search || "").toLowerCase())
+      room.name?.toLowerCase().includes((search || "").toLowerCase()),
     );
   }, [rooms, search]);
 
@@ -65,19 +65,19 @@ export default function ClassRoomsPage() {
   const confirmDelete = async () => {
     try {
       await deleteRoom(itemToDelete.id).unwrap();
-      toast.success("تم حذف القاعة بنجاح");
+      notify.success("تم حذف القاعة بنجاح");
       setIsDeleteOpen(false);
       setItemToDelete(null);
       setSelectedIds([]);
-    } catch {
-      toast.error("فشل حذف القاعة");
+    } catch (err) {
+      notify.error(err?.data?.message || "فشل حذف القاعة");
     }
   };
 
   // ===== Print =====
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد قاعة واحدة على الأقل للطباعة");
+      notify.error("يرجى تحديد قاعة واحدة على الأقل للطباعة");
       return;
     }
 
@@ -104,7 +104,7 @@ export default function ClassRoomsPage() {
                 <td>${r.code}</td>
                 <td>${r.capacity}</td>
                 <td>${r.notes || "-"}</td>
-              </tr>`
+              </tr>`,
               )
               .join("")}
           </table>
@@ -121,7 +121,7 @@ export default function ClassRoomsPage() {
   // ===== Excel =====
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد قاعة واحدة على الأقل للتصدير");
+      notify.error("يرجى تحديد قاعة واحدة على الأقل للتصدير");
       return;
     }
 

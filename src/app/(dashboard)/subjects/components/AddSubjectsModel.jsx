@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
@@ -16,7 +16,12 @@ import {
 
 import { useGetAcademicBranchesQuery } from "@/store/services/academicBranchesApi";
 
-export default function AddSubjectModal({ isOpen, onClose, subject }) {
+export default function AddSubjectModal({
+  isOpen,
+  onClose,
+  subject,
+  subjects = [],
+}) {
   const [addSubject] = useAddSubjectMutation();
   const [updateSubject] = useUpdateSubjectMutation();
 
@@ -46,7 +51,8 @@ export default function AddSubjectModal({ isOpen, onClose, subject }) {
         setForm({
           name: subject.name || "",
           description: subject.description || "",
-          academic_branch_id: subject.academic_branch_id || "",
+          academic_branch_id:
+            subject.academic_branch_id || subject.academic_branch?.id || "",
         });
       } else {
         setForm({
@@ -58,12 +64,22 @@ export default function AddSubjectModal({ isOpen, onClose, subject }) {
     }
   }, [isOpen, subject]);
 
+  // ===== أسماء المواد (للتحقق عند الحفظ فقط)
+  const subjectNames = subjects
+    .filter((s) => !subject || s.id !== subject.id)
+    .map((s) => s.name?.toLowerCase().trim());
+
   // ===========================
   // SUBMIT
   // ===========================
   const handleSubmit = async () => {
-    if (!form.name.trim()) return toast.error("اسم المادة مطلوب");
-    if (!form.academic_branch_id) return toast.error("الفرع الأكاديمي مطلوب");
+    if (!form.name.trim()) return notify.error("اسم المادة مطلوب");
+    if (form.name.length > 100) return notify.error("اسم المادة طويل جدًا ");
+
+    const normalized = form.name.trim().toLowerCase();
+    if (subjectNames.includes(normalized)) return notify.error("المادة موجودة");
+
+    if (!form.academic_branch_id) return notify.error("الفرع الأكاديمي مطلوب");
 
     try {
       setLoading(true);
@@ -76,10 +92,10 @@ export default function AddSubjectModal({ isOpen, onClose, subject }) {
 
       if (subject) {
         await updateSubject({ id: subject.id, ...payload }).unwrap();
-        toast.success("تم تعديل المادة بنجاح");
+        notify.success("تم تعديل المادة بنجاح");
       } else {
         await addSubject(payload).unwrap();
-        toast.success("تمت إضافة المادة بنجاح");
+        notify.success("تمت إضافة المادة بنجاح");
       }
 
       setLoading(false);
@@ -87,7 +103,7 @@ export default function AddSubjectModal({ isOpen, onClose, subject }) {
     } catch (err) {
       console.log(err);
       setLoading(false);
-      toast.error("حدث خطأ أثناء حفظ البيانات");
+      notify.error(err?.data?.message || "حدث خطأ أثناء حفظ البيانات");
     }
   };
 

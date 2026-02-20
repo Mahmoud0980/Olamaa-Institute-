@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -85,7 +85,7 @@ export default function CitiesPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredCities.some((c) => c.id === id)
+        filteredCities.some((c) => c.id === id),
       );
 
       // ✅ إذا ما تغير شي، لا تعمل setState
@@ -120,26 +120,26 @@ export default function CitiesPage() {
 
     try {
       await deleteCity(cityToDelete.id).unwrap();
-      toast.success("تم حذف المدينة بنجاح");
+      notify.success("تم حذف المدينة بنجاح");
       setIsDeleteOpen(false);
       setCityToDelete(null);
       setSelectedIds((prev) => prev.filter((id) => id !== cityToDelete.id));
     } catch (err) {
-      toast.error(err?.data?.message || "حدث خطأ أثناء الحذف");
+      notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
   };
 
   // ===== Print =====
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مدينة واحدة على الأقل للطباعة");
+      notify.error("يرجى تحديد مدينة واحدة على الأقل للطباعة");
       return;
     }
 
     const rows = filteredCities.filter((c) => selectedIds.includes(c.id));
 
     if (!rows.length) {
-      toast.error("لا توجد بيانات للطباعة");
+      notify.error("لا توجد بيانات للطباعة");
       return;
     }
 
@@ -198,7 +198,7 @@ export default function CitiesPage() {
 
     const win = window.open("", "", "width=1200,height=800");
     if (!win) {
-      toast.error("المتصفح منع نافذة الطباعة");
+      notify.error("المتصفح منع نافذة الطباعة");
       return;
     }
 
@@ -210,14 +210,14 @@ export default function CitiesPage() {
   // ===== Excel =====
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مدينة واحدة على الأقل للتصدير");
+      notify.error("يرجى تحديد مدينة واحدة على الأقل للتصدير");
       return;
     }
 
     const rows = filteredCities.filter((c) => selectedIds.includes(c.id));
 
     if (!rows.length) {
-      toast.error("لا توجد بيانات للتصدير");
+      notify.error("لا توجد بيانات للتصدير");
       return;
     }
 
@@ -250,7 +250,7 @@ export default function CitiesPage() {
       new Blob([buffer], {
         type: "application/octet-stream",
       }),
-      "قائمة_المدن.xlsx"
+      "قائمة_المدن.xlsx",
     );
   };
 

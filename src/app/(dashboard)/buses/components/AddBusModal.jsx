@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
@@ -50,7 +50,7 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
               driver_name: "",
               route_description: "",
               is_active: "true",
-            }
+            },
       );
       setSuggestions([]);
     }
@@ -62,7 +62,7 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
       buses
         .filter((b) => !bus || b.id !== bus.id)
         .map((b) => b.name?.toLowerCase().trim()),
-    [buses, bus]
+    [buses, bus],
   );
 
   // ===== اقتراحات (نفس منطق وتصميم المدينة)
@@ -76,9 +76,9 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
           (b) =>
             b.name &&
             b.name.toLowerCase().includes(v) &&
-            (!bus || b.id !== bus.id)
+            (!bus || b.id !== bus.id),
         )
-        .slice(0, 5)
+        .slice(0, 5),
     );
   }, [form.name, buses, bus]);
 
@@ -87,22 +87,27 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
     const normalized = form.name.trim().toLowerCase();
 
     if (!normalized) {
-      toast.error("اسم الباص مطلوب");
+      notify.error("اسم الباص مطلوب");
+      return;
+    }
+
+    if (form.name.length > 100) {
+      notify.error("اسم الباص طويل جدًا ");
       return;
     }
 
     if (busNames.includes(normalized)) {
-      toast.error("اسم الباص موجود مسبقًا");
+      notify.error("اسم الباص موجود مسبقًا");
       return;
     }
 
     if (!form.capacity || Number(form.capacity) <= 0) {
-      toast.error("السعة مطلوبة");
+      notify.error("السعة مطلوبة");
       return;
     }
 
     if (Number(form.capacity) > 40) {
-      toast.error("السعة لا يمكن أن تكون أكبر من 40");
+      notify.error("السعة لا يمكن أن تكون أكبر من 40");
       return;
     }
 
@@ -119,10 +124,10 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
         ? await updateBus({ id: bus.id, ...payload }).unwrap()
         : await addBus(payload).unwrap();
 
-      toast.success(bus ? "تم تعديل بيانات الباص" : "تم إضافة باص جديد");
+      notify.success(bus ? "تم تعديل بيانات الباص" : "تم إضافة باص جديد");
       onClose();
     } catch {
-      toast.error("حدث خطأ أثناء الحفظ");
+      notify.error("حدث خطأ أثناء الحفظ");
     } finally {
       setLoading(false);
     }
@@ -187,7 +192,7 @@ export default function AddBusModal({ isOpen, onClose, bus, buses = [] }) {
             onChange={(e) => {
               const value = Number(e.target.value);
               if (value > 40) {
-                toast.error("الحد الأقصى للسعة هو 40");
+                notify.error("الحد الأقصى للسعة هو 40");
                 return;
               }
               setForm({ ...form, capacity: e.target.value });

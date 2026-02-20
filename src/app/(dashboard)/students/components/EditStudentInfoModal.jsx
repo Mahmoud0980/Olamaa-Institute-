@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import { useForm, Controller } from "react-hook-form";
 
 import InputField from "@/components/common/InputField";
@@ -173,7 +173,7 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
       step === 1 ? await trigger(fieldsStep1) : await trigger(fieldsStep2);
 
     if (!ok) {
-      toast.error("يرجى تعبئة جميع الحقول المطلوبة");
+      notify.error("يرجى تعبئة جميع الحقول المطلوبة");
       return;
     }
 
@@ -185,7 +185,7 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
   const handleSave = async () => {
     try {
       if (!student?.id) {
-        toast.error("لا يوجد طالب محدد");
+        notify.error("لا يوجد طالب محدد");
         return;
       }
 
@@ -216,10 +216,10 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
       };
 
       await updateStudent(payload).unwrap();
-      toast.success("تم تعديل بيانات الطالب");
+      notify.success("تم تعديل بيانات الطالب");
       onClose?.();
     } catch (e) {
-      toast.error(e?.data?.message || "فشل تعديل بيانات الطالب");
+      notify.error(e?.data?.message || "فشل تعديل بيانات الطالب");
     }
   };
 

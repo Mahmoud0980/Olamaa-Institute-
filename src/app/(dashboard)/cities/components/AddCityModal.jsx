@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
@@ -28,7 +28,7 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
       setForm(
         city
           ? { name: city.name, description: city.description || "" }
-          : { name: "", description: "" }
+          : { name: "", description: "" },
       );
     }
   }, [isOpen, city]);
@@ -38,7 +38,7 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
       cities
         .filter((c) => !city || c.id !== city.id)
         .map((c) => c.name.toLowerCase().trim()),
-    [cities, city]
+    [cities, city],
   );
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
 
     const matches = cities
       .filter(
-        (c) => c.name.toLowerCase().includes(v) && (!city || c.id !== city.id)
+        (c) => c.name.toLowerCase().includes(v) && (!city || c.id !== city.id),
       )
       .slice(0, 5);
 
@@ -64,12 +64,17 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
     const normalized = form.name.trim().toLowerCase();
 
     if (!normalized) {
-      toast.error("اسم المدينة مطلوب");
+      notify.error("اسم المدينة مطلوب");
+      return;
+    }
+
+    if (form.name.length > 50) {
+      notify.error("اسم المدينة كبير");
       return;
     }
 
     if (cityNames.includes(normalized)) {
-      toast.error("هذه المدينة موجودة مسبقاً");
+      notify.error("هذه المدينة موجودة مسبقاً");
       return;
     }
 
@@ -79,10 +84,10 @@ export default function AddCityModal({ isOpen, onClose, city, cities = [] }) {
         ? await updateCity({ id: city.id, ...form }).unwrap()
         : await addCity(form).unwrap();
 
-      toast.success(city ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
+      notify.success(city ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
       onClose();
     } catch {
-      toast.error("فشل الحفظ");
+      notify.error("فشل الحفظ");
     } finally {
       setLoading(false);
     }

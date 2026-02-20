@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import { useForm, Controller } from "react-hook-form";
 
 import InputField from "@/components/common/InputField";
@@ -67,11 +67,11 @@ export default function EditAcademicRecordModal({
         description: v.description || null,
       }).unwrap();
 
-      toast.success("تم تعديل السجل الأكاديمي");
+      notify.success("تم تعديل السجل الأكاديمي");
       onSaved?.();
       onClose?.();
     } catch (e) {
-      toast.error("فشل تعديل السجل الأكاديمي");
+      notify.error("فشل تعديل السجل الأكاديمي");
       console.error(e);
     }
   };

@@ -1,22 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
-import { PhoneNumberUtil } from "google-libphonenumber";
+import { X, Trash2, Pencil } from "lucide-react";
+import { notify } from "@/lib/helpers/toastify";
 
 import SearchableSelect from "@/components/common/SearchableSelect";
 import InputField from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import PhoneInputSplit from "@/components/common/PhoneInputSplit";
+import GradientButton from "@/components/common/GradientButton";
 
 import {
   useAddContactMutation,
   useUpdateContactMutation,
   useDeleteContactMutation,
 } from "@/store/services/contactsApi";
-
-const phoneUtil = PhoneNumberUtil.getInstance();
 
 /* ================= constants ================= */
 const TYPE_OPTIONS = [
@@ -25,36 +23,62 @@ const TYPE_OPTIONS = [
   { key: "email", value: "email", label: "إيميل" },
 ];
 
-const normalizePhone = (full) => {
-  if (!full) return { country_code: "", phone_number: "" };
-
-  try {
-    const parsed = phoneUtil.parse(full);
-    const country_code = `+${parsed.getCountryCode()}`;
-    const phone_number = parsed.getNationalNumber().toString();
-    return { country_code, phone_number };
-  } catch {
-    // fallback بسيط
-    const v = String(full);
-    const cc = v.startsWith("+") ? v.match(/^\+\d{1,4}/)?.[0] || "" : "";
-    const pn = v.replace(cc, "").replace(/\D/g, "");
-    return { country_code: cc, phone_number: pn };
-  }
+const TYPE_LABEL = {
+  phone: "هاتف",
+  whatsapp: "واتساب",
+  email: "إيميل",
 };
 
-const emptyRow = (guardianId) => ({
+const clean = (v) => String(v ?? "").trim();
+
+/* ===== split full phone to cc/pn ===== */
+const splitFromFull = (full) => {
+  const v = clean(full);
+  if (!v) return { country_code: "", phone_number: "" };
+
+  // +963981644243 => +963 / 981644243
+  const m = v.match(/^(\+\d{1,4})(\d+)$/);
+  if (m) return { country_code: m[1], phone_number: m[2] };
+
+  // fallback
+  const cc = v.startsWith("+") ? v.match(/^\+\d{1,4}/)?.[0] || "" : "";
+  const pn = v.replace(cc, "").replace(/\D/g, "");
+  return { country_code: cc, phone_number: pn };
+};
+
+const emptyDraft = (guardianId = "") => ({
   id: null,
-  guardian_id: guardianId,
+  guardian_id: guardianId ? String(guardianId) : "",
   type: "",
-  // phone/whatsapp
   country_code: "",
   phone_number: "",
-  // email / whatsapp
+  full_phone_number: "",
   value: "",
   notes: "",
   is_primary: false,
   _isNew: true,
 });
+
+const toLocalContact = (c, guardianId) => ({
+  id: c?.id ?? null,
+  guardian_id: guardianId,
+  type: c?.type ?? "",
+  country_code: c?.country_code ?? "",
+  phone_number: c?.phone_number ?? "",
+  full_phone_number: c?.full_phone_number ?? "",
+  value: c?.value ?? c?.address ?? "",
+  notes: c?.notes ?? "",
+  is_primary: !!c?.is_primary,
+  _isNew: false,
+});
+
+// contact_details ممكن تكون Array أو {data:[...]}
+const pickContacts = (guardian) => {
+  const cd = guardian?.contact_details;
+  if (Array.isArray(cd?.data)) return cd.data;
+  if (Array.isArray(cd)) return cd;
+  return [];
+};
 
 export default function EditContactsModal({ open, onClose, student, onSaved }) {
   const guardians = student?.family?.guardians || [];
@@ -63,8 +87,11 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
 
   const [step, setStep] = useState(1);
 
-  const [rowsFather, setRowsFather] = useState([]);
-  const [rowsMother, setRowsMother] = useState([]);
+  const [itemsFather, setItemsFather] = useState([]);
+  const [itemsMother, setItemsMother] = useState([]);
+
+  const [draftFather, setDraftFather] = useState(emptyDraft());
+  const [draftMother, setDraftMother] = useState(emptyDraft());
 
   const [addContact, { isLoading: creating }] = useAddContactMutation();
   const [updateContact, { isLoading: updating }] = useUpdateContactMutation();
@@ -74,151 +101,343 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
   /* ================= init ================= */
   useEffect(() => {
     if (!open) return;
+
     setStep(1);
 
-    const mapContact = (c, guardianId) => {
-      const { country_code, phone_number } = normalizePhone(
-        c?.full_phone_number
-      );
+    const fatherContacts = father?.id ? pickContacts(father) : [];
+    const motherContacts = mother?.id ? pickContacts(mother) : [];
 
-      return {
-        id: c?.id ?? null,
-        guardian_id: guardianId,
-        type: c?.type ?? "",
-        country_code: country_code || "",
-        phone_number: phone_number || "",
-        value: c?.value ?? "",
-        notes: c?.notes ?? "",
-        is_primary: !!c?.is_primary,
-        _isNew: false,
-      };
-    };
-
-    setRowsFather(
-      Array.isArray(father?.contact_details)
-        ? father.contact_details.map((c) => mapContact(c, father.id))
-        : []
+    setItemsFather(
+      father?.id ? fatherContacts.map((c) => toLocalContact(c, father.id)) : [],
+    );
+    setItemsMother(
+      mother?.id ? motherContacts.map((c) => toLocalContact(c, mother.id)) : [],
     );
 
-    setRowsMother(
-      Array.isArray(mother?.contact_details)
-        ? mother.contact_details.map((c) => mapContact(c, mother.id))
-        : []
-    );
-  }, [open, father, mother]);
+    setDraftFather(emptyDraft(father?.id));
+    setDraftMother(emptyDraft(mother?.id));
+  }, [open, father?.id, mother?.id]);
 
-  if (!open) return null;
+  /* ================= pick current ================= */
+  const items = step === 1 ? itemsFather : itemsMother;
+  const setItems = step === 1 ? setItemsFather : setItemsMother;
 
-  /* ================= helpers ================= */
-  const rows = step === 1 ? rowsFather : rowsMother;
-  const setRows = step === 1 ? setRowsFather : setRowsMother;
+  const draft = step === 1 ? draftFather : draftMother;
+  const setDraft = step === 1 ? setDraftFather : setDraftMother;
+
   const guardian = step === 1 ? father : mother;
 
-  const addRow = () => {
-    if (!guardian?.id) return;
-    setRows((p) => [...p, emptyRow(guardian.id)]);
+  /* ================= UI helpers ================= */
+  const guardianName = (gid) => {
+    const g = guardians.find((x) => String(x?.id) === String(gid));
+    if (!g) return `#${gid}`;
+    const full =
+      g?.full_name ||
+      `${g?.first_name ?? ""} ${g?.last_name ?? ""}`.trim() ||
+      `#${gid}`;
+    const rel =
+      g?.relationship === "father"
+        ? "الأب"
+        : g?.relationship === "mother"
+          ? "الأم"
+          : "";
+    return rel ? `${rel} — ${full}` : full;
   };
 
-  const updateRow = (idx, patch) => {
-    setRows((p) => p.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-  };
+  const displayPhone = (it) =>
+    clean(it.full_phone_number) ||
+    `${clean(it.country_code)} ${clean(it.phone_number)}`.trim() ||
+    clean(it.value) ||
+    "-";
 
-  const removeRow = async (row, idx) => {
-    try {
-      if (row?.id) {
-        await deleteContact(row.id).unwrap();
-      }
-      setRows((p) => p.filter((_, i) => i !== idx));
-      toast.success("تم حذف وسيلة التواصل");
-    } catch (e) {
-      toast.error(e?.data?.message || "فشل الحذف");
+  /* ================= derived (Primary phone) ================= */
+  const hasPhonePrimary = useMemo(
+    () => items.some((x) => x.type === "phone" && x.is_primary),
+    [items],
+  );
+
+  const phonePrimaryOwner = useMemo(() => {
+    const it = items.find((x) => x.type === "phone" && x.is_primary);
+    return it?.guardian_id ? String(it.guardian_id) : null;
+  }, [items]);
+
+  const showPrimaryCheckbox =
+    !!draft.type &&
+    (draft.type === "whatsapp" ||
+      (draft.type === "phone" &&
+        (!hasPhonePrimary ||
+          (draft.type === "phone" && draft.id && draft.is_primary))));
+
+  const primaryHint =
+    draft.type === "phone" && hasPhonePrimary && !draft.is_primary
+      ? `هناك رقم هاتف أساسي محدد مسبقًا (${guardianName(
+          phonePrimaryOwner,
+        )}). لا يمكن تحديد رقم هاتف أساسي آخر.`
+      : "";
+
+  /* ================= validation ================= */
+  const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(v));
+
+  const canAdd = () => {
+    if (!guardian?.id) return false;
+    if (!draft.type) return false;
+
+    if (clean(draft.notes).length > 200) return false;
+
+    if (draft.type === "email") {
+      const v = clean(draft.value);
+      if (!v) return false;
+      if (!isValidEmail(v)) return false;
+      return true;
     }
-  };
 
-  const validateRow = (r) => {
-    if (!r.type) return "نوع الاتصال مطلوب";
-
-    if (r.type === "email") {
-      if (!r.value) return "البريد الإلكتروني مطلوب";
-      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.value);
-      if (!ok) return "البريد الإلكتروني غير صحيح";
-      return "";
+    if (draft.type === "phone" || draft.type === "whatsapp") {
+      if (!clean(draft.country_code)) return false;
+      if (!clean(draft.phone_number)) return false;
+      return true;
     }
 
-    // phone / whatsapp
-    if (!r.country_code || !r.phone_number) return "رقم الهاتف مطلوب";
-    return "";
+    return false;
   };
 
-  const buildPayload = (r) => {
-    // أساسيات مشتركة
-    const base = {
-      guardian_id: Number(r.guardian_id),
-      type: r.type,
-      is_primary: !!r.is_primary,
-      notes: r.notes || null,
+  const normalizePhoneRow = (it) => {
+    if (it.type !== "phone" && it.type !== "whatsapp") return it;
+
+    const cc = clean(it.country_code);
+    const pn = clean(it.phone_number);
+    if (cc && pn) return it;
+
+    const from = clean(it.full_phone_number) || clean(it.value);
+    const sp = splitFromFull(from);
+
+    const next = {
+      ...it,
+      country_code: cc || sp.country_code,
+      phone_number: pn || sp.phone_number,
     };
 
-    if (r.type === "email") {
-      // بعض الباكند بدو address، وبعضه value
-      return {
-        ...base,
-        value: r.value,
-        address: r.value,
-      };
+    next.full_phone_number =
+      clean(next.country_code) && clean(next.phone_number)
+        ? `${clean(next.country_code)}${clean(next.phone_number)}`
+        : clean(it.full_phone_number);
+
+    // توافق: خلي value للواتساب/الهاتف هو الرقم
+    next.value = clean(next.phone_number) || clean(next.value);
+
+    return next;
+  };
+
+  const buildPayload = (row) => {
+    const base = {
+      guardian_id: Number(row.guardian_id),
+      type: row.type,
+      is_primary: !!row.is_primary,
+      notes: clean(row.notes) || null,
+    };
+
+    if (row.type === "email") {
+      const v = clean(row.value);
+      return { ...base, value: v, address: v };
     }
 
     // phone / whatsapp
-    // swagger عندك: phone => country_code + phone_number
-    // whatsapp => value (+ ممكن country_code + phone_number)
-    const full = `${r.country_code}${r.phone_number}`;
+    const cc = clean(row.country_code);
+    const pn = clean(row.phone_number);
 
     return {
       ...base,
-      country_code: r.country_code,
-      phone_number: r.phone_number,
-      value: r.type === "whatsapp" ? r.phone_number : r.phone_number,
-      full_phone_number: full, // إذا الباكند بيخزنها
+      country_code: cc,
+      phone_number: pn,
+      value: pn, // swagger: whatsapp يحتاج value، phone كمان ما بتضر
     };
   };
 
-  const saveAll = async (rowsList) => {
-    for (const r of rowsList) {
-      const err = validateRow(r);
-      if (err) {
-        toast.error(err);
-        throw new Error(err);
+  /* ================= actions ================= */
+  const resetDraft = () => setDraft(emptyDraft(guardian?.id));
+
+  const addOrUpdateItem = () => {
+    if (!canAdd()) {
+      notify.error("يرجى تعبئة الحقول المطلوبة بشكل صحيح", "تحقق من البيانات");
+      return;
+    }
+
+    // منع phone primary مكرر
+    const wantsPhonePrimary = draft.type === "phone" && !!draft.is_primary;
+    if (wantsPhonePrimary) {
+      const otherPrimary = items.find(
+        (x) => x.type === "phone" && x.is_primary && x.id !== draft.id,
+      );
+      if (otherPrimary) {
+        notify.error(
+          "مسموح رقم هاتف واحد فقط كجهة اتصال أساسية (Primary)",
+          "تنبيه",
+        );
+        return;
+      }
+    }
+
+    let normalized = {
+      id: draft.id ?? null,
+      guardian_id: guardian?.id,
+      type: draft.type,
+      country_code: clean(draft.country_code),
+      phone_number: clean(draft.phone_number),
+      full_phone_number:
+        clean(draft.country_code) && clean(draft.phone_number)
+          ? `${clean(draft.country_code)}${clean(draft.phone_number)}`
+          : "",
+      value: clean(draft.value) || "",
+      notes: clean(draft.notes) || "",
+      is_primary: !!draft.is_primary,
+      _isNew: !draft.id,
+    };
+
+    // توافق: value للواتساب/الهاتف
+    if (normalized.type === "whatsapp" || normalized.type === "phone") {
+      normalized.value = normalized.phone_number;
+    }
+
+    // تأكيد normalization (لو full موجود بس حقول ناقصة)
+    normalized = normalizePhoneRow(normalized);
+    setItems((prev) => {
+      // تعديل محلي
+      if (normalized.id) {
+        return prev.map((x) => (x.id === normalized.id ? normalized : x));
       }
 
-      const payload = buildPayload(r);
+      // ✅ إضافة محلية فورية (حتى قبل الحفظ)
+      return [...prev, { ...normalized, _cid: crypto.randomUUID() }];
+    });
 
-      if (r._isNew) {
-        await addContact(payload).unwrap();
+    resetDraft();
+  };
+
+  const editItem = (it) => {
+    setDraft({
+      id: it.id ?? null,
+      guardian_id: String(it.guardian_id ?? guardian?.id ?? ""),
+      type: it.type ?? "",
+      country_code: it.country_code ?? "",
+      phone_number: it.phone_number ?? "",
+      full_phone_number: it.full_phone_number ?? "",
+      value: it.value ?? "",
+      notes: it.notes ?? "",
+      is_primary: !!it.is_primary,
+      _isNew: !it.id,
+    });
+  };
+
+  const removeItem = async (it) => {
+    try {
+      if (it?.id) {
+        await deleteContact(it.id).unwrap();
+      }
+      setItems((p) => p.filter((x) => (it?.id ? x.id !== it.id : x !== it)));
+      notify.success("تم حذف وسيلة التواصل");
+      if (draft?.id && it?.id && draft.id === it.id) resetDraft();
+    } catch (e) {
+      notify.error(e?.data?.message || "فشل الحذف");
+    }
+  };
+
+  const validateRow = (it, whoLabel, idx) => {
+    if (!it.type) return `(${whoLabel}) صف #${idx + 1}: نوع الاتصال مطلوب`;
+
+    if (it.type === "email") {
+      const v = clean(it.value);
+      if (!v) return `(${whoLabel}) صف #${idx + 1}: البريد الإلكتروني مطلوب`;
+      if (!isValidEmail(v))
+        return `(${whoLabel}) صف #${idx + 1}: البريد الإلكتروني غير صحيح`;
+      return "";
+    }
+
+    if (it.type === "phone" || it.type === "whatsapp") {
+      const cc = clean(it.country_code);
+      const pn = clean(it.phone_number);
+      if (!cc || !pn) {
+        return `(${whoLabel}) صف #${idx + 1}: رقم الهاتف مطلوب`;
+      }
+      return "";
+    }
+
+    return "";
+  };
+
+  const saveAllForGuardian = async (list, whoLabel) => {
+    // Normalize أولاً
+    const fixed = list.map(normalizePhoneRow);
+
+    // تحقق Primary phone واحد فقط
+    const primaries = fixed.filter((x) => x.type === "phone" && x.is_primary);
+    if (primaries.length > 1) {
+      throw new Error(`(${whoLabel}) مسموح رقم هاتف واحد فقط كـ Primary`);
+    }
+
+    // ✅ تجاهل الصفوف الناقصة بدل ما توقف الحفظ كله
+    const validRows = [];
+    for (let i = 0; i < fixed.length; i++) {
+      const err = validateRow(fixed[i], whoLabel, i);
+      if (err) {
+        // إذا بدك توقف مباشرة بدل التجاهل، استبدل السطرين الجايين بـ: throw new Error(err)
+        notify.error(err);
+        continue;
+      }
+      validRows.push(fixed[i]);
+    }
+
+    // ما في صفوف صالحة
+    if (!validRows.length) return;
+
+    for (const it of validRows) {
+      const payload = buildPayload(it);
+
+      if (it.id) {
+        setItems((prev) =>
+          prev.map((x) => (x.id === it.id ? { ...x, ...it } : x)),
+        );
+
+        await updateContact({ id: it.id, ...payload }).unwrap();
       } else {
-        await updateContact({ id: r.id, ...payload }).unwrap();
+        const res = await addContact(payload).unwrap();
+
+        // إذا السيرفر رجّع عنصر
+        const created = res?.data;
+
+        // ✅ بدّل العنصر المحلي الجديد (اللي ما معه id) بعنصر معه id
+        if (created?.id) {
+          setItems((prev) =>
+            prev.map((x) =>
+              x._cid === it._cid ? { ...x, id: created.id, _isNew: false } : x,
+            ),
+          );
+        } else {
+          // حتى لو السيرفر رجع nulls، على الأقل اعتبره محفوظ
+          setItems((prev) =>
+            prev.map((x) => (x._cid === it._cid ? { ...x, _isNew: false } : x)),
+          );
+        }
       }
     }
   };
 
   const handleSave = async () => {
     try {
-      await saveAll(rowsFather);
-      await saveAll(rowsMother);
+      await saveAllForGuardian(itemsFather, "الأب");
+      await saveAllForGuardian(itemsMother, "الأم");
 
-      toast.success("تم حفظ معلومات التواصل");
-      onSaved?.();
+      notify.success("تم حفظ معلومات التواصل");
+      await onSaved?.(); // ✅ إذا onSaved refetch
       onClose?.();
     } catch (e) {
-      if (e?.data?.message) toast.error(e.data.message);
+      notify.error(e?.message || e?.data?.message || "فشل الحفظ");
       console.error(e);
     }
   };
 
-  /* ================= UI labels ================= */
-  const title = step === 1 ? "وسائل تواصل الأب" : "وسائل تواصل الأم";
+  /* ================= UI ================= */
+  const title = step === 1 ? "معلومات تواصل الأب" : "معلومات تواصل الأم";
 
-  /* ================= render ================= */
-  return (
+  return open ? (
     <div className="fixed inset-0 bg-black/40 z-50 flex justify-start">
       <div className="w-[520px] bg-white h-full flex flex-col">
         {/* Header */}
@@ -241,107 +460,186 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#6F013F]">
-              {title}
-            </span>
-            <button
-              onClick={addRow}
-              className="text-sm px-3 py-1 rounded-lg border border-gray-200 hover:bg-gray-50"
-            >
-              + إضافة
-            </button>
+          <h3 className="text-[#6F013F] font-semibold text-sm">{title}</h3>
+
+          {/* add/edit */}
+          <div className="space-y-3 border border-gray-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-gray-700">
+              {draft?.id ? "تعديل جهة تواصل" : "إضافة جهة تواصل"}
+            </p>
+
+            <SearchableSelect
+              label="نوع جهة الاتصال"
+              required
+              value={draft.type}
+              onChange={(v) =>
+                setDraft((d) => ({
+                  ...d,
+                  type: v,
+                  country_code: "",
+                  phone_number: "",
+                  full_phone_number: "",
+                  value: "",
+                  notes: d.notes || "",
+                  is_primary: false,
+                }))
+              }
+              options={TYPE_OPTIONS}
+              placeholder="اختر النوع"
+              allowClear
+            />
+
+            {(draft.type === "phone" || draft.type === "whatsapp") && (
+              <PhoneInputSplit
+                label={draft.type === "whatsapp" ? "رقم واتساب" : "رقم الهاتف"}
+                countryCode={draft.country_code}
+                phoneNumber={draft.phone_number}
+                onChange={({ country_code, phone_number }) =>
+                  setDraft((d) => ({
+                    ...d,
+                    country_code,
+                    phone_number,
+                    full_phone_number:
+                      clean(country_code) && clean(phone_number)
+                        ? `${clean(country_code)}${clean(phone_number)}`
+                        : "",
+                    value:
+                      d.type === "whatsapp" || d.type === "phone"
+                        ? phone_number
+                        : d.value,
+                  }))
+                }
+              />
+            )}
+
+            {draft.type === "email" && (
+              <InputField
+                label="البريد الإلكتروني"
+                required
+                type="email"
+                value={draft.value}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, value: e.target.value }))
+                }
+              />
+            )}
+
+            <InputField
+              label="ملاحظات (اختياري)"
+              placeholder="200 محرف كحد أقصى"
+              value={draft.notes}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (String(v).length > 200) return;
+                setDraft((d) => ({ ...d, notes: v }));
+              }}
+              error=""
+            />
+
+            {showPrimaryCheckbox ? (
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="accent-[#6F013F]"
+                  checked={!!draft.is_primary}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, is_primary: e.target.checked }))
+                  }
+                />
+                جهة الاتصال الأساسية (Primary)
+              </label>
+            ) : primaryHint ? (
+              <div className="text-xs text-gray-500">{primaryHint}</div>
+            ) : null}
+
+            <div className="flex items-center gap-2 justify-end">
+              {draft?.id ? (
+                <button
+                  type="button"
+                  onClick={resetDraft}
+                  className="text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                >
+                  إلغاء التعديل
+                </button>
+              ) : null}
+
+              <GradientButton
+                type="button"
+                onClick={addOrUpdateItem}
+                disabled={!canAdd()}
+                className="py-2"
+              >
+                {draft?.id ? "تحديث" : "إضافة"}
+              </GradientButton>
+            </div>
           </div>
 
-          {rows.length === 0 ? (
-            <p className="text-sm text-gray-400">لا يوجد بيانات.</p>
-          ) : (
-            <div className="space-y-3">
-              {rows.map((r, idx) => (
+          {/* list */}
+          <div className="space-y-2">
+            {items.length === 0 ? (
+              <p className="text-xs text-gray-500">لا يوجد بيانات تواصل.</p>
+            ) : (
+              items.map((it, idx) => (
                 <div
-                  key={r.id ?? `new-${idx}`}
-                  className="bg-gray-50 rounded-2xl p-4 space-y-3"
+                  key={it.id ?? `new-${idx}`}
+                  className="border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-3"
                 >
-                  {/* type */}
-                  <SearchableSelect
-                    label="النوع"
-                    value={r.type}
-                    onChange={(v) =>
-                      updateRow(idx, {
-                        type: v,
-                        value: "",
-                        country_code: "",
-                        phone_number: "",
-                      })
-                    }
-                    options={TYPE_OPTIONS}
-                    placeholder="اختر النوع"
-                    allowClear
-                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-800">
+                      {guardianName(it.guardian_id)}
+                    </p>
 
-                  {/* phone / whatsapp */}
-                  {(r.type === "phone" || r.type === "whatsapp") && (
-                    <PhoneInputSplit
-                      label={
-                        r.type === "whatsapp" ? "رقم واتساب" : "رقم الهاتف"
-                      }
-                      countryCode={r.country_code}
-                      phoneNumber={r.phone_number}
-                      onChange={({ country_code, phone_number }) =>
-                        updateRow(idx, {
-                          country_code,
-                          phone_number,
-                          // لو النوع whatsapp نخزن value كمان لتطابق swagger
-                          value: r.type === "whatsapp" ? phone_number : r.value,
-                        })
-                      }
-                    />
-                  )}
+                    <p className="text-xs text-gray-600">
+                      النوع: {TYPE_LABEL[it.type] || it.type}
+                    </p>
 
-                  {/* email */}
-                  {r.type === "email" && (
-                    <InputField
-                      label="البريد الإلكتروني"
-                      type="email"
-                      value={r.value}
-                      onChange={(e) =>
-                        updateRow(idx, { value: e.target.value })
-                      }
-                    />
-                  )}
+                    {it.type === "email" ? (
+                      <p className="text-xs text-gray-600">
+                        الإيميل: {it.value}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-600">
+                        الرقم: {displayPhone(it)}
+                      </p>
+                    )}
 
-                  {/* notes */}
-                  <InputField
-                    label="ملاحظات"
-                    value={r.notes || ""}
-                    onChange={(e) => updateRow(idx, { notes: e.target.value })}
-                  />
+                    {it.notes ? (
+                      <p className="text-xs text-gray-500">
+                        ملاحظات: {it.notes}
+                      </p>
+                    ) : null}
 
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        className="accent-[#6F013F]"
-                        checked={!!r.is_primary}
-                        onChange={(e) =>
-                          updateRow(idx, { is_primary: e.target.checked })
-                        }
-                      />
-                      أساسي
-                    </label>
+                    {it.is_primary && (
+                      <span className="inline-block mt-1 text-[11px] px-2 py-0.5 rounded-full bg-pink-100 text-[#6F013F]">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => editItem(it)}
+                      className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                      title="تعديل"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
 
                     <button
-                      onClick={() => removeRow(r, idx)}
-                      className="text-red-500 hover:text-red-700"
+                      type="button"
+                      onClick={() => removeItem(it)}
+                      className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
                       title="حذف"
+                      disabled={isSaving}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -357,5 +655,5 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
         </div>
       </div>
     </div>
-  );
+  ) : null;
 }
