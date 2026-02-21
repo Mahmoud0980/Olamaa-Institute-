@@ -109,20 +109,28 @@ export default function Step1Student({
 
       {/* national id */}
       <InputField
-        label="الرقم الوطني"
+        label="الرقم الوطني (اختياري)"
         type="text"
         placeholder="10 أرقام فقط"
-        required
         register={register("national_id", {
-          required: "الرقم الوطني مطلوب",
-          pattern: {
-            value: /^[0-9]{10}$/,
-            message: "يجب إدخال 10 أرقام فقط",
+          // خزّن أرقام فقط داخل الفورم
+          setValueAs: (v) =>
+            String(v ?? "")
+              .replace(/\D/g, "")
+              .slice(0, 10),
+
+          validate: (v) => {
+            const digits = String(v ?? "").replace(/\D/g, "");
+
+            if (digits.length === 0) return true; // فاضي → مقبول
+            return digits.length === 10 || "يجب إدخال 10 أرقام فقط";
           },
+
           onChange: (e) => {
             e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
           },
         })}
+        error={errors?.national_id?.message}
       />
 
       {/* academic branch */}
