@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import FormInput from "@/components/common/InputField";
 import PhoneInput from "@/components/common/PhoneInput";
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
+
 import { useUpdateEmployeeMutation } from "@/store/services/employeesApi";
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
 
@@ -24,14 +25,12 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
       first_name: employee.first_name || "",
       last_name: employee.last_name || "",
       job_title: employee.job_title || "",
-      job_type: employee.job_type ?? "", // ← انتبه
+      job_type: employee.job_type ?? "",
       hire_date: employee.hire_date || "",
       phone: employee.phone || "",
       institute_branch_id: employee.institute_branch_id || "",
       is_active: !!employee.is_active,
     });
-
-    setErrors({});
   }, [employee]);
 
   const handleSubmit = async () => {
@@ -41,10 +40,10 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
         ...form,
       }).unwrap();
 
-      toast.success("تم تعديل بيانات الموظف");
+      notify.success("تم تعديل بيانات الموظف");
       onClose();
     } catch (e) {
-      toast.error("خطأ أثناء التعديل");
+      notify.error("خطأ أثناء التعديل");
     }
   };
 
@@ -87,14 +86,17 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
             }}
           />
 
-          <SelectInput
+          {/* ✅ job_type as searchable */}
+          <SearchableSelect
+            label="نوع الوظيفة"
             value={form.job_type}
+            placeholder="اختر نوع الوظيفة..."
             options={[
               { value: "supervisor", label: "مشرف" },
               { value: "accountant", label: "محاسب" },
               { value: "coordinator", label: "منسق" },
             ]}
-            onChange={(e) => setForm({ ...form, job_type: e.target.value })}
+            onChange={(val) => setForm({ ...form, job_type: val })}
           />
 
           <FormInput
@@ -106,24 +108,30 @@ export default function EditEmployeeModal({ isOpen, onClose, employee }) {
             }}
           />
 
+          {/* ✅ keep your PhoneInput; just make sure it feeds the form */}
           <PhoneInput
             name="phone"
             setValue={(n, v) => setForm({ ...form, phone: v })}
           />
 
-          <SelectInput
+          {/* ✅ institute branch as searchable */}
+          <SearchableSelect
             label="فرع المعهد"
             value={form.institute_branch_id}
-            options={branches.map((b) => ({ value: b.id, label: b.name }))}
-            onChange={(e) =>
-              setForm({ ...form, institute_branch_id: e.target.value })
-            }
+            placeholder="ابحث عن فرع..."
+            options={branches.map((b, idx) => ({
+              key: b.id ?? `${b.name}-${idx}`, // احتياط للـ key
+              value: b.id,
+              label: b.name,
+            }))}
+            onChange={(val) => setForm({ ...form, institute_branch_id: val })}
+            allowClear
           />
 
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={form.is_active}
+              checked={!!form.is_active}
               onChange={(e) =>
                 setForm({ ...form, is_active: e.target.checked })
               }

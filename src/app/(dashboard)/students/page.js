@@ -6,7 +6,7 @@ import { notify } from "@/lib/helpers/toastify";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import ActionsRow from "@/components/common/ActionsRow";
 import PrintButton from "@/components/common/PrintButton";
 import ExcelButton from "@/components/common/ExcelButton";
@@ -74,6 +74,14 @@ function normalizeStudentDetailsResponse(res) {
 
 /* ================= component ================= */
 export default function StudentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const add = searchParams.get("add");
+    if (add === "1") setIsAddOpen(true);
+  }, [searchParams]);
   /* ================= API (list) ================= */
   const {
     data: studentsDetailsRes,
@@ -546,11 +554,15 @@ export default function StudentsPage() {
       {/* ADD STUDENT MODAL (كما هو عندك) */}
       <AddStudentModal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        student={null}
-        onAdded={() => {
-          refetchStudents();
+        onClose={() => {
           setIsAddOpen(false);
+          router.replace(pathname); // يشيل كل query من الرابط
+        }}
+        student={null}
+        onAdded={async () => {
+          await refetchStudents();
+          setIsAddOpen(false);
+          router.replace(pathname); // يشيل ?add=1 بعد الإضافة
         }}
       />
       <AddStudentToBatchModal

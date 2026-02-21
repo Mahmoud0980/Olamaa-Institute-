@@ -2,10 +2,10 @@
 
 import { X, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import ChipsList from "@/components/common/ChipsList";
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 
@@ -44,18 +44,19 @@ export default function AssignBatchModal({ isOpen, onClose, employee }) {
   useEffect(() => {
     if (!isOpen || !employee) return;
 
-    setAssignments(employee.batch_assignments || []);
+    const currentAssignments = employee.batch_assignments || [];
+    setAssignments(currentAssignments);
 
-    const active = employee.batch_assignments?.find((a) => a.is_active);
-    setSelectedBatch(active?.batch?.id || "");
+    const active = currentAssignments.find((a) => a.is_active);
+    setSelectedBatch(active?.batch?.id ? String(active.batch.id) : "");
     setError("");
   }, [isOpen, employee]);
 
   /* -------------------------
-      اختيار دورة
+      اختيار دورة (SearchableSelect)
   -------------------------- */
-  const handleSelect = (e) => {
-    const batchId = Number(e.target.value);
+  const handleSelect = (val) => {
+    const batchId = Number(val);
 
     if (!batchId) {
       setSelectedBatch("");
@@ -65,7 +66,7 @@ export default function AssignBatchModal({ isOpen, onClose, employee }) {
 
     // ❌ لا أكثر من دورة نشطة لنفس الموظف
     const hasOtherActive = assignments.some(
-      (a) => a.is_active && a.batch?.id !== batchId
+      (a) => a.is_active && a.batch?.id !== batchId,
     );
 
     if (hasOtherActive) {
@@ -78,19 +79,19 @@ export default function AssignBatchModal({ isOpen, onClose, employee }) {
       (emp) =>
         emp.id !== employee.id &&
         emp.batch_assignments?.some(
-          (a) => a.is_active && a.batch?.id === batchId
-        )
+          (a) => a.is_active && a.batch?.id === batchId,
+        ),
     );
 
     if (usedByOther) {
       setError(
-        `هذه الدورة مشرف عليها الموظف: ${usedByOther.first_name} ${usedByOther.last_name}`
+        `هذه الدورة مشرف عليها الموظف: ${usedByOther.first_name} ${usedByOther.last_name}`,
       );
       return;
     }
 
     setError("");
-    setSelectedBatch(batchId);
+    setSelectedBatch(String(batchId));
   };
 
   /* -------------------------
@@ -105,13 +106,13 @@ export default function AssignBatchModal({ isOpen, onClose, employee }) {
     try {
       await assignToBatch({
         id: employee.id,
-        batch_id: selectedBatch,
+        batch_id: Number(selectedBatch),
       }).unwrap();
 
-      toast.success("تم تعيين الدورة بنجاح");
+      notify.success("تم تعيين الدورة بنجاح");
       onClose();
     } catch {
-      toast.error("خطأ أثناء التعيين");
+      notify.error("خطأ أثناء التعيين");
     }
   };
 
@@ -135,20 +136,23 @@ export default function AssignBatchModal({ isOpen, onClose, employee }) {
         batchId: assignmentToDelete.batch.id,
       }).unwrap();
 
-      toast.success("تم إزالة الإشراف بنجاح");
+      notify.success("تم إزالة الإشراف بنجاح");
 
       // ✅ تحديث ChipsList فورًا
       setAssignments((prev) =>
-        prev.filter((a) => a.batch.id !== assignmentToDelete.batch.id)
+        prev.filter((a) => a.batch.id !== assignmentToDelete.batch.id),
       );
+
+      // ✅ إذا انحذفت الدورة المختارة (أو كانت النشطة)، صفّر السلكت
+      if (String(assignmentToDelete.batch.id) === String(selectedBatch)) {
+        setSelectedBatch("");
+      }
 
       setIsDeleteOpen(false);
       setAssignmentToDelete(null);
-
-      // 🔴 إذا بدك إغلاق المودال كامل:
-      // onClose();
+      setError("");
     } catch {
-      toast.error("فشل في إزالة الإشراف");
+      notify.error("فشل في إزالة الإشراف");
     }
   };
 
@@ -178,25 +182,29 @@ export default function AssignBatchModal({ isOpen, onClose, employee }) {
             </div>
           )}
 
-          {/* SELECT */}
-          <SelectInput
-            label="الدورة"
-            required
-            value={selectedBatch}
-            onChange={handleSelect}
-            placeholder="اختر الدورة"
-            error={error}
-            options={batches.map((b) => ({
-              value: b.id,
-              label: b.name,
-            }))}
-          />
+          {/* ✅ SEARCHABLE SELECT */}
+          <div className="space-y-1">
+            <SearchableSelect
+              label="الدورة"
+              required
+              value={selectedBatch}
+              onChange={handleSelect}
+              placeholder="اختر الدورة..."
+              options={batches.map((b, idx) => ({
+                key: b.id ?? `${b.name}-${idx}`,
+                value: b.id,
+                label: b.name,
+              }))}
+              allowClear
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
 
           {/* CHIPS */}
           <ChipsList
             items={assignments}
             getLabel={(item) => item.batch?.name}
-            canRemove={() => true} // الآن حتى النشطة تنحذف
+            canRemove={() => true}
             onRemove={requestRemoveAssignment}
             className="mt-4"
           />

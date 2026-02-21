@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import PhoneInput from "@/components/common/PhoneInput";
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 
 import {
   useAddEmployeeMutation,
@@ -53,10 +53,10 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
         first_name: employee.first_name || "",
         last_name: employee.last_name || "",
         job_title: employee.job_title || "",
-        job_type: employee.job_type || "",
+        job_type: employee.job_type ?? "",
         hire_date: employee.hire_date || "",
         phone: employee.phone || "",
-        institute_branch_id: employee.institute_branch_id || "",
+        institute_branch_id: employee.institute_branch_id ?? "",
         is_active: !!employee.is_active,
       });
     } else {
@@ -79,7 +79,7 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
   // ====== Submit ======
   const handleSubmit = async () => {
     const error = validate();
-    if (error) return toast.error(error);
+    if (error) return notify.error(error);
 
     try {
       setLoading(true);
@@ -91,16 +91,16 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
 
       if (employee) {
         await updateEmployee({ id: employee.id, ...payload }).unwrap();
-        toast.success("تم تعديل الموظف بنجاح");
+        notify.success("تم تعديل الموظف بنجاح");
       } else {
         await addEmployee(payload).unwrap();
-        toast.success("تم إضافة الموظف بنجاح");
+        notify.success("تم إضافة الموظف بنجاح");
       }
 
       onClose();
     } catch (err) {
       console.error(err);
-      toast.error("حدث خطأ، حاول مرة أخرى");
+      notify.error("حدث خطأ، حاول مرة أخرى");
     } finally {
       setLoading(false);
     }
@@ -138,6 +138,7 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
             value={form.last_name}
             onChange={(e) => setForm({ ...form, last_name: e.target.value })}
           />
+
           <FormInput
             label="المسمى الوظيفي"
             required
@@ -145,16 +146,18 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
             onChange={(e) => setForm({ ...form, job_title: e.target.value })}
           />
 
-          <SelectInput
+          {/* ✅ job_type -> SearchableSelect */}
+          <SearchableSelect
             label="نوع الوظيفة"
             required
             value={form.job_type}
+            placeholder="اختر نوع الوظيفة..."
             options={[
               { value: "supervisor", label: "مشرف" },
               { value: "accountant", label: "محاسب" },
               { value: "coordinator", label: "منسق" },
             ]}
-            onChange={(e) => setForm({ ...form, job_type: e.target.value })}
+            onChange={(val) => setForm({ ...form, job_type: val })}
           />
 
           <FormInput
@@ -170,18 +173,21 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
             setValue={(n, v) => setForm({ ...form, phone: v })}
           />
 
-          <SelectInput
+          {/* ✅ institute_branch_id -> SearchableSelect */}
+          <SearchableSelect
             label="فرع المعهد"
             required
             value={form.institute_branch_id}
-            options={branches.map((b) => ({
+            placeholder="ابحث عن فرع..."
+            options={branches.map((b, idx) => ({
+              key: b.id ?? `${b.name}-${idx}`,
               value: b.id,
               label: b.name,
             }))}
-            onChange={(e) =>
+            onChange={(val) =>
               setForm({
                 ...form,
-                institute_branch_id: e.target.value,
+                institute_branch_id: val,
               })
             }
           />
@@ -191,7 +197,7 @@ export default function AddEmployeeModal({ isOpen, onClose, employee }) {
             <input
               type="checkbox"
               className="w-4 h-4 accent-[#6F013F]"
-              checked={form.is_active}
+              checked={!!form.is_active}
               onChange={(e) =>
                 setForm({ ...form, is_active: e.target.checked })
               }

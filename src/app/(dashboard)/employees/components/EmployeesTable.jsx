@@ -156,7 +156,9 @@ export default function EmployeesTable({
                       {emp.first_name} {emp.last_name}
                     </td>
                     <td className="p-3">{emp.job_title}</td>
-                    <td className="p-3">{emp.phone}</td>
+                    <td className="p-3" dir="ltr">
+                      {emp.phone}
+                    </td>
                     <td className="p-3">
                       {getBranchName(emp.institute_branch_id)}
                     </td>

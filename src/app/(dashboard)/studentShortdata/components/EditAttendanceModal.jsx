@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import Calendar from "react-calendar";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import SelectInput from "@/components/common/SelectInput";
 import FormInput from "@/components/common/InputField";
@@ -50,7 +50,7 @@ export default function EditAttendanceModal({
   // ================= حفظ التعديل =================
   const handleSubmit = async () => {
     if (!record?.student_id) {
-      toast.error("بيانات السجل غير مكتملة");
+      notify.error("بيانات السجل غير مكتملة");
       return;
     }
 
@@ -76,12 +76,12 @@ export default function EditAttendanceModal({
         body: payload,
       }).unwrap();
 
-      toast.success("تم تعديل سجل الحضور بنجاح");
+      notify.success("تم تعديل سجل الحضور بنجاح");
       onSave?.();
       onClose();
     } catch (err) {
       console.error(err);
-      toast.error(err?.data?.message || "فشل تعديل سجل الحضور");
+      notify.error(err?.data?.message || "فشل تعديل سجل الحضور");
     }
   };
 

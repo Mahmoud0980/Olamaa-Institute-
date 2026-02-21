@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -96,7 +96,7 @@ export default function EmployeesPage({ openAddFromUrl }) {
 
   const handleEditBatches = (id) => {
     setSelectedEmployeeForBatchesModal(
-      employees.find((e) => e.id === id) || null
+      employees.find((e) => e.id === id) || null,
     );
     setIsAssignModalOpen(true);
   };
@@ -110,11 +110,11 @@ export default function EmployeesPage({ openAddFromUrl }) {
     if (!employeeToDelete) return;
     try {
       await deleteEmployee(employeeToDelete.id).unwrap();
-      toast.success("تم حذف الموظف بنجاح");
+      notify.success("تم حذف الموظف بنجاح");
       setIsDeleteOpen(false);
       setEmployeeToDelete(null);
     } catch (err) {
-      toast.error(err?.data?.message || "فشل في حذف الموظف");
+      notify.error(err?.data?.message || "فشل في حذف الموظف");
     }
   };
 
@@ -127,7 +127,7 @@ export default function EmployeesPage({ openAddFromUrl }) {
   // ===== Print =====
   const handlePrint = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد موظف واحد على الأقل");
+      notify.error("يرجى تحديد موظف واحد على الأقل");
       return;
     }
 
@@ -169,7 +169,7 @@ export default function EmployeesPage({ openAddFromUrl }) {
                   <td>${e.phone}</td>
                   <td>${e.institute_branch?.name || "-"}</td>
                   <td>${e.is_active ? "نشط" : "غير نشط"}</td>
-                </tr>`
+                </tr>`,
                 )
                 .join("")}
             </tbody>
@@ -187,7 +187,7 @@ export default function EmployeesPage({ openAddFromUrl }) {
   // ===== Excel =====
   const handleExcel = () => {
     if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد موظف واحد على الأقل");
+      notify.error("يرجى تحديد موظف واحد على الأقل");
       return;
     }
 
@@ -209,7 +209,7 @@ export default function EmployeesPage({ openAddFromUrl }) {
     const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      "employees.xlsx"
+      "employees.xlsx",
     );
   };
 

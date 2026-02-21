@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -81,12 +81,12 @@ function getPrimaryPhone(student) {
   const details = guardians.flatMap((g) => g.contact_details || []);
 
   const primaryPhone = details.find(
-    (c) => c.type === "phone" && c.is_primary && c.full_phone_number
+    (c) => c.type === "phone" && c.is_primary && c.full_phone_number,
   );
   if (primaryPhone) return primaryPhone.full_phone_number;
 
   const anyPrimary = details.find(
-    (c) => c.is_primary && (c.full_phone_number || c.value)
+    (c) => c.is_primary && (c.full_phone_number || c.value),
   );
   return anyPrimary?.full_phone_number || anyPrimary?.value || "—";
 }
@@ -100,7 +100,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
   // ===== Attendance (للاكسل/الطباعة) =====
   const { data: attendanceRecords = [] } = useGetAttendanceLogQuery(
     { id: idFromUrl, range: "all" },
-    { skip: !idFromUrl }
+    { skip: !idFromUrl },
   );
 
   // ===== Payments (للاكسل/الطباعة) =====
@@ -199,7 +199,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
         الوصول: r.check_in || "",
         الانصراف: r.check_out || "",
         الحالة: r.status || "",
-      }))
+      })),
     );
     XLSX.utils.book_append_sheet(wb, attendanceSheet, "الحضور والغياب");
   };
@@ -213,11 +213,11 @@ export default function StudentShortdataPage({ idFromUrl }) {
               p.date ||
               p.paid_at ||
               p.created_at ||
-              p.updated_at
+              p.updated_at,
           ) || "",
         "رقم الإيصال": p.receipt_number || "",
         المبلغ: p.amount_usd ?? p.amount ?? "",
-      }))
+      })),
     );
     XLSX.utils.book_append_sheet(wb, paymentsSheet, "الدفعات");
   };
@@ -232,7 +232,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
       exportWorkbook(wb, `student_${student.id}_ALL.xlsx`);
     } catch (e) {
       console.error(e);
-      toast.error("فشل تصدير الإكسل");
+      notify.error("فشل تصدير الإكسل");
     }
   };
 
@@ -263,7 +263,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
       handleExcelAll();
     } catch (e) {
       console.error(e);
-      toast.error("فشل تصدير الإكسل");
+      notify.error("فشل تصدير الإكسل");
     }
   };
 
@@ -313,31 +313,31 @@ export default function StudentShortdataPage({ idFromUrl }) {
             <div class="section">
               <h2>معلومات الطالب</h2>
               <div class="muted">تاريخ الطباعة: ${escapeHtml(
-                toYMD(new Date())
+                toYMD(new Date()),
               )}</div>
 
               <table>
                 <tbody>
                   <tr><th>الاسم</th><td>${escapeHtml(
-                    student?.full_name || "—"
+                    student?.full_name || "—",
                   )}</td></tr>
                   <tr><th>الهاتف</th><td>${escapeHtml(
-                    getPrimaryPhone(student)
+                    getPrimaryPhone(student),
                   )}</td></tr>
                   <tr><th>الجنس</th><td>${escapeHtml(
-                    student?.gender || "—"
+                    student?.gender || "—",
                   )}</td></tr>
                   <tr><th>الفرع</th><td>${escapeHtml(
-                    student?.institute_branch?.name || "—"
+                    student?.institute_branch?.name || "—",
                   )}</td></tr>
                   <tr><th>الشعبة</th><td>${escapeHtml(
-                    student?.batch?.name || "—"
+                    student?.batch?.name || "—",
                   )}</td></tr>
                   <tr><th>الحالة</th><td>${escapeHtml(
-                    student?.status?.name || "—"
+                    student?.status?.name || "—",
                   )}</td></tr>
                   <tr><th>تاريخ التسجيل</th><td>${escapeHtml(
-                    student?.enrollment_date || "—"
+                    student?.enrollment_date || "—",
                   )}</td></tr>
                 </tbody>
               </table>
@@ -373,7 +373,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
                               <td>${escapeHtml(r.check_out || "—")}</td>
                               <td>${escapeHtml(r.status || "—")}</td>
                             </tr>
-                          `
+                          `,
                           )
                           .join("")
                       : `<tr><td colspan="5" style="text-align:center;color:#777">لا يوجد بيانات</td></tr>`
@@ -413,11 +413,11 @@ export default function StudentShortdataPage({ idFromUrl }) {
                               <tr>
                                 <td>${i + 1}</td>
                                 <td>${escapeHtml(
-                                  toYMDFromAny(rawDate) || "—"
+                                  toYMDFromAny(rawDate) || "—",
                                 )}</td>
                                 <td>${escapeHtml(p.receipt_number || "—")}</td>
                                 <td>${escapeHtml(
-                                  p.amount_usd ?? p.amount ?? "—"
+                                  p.amount_usd ?? p.amount ?? "—",
                                 )}</td>
                               </tr>
                             `;
@@ -435,7 +435,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
       openPrintWindow(html);
     } catch (e) {
       console.error(e);
-      toast.error("فشلت الطباعة");
+      notify.error("فشلت الطباعة");
     }
   };
 
@@ -464,30 +464,30 @@ export default function StudentShortdataPage({ idFromUrl }) {
             <body>
               <h2>معلومات الطالب</h2>
               <div class="muted">تاريخ الطباعة: ${escapeHtml(
-                toYMD(new Date())
+                toYMD(new Date()),
               )}</div>
               <table>
                 <tbody>
                   <tr><th>الاسم</th><td>${escapeHtml(
-                    student?.full_name || "—"
+                    student?.full_name || "—",
                   )}</td></tr>
                   <tr><th>الهاتف</th><td>${escapeHtml(
-                    getPrimaryPhone(student)
+                    getPrimaryPhone(student),
                   )}</td></tr>
                   <tr><th>الجنس</th><td>${escapeHtml(
-                    student?.gender || "—"
+                    student?.gender || "—",
                   )}</td></tr>
                   <tr><th>الفرع</th><td>${escapeHtml(
-                    student?.institute_branch?.name || "—"
+                    student?.institute_branch?.name || "—",
                   )}</td></tr>
                   <tr><th>الشعبة</th><td>${escapeHtml(
-                    student?.batch?.name || "—"
+                    student?.batch?.name || "—",
                   )}</td></tr>
                   <tr><th>الحالة</th><td>${escapeHtml(
-                    student?.status?.name || "—"
+                    student?.status?.name || "—",
                   )}</td></tr>
                   <tr><th>تاريخ التسجيل</th><td>${escapeHtml(
-                    student?.enrollment_date || "—"
+                    student?.enrollment_date || "—",
                   )}</td></tr>
                 </tbody>
               </table>
@@ -533,7 +533,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
                                 <td>${escapeHtml(r.check_out || "—")}</td>
                                 <td>${escapeHtml(r.status || "—")}</td>
                               </tr>
-                          `
+                          `,
                           )
                           .join("")
                       : `<tr><td colspan="5" style="text-align:center;color:#777">لا يوجد بيانات</td></tr>`
@@ -583,11 +583,11 @@ export default function StudentShortdataPage({ idFromUrl }) {
                               <tr>
                                 <td>${i + 1}</td>
                                 <td>${escapeHtml(
-                                  toYMDFromAny(rawDate) || "—"
+                                  toYMDFromAny(rawDate) || "—",
                                 )}</td>
                                 <td>${escapeHtml(p.receipt_number || "—")}</td>
                                 <td>${escapeHtml(
-                                  p.amount_usd ?? p.amount ?? "—"
+                                  p.amount_usd ?? p.amount ?? "—",
                                 )}</td>
                               </tr>
                             `;
@@ -608,7 +608,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
       handlePrintAll();
     } catch (e) {
       console.error(e);
-      toast.error("فشلت الطباعة");
+      notify.error("فشلت الطباعة");
     }
   };
 
@@ -616,7 +616,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
 
   const handleEditAttendanceClick = () => {
     if (activeTab !== "attendance") {
-      toast.error("يرجى الانتقال إلى تبويب الغياب والحضور للتعديل");
+      notify.error("يرجى الانتقال إلى تبويب الغياب والحضور للتعديل");
       return;
     }
     setEditTrigger((v) => v + 1);

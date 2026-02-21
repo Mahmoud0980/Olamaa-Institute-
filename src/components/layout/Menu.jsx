@@ -122,7 +122,7 @@ export default function Menu() {
           href: "/students",
           roles: ["admin", "employee"],
         },
-        // { name: "إضافة طالب", href: "/students?add=1", roles: ["admin"] },
+        { name: "إضافة طالب", href: "/students?add=1", roles: ["admin"] },
       ],
     },
     {
