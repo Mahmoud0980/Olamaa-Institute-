@@ -23,6 +23,7 @@ const dictionary = {
   attendance: "سجلات الحضور والغياب",
   schools: "المدارس",
   requests: " الطلبات",
+  logs: "سجل العمليات",
 };
 
 export default function Breadcrumb() {

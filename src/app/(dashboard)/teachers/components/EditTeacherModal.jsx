@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import PhoneInputEdit from "@/components/common/PhoneInputEdit";
 
 import { useUpdateTeacherMutation } from "@/store/services/teachersApi";
@@ -15,7 +15,12 @@ import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranches
 
 export default function EditTeacherModal({ isOpen, onClose, teacher }) {
   const [updateTeacher] = useUpdateTeacherMutation();
-  const { data: branchesData } = useGetInstituteBranchesQuery();
+  const { data: branchesData, isFetching: fetchingBranches } =
+    useGetInstituteBranchesQuery(undefined, {
+      skip: !isOpen,
+      refetchOnMountOrArgChange: true,
+    });
+
   const branches = branchesData?.data || [];
 
   const [loading, setLoading] = useState(false);
@@ -51,10 +56,10 @@ export default function EditTeacherModal({ isOpen, onClose, teacher }) {
         institute_branch_id: Number(form.institute_branch_id),
       }).unwrap();
 
-      toast.success("تم تعديل بيانات الأستاذ");
+      notify.success("تم تعديل بيانات الأستاذ");
       onClose();
-    } catch {
-      toast.error("فشل التعديل");
+    } catch (e) {
+      notify.error(e?.data?.message || "فشل التعديل");
     } finally {
       setLoading(false);
     }
@@ -106,13 +111,19 @@ export default function EditTeacherModal({ isOpen, onClose, teacher }) {
             }}
           />
 
-          <SelectInput
+          <SearchableSelect
             label="فرع المعهد"
             value={form.institute_branch_id}
-            options={branches.map((b) => ({ value: b.id, label: b.name }))}
-            onChange={(e) =>
-              setForm({ ...form, institute_branch_id: e.target.value })
+            options={branches.map((b, idx) => ({
+              value: String(b.id),
+              label: b.name,
+              key: `branch-${b.id}-${idx}`,
+            }))}
+            placeholder={
+              fetchingBranches ? "جاري تحميل الفروع..." : "اختر الفرع..."
             }
+            disabled={fetchingBranches}
+            onChange={(val) => setForm({ ...form, institute_branch_id: val })}
           />
 
           <StepButtonsSmart isEdit loading={loading} onNext={handleSubmit} />

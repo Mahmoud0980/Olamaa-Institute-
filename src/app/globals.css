@@ -144,3 +144,74 @@ thead tr:first-child th:last-child {
 .animate-leave {
   animation: toastOut 180ms ease-in both;
 }
+/*_______________________________________________*/
+/* مخفي بالشاشة */
+.print-only {
+  display: none;
+}
+
+/* وقت الطباعة */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #print-root,
+  #print-root * {
+    visibility: visible !important;
+  }
+
+  #print-root {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    padding: 16px;
+  }
+
+  .print-page {
+    page-break-after: always;
+  }
+
+  .print-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .print-subtitle {
+    margin-top: 14px;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+
+  .print-card {
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 8px;
+    display: grid;
+    gap: 6px;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    text-align: right;
+    vertical-align: top;
+  }
+
+  .print-empty {
+    color: #666;
+    padding: 8px 0;
+  }
+
+  .print-break {
+    height: 1px;
+  }
+}

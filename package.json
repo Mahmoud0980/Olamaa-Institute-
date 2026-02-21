@@ -16,6 +16,7 @@
     "axios": "^1.12.2",
     "country-calling-code": "^0.0.3",
     "date-fns": "^4.1.0",
+    "dayjs": "^1.11.19",
     "file-saver": "^2.0.5",
     "google-libphonenumber": "^3.2.43",
     "html5-qrcode": "^2.3.8",

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 
 import { useAssignTeacherToSubjectMutation } from "@/store/services/subjectsTeachersApi";
@@ -28,7 +28,7 @@ export default function TeacherSubjectsStep({ teacher }) {
 
   const { data: subjectsRes, isLoading: subjectsLoading } = useGetSubjectsQuery(
     undefined,
-    { skip: !teacherId }
+    { skip: !teacherId },
   );
 
   const allSubjects = useMemo(() => {
@@ -50,13 +50,13 @@ export default function TeacherSubjectsStep({ teacher }) {
     refetch,
   } = useGetTeacherBatchesDetailsQuery(
     teacherId ? { id: teacherId, type: "subjects" } : undefined,
-    { skip: !teacherId }
+    { skip: !teacherId, refetchOnMountOrArgChange: true },
   );
 
   const linkedSubjects = useMemo(() => linkedRes?.data ?? [], [linkedRes]);
   const linkedSubjectIds = useMemo(
     () => new Set(linkedSubjects.map((x) => x?.subject?.id).filter(Boolean)),
-    [linkedSubjects]
+    [linkedSubjects],
   );
 
   const [selectedSubject, setSelectedSubject] = useState("");
@@ -66,13 +66,13 @@ export default function TeacherSubjectsStep({ teacher }) {
   }, [teacherId]);
 
   const handleAdd = async () => {
-    if (!teacherId) return toast.error("لا يوجد Teacher ID");
-    if (!selectedSubject) return toast.error("اختر مادة");
+    if (!teacherId) return notify.error("لا يوجد Teacher ID");
+    if (!selectedSubject) return notify.error("اختر مادة");
 
     const subjectId = Number(selectedSubject);
 
     if (linkedSubjectIds.has(subjectId)) {
-      return toast.error("هذه المادة مختارة مسبقاً");
+      return notify.error("هذه المادة مختارة مسبقاً");
     }
 
     try {
@@ -81,11 +81,11 @@ export default function TeacherSubjectsStep({ teacher }) {
         instructor_id: teacherId,
       }).unwrap();
 
-      toast.success("تم ربط المادة بالأستاذ");
+      notify.success("تم ربط المادة بالأستاذ");
       setSelectedSubject("");
       refetch();
     } catch (e) {
-      toast.error(e?.data?.message || "فشل ربط المادة");
+      notify.error(e?.data?.message || "فشل ربط المادة");
     }
   };
 
@@ -140,19 +140,22 @@ export default function TeacherSubjectsStep({ teacher }) {
           )}
         </div>
 
-        <SelectInput
+        {/* Select Subject */}
+        <SearchableSelect
           label="المادة"
+          required
           value={selectedSubject}
-          options={allSubjects.map((s) => ({
+          options={allSubjects.map((s, idx) => ({
             value: String(s.id),
             label: `${s.name} — ${getAcademicBranchName(s)}`,
+            key: `subopt-${s.id}-${idx}`,
           }))}
-          onChange={(e) => setSelectedSubject(e.target.value)}
+          placeholder={
+            subjectsLoading ? "جاري تحميل المواد..." : "اختر مادة..."
+          }
+          disabled={subjectsLoading}
+          onChange={(val) => setSelectedSubject(val)}
         />
-
-        {subjectsLoading && (
-          <p className="text-xs text-gray-500 mt-2">جاري تحميل المواد...</p>
-        )}
 
         {selectedSubject && linkedSubjectIds.has(Number(selectedSubject)) && (
           <p className="text-xs text-red-500 mt-2">هذه المادة مختارة مسبقاً</p>

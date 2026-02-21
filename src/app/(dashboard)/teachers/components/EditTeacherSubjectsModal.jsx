@@ -2,12 +2,16 @@
 
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
+import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 
-import { useAssignTeacherToSubjectMutation } from "@/store/services/subjectsTeachersApi";
+import {
+  useAssignTeacherToSubjectMutation,
+  useDeleteTeacherSubjectMutation,
+} from "@/store/services/subjectsTeachersApi";
 import { useGetTeacherBatchesDetailsQuery } from "@/store/services/teachersApi";
 import { useGetSubjectsQuery } from "@/store/services/subjectsApi";
 
@@ -15,13 +19,9 @@ import { useGetSubjectsQuery } from "@/store/services/subjectsApi";
 function getAcademicBranchName(obj) {
   if (!obj) return "—";
 
-  // الأكتر شيوعاً: { academic_branch: { name } }
   if (obj.academic_branch?.name) return obj.academic_branch.name;
-
-  // احتمال: academic_branch يكون string
   if (typeof obj.academic_branch === "string") return obj.academic_branch;
 
-  // احتمالات ثانية حسب APIs
   if (obj.academic_branch_name) return obj.academic_branch_name;
   if (obj.academicBranch?.name) return obj.academicBranch.name;
 
@@ -35,19 +35,20 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
   const [assign, { isLoading: isAssigning }] =
     useAssignTeacherToSubjectMutation();
 
-  // 🔹 جميع المواد (مع الفرع الأكاديمي) — عندك transformResponse بيرجع Array مباشرة
+  const [deleteTeacherSubject, { isLoading: isDeleting }] =
+    useDeleteTeacherSubjectMutation();
+
   const { data: subjectsRes, isLoading: subjectsLoading } = useGetSubjectsQuery(
     undefined,
-    { skip: !isOpen }
+    { skip: !isOpen },
   );
 
   const allSubjects = useMemo(() => {
-    if (Array.isArray(subjectsRes)) return subjectsRes; // ✅ الشكل الصحيح عندك
-    if (Array.isArray(subjectsRes?.data)) return subjectsRes.data; // احتياط
+    if (Array.isArray(subjectsRes)) return subjectsRes;
+    if (Array.isArray(subjectsRes?.data)) return subjectsRes.data;
     return [];
   }, [subjectsRes]);
 
-  // خريطة: subjectId -> academicBranchName (لنستخدمها إذا linkedRes ما فيه فرع)
   const subjectIdToBranchName = useMemo(() => {
     const m = new Map();
     for (const s of allSubjects) {
@@ -56,7 +57,6 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
     return m;
   }, [allSubjects]);
 
-  // 🔹 المواد المرتبطة بالأستاذ
   const {
     data: linkedRes,
     isLoading: linkedLoading,
@@ -64,36 +64,39 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
     refetch,
   } = useGetTeacherBatchesDetailsQuery(
     teacherId ? { id: teacherId, type: "subjects" } : undefined,
-    { skip: !isOpen || !teacherId }
+    { skip: !isOpen || !teacherId, refetchOnMountOrArgChange: true },
   );
 
   /* ================= STATE ================= */
   const [selectedSubject, setSelectedSubject] = useState("");
 
+  // delete modal state
+  const [toDelete, setToDelete] = useState(null); // { instructor_subject_id, subject_name, branch_name }
+
   useEffect(() => {
     if (!isOpen) return;
     setSelectedSubject("");
+    setToDelete(null);
   }, [isOpen, teacherId]);
 
   /* ================= DATA NORMALIZE ================= */
   const linkedSubjects = useMemo(() => linkedRes?.data ?? [], [linkedRes]);
 
-  // ملاحظة: التحقق لازم يكون على subject.id لأنو الآن كل فرع إلو subject_id مختلف
   const linkedSubjectIds = useMemo(
     () => new Set(linkedSubjects.map((x) => x?.subject?.id).filter(Boolean)),
-    [linkedSubjects]
+    [linkedSubjects],
   );
 
   const loadingLinked = linkedLoading || linkedFetching;
 
   /* ================= HANDLERS ================= */
   const handleAdd = async () => {
-    if (!selectedSubject) return toast.error("اختر مادة");
+    if (!selectedSubject) return notify.error("اختر مادة");
 
     const subjectId = Number(selectedSubject);
 
     if (linkedSubjectIds.has(subjectId)) {
-      return toast.error("هذه المادة مختارة مسبقاً");
+      return notify.error("هذه المادة مختارة مسبقاً");
     }
 
     try {
@@ -102,11 +105,24 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
         instructor_id: teacherId,
       }).unwrap();
 
-      toast.success("تم ربط المادة بالأستاذ");
+      notify.success("تم ربط المادة بالأستاذ");
       setSelectedSubject("");
       refetch();
     } catch (e) {
-      toast.error(e?.data?.message || "فشل ربط المادة");
+      notify.error(e?.data?.message || "فشل ربط المادة");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!toDelete?.instructor_subject_id) return;
+
+    try {
+      await deleteTeacherSubject(toDelete.instructor_subject_id).unwrap();
+      notify.success("تم حذف ربط المادة");
+      setToDelete(null);
+      refetch();
+    } catch (e) {
+      notify.error(e?.data?.message || "فشل حذف ربط المادة");
     }
   };
 
@@ -119,7 +135,7 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
         {/* Header */}
         <div className="flex justify-between mb-4">
           <h2 className="text-[#6F013F] font-semibold">ربط الأستاذ بمادة</h2>
-          <button onClick={onClose}>
+          <button onClick={onClose} type="button">
             <X />
           </button>
         </div>
@@ -147,20 +163,39 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
                 const subjectId = x?.subject?.id;
                 const subjectName = x?.subject?.name || "—";
 
-                // أحياناً linkedRes ما فيه academic_branch داخل subject
                 const branchName =
                   getAcademicBranchName(x?.subject) !== "—"
                     ? getAcademicBranchName(x?.subject)
                     : subjectIdToBranchName.get(subjectId) || "—";
 
+                const linkId = x?.instructor_subject_id;
+
                 return (
-                  <span
-                    key={x.instructor_subject_id}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700"
+                  <div
+                    key={linkId}
+                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700"
                     title={branchName}
                   >
-                    {subjectName} — {branchName}
-                  </span>
+                    <span className="whitespace-nowrap">
+                      {subjectName} — {branchName}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setToDelete({
+                          instructor_subject_id: linkId,
+                          subject_name: subjectName,
+                          branch_name: branchName,
+                        })
+                      }
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-gray-400 hover:text-red-600 transition"
+                      title="حذف"
+                      disabled={isDeleting}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -168,23 +203,24 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
         </div>
 
         {/* ================= Select Subject ================= */}
-        <SelectInput
+        <SearchableSelect
           label="المادة"
           value={selectedSubject}
-          options={allSubjects.map((s) => {
+          required
+          options={allSubjects.map((s, idx) => {
             const branchName = getAcademicBranchName(s);
             return {
               value: String(s.id),
               label: `${s.name} — ${branchName}`,
+              key: `subopt-${s.id}-${idx}`,
             };
           })}
-          onChange={(e) => setSelectedSubject(e.target.value)}
+          placeholder={
+            subjectsLoading ? "جاري تحميل المواد..." : "اختر مادة..."
+          }
+          disabled={subjectsLoading}
+          onChange={(val) => setSelectedSubject(val)}
         />
-
-        {/* Loading hint */}
-        {subjectsLoading && (
-          <p className="text-xs text-gray-500 mt-2">جاري تحميل المواد...</p>
-        )}
 
         {/* Duplicate warning */}
         {selectedSubject && linkedSubjectIds.has(Number(selectedSubject)) && (
@@ -201,6 +237,16 @@ export default function EditTeacherSubjectsModal({ isOpen, onClose, teacher }) {
             onNext={handleAdd}
           />
         </div>
+
+        {/* ================= Delete Confirm Modal ================= */}
+        <DeleteConfirmModal
+          isOpen={!!toDelete}
+          loading={isDeleting}
+          title="حذف مادة من الأستاذ"
+          description={`هل أنت متأكد من حذف "${toDelete?.subject_name}" — ${toDelete?.branch_name} من الأستاذ؟`}
+          onClose={() => setToDelete(null)}
+          onConfirm={confirmDelete}
+        />
       </div>
     </div>
   );

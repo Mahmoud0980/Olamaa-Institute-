@@ -29,7 +29,6 @@ export default function TeachersTable({
   const pageSize = 4;
 
   const safeTeachers = Array.isArray(teachers) ? teachers : [];
-
   const totalPages = Math.ceil(safeTeachers.length / pageSize) || 1;
 
   const paginated = useMemo(() => {
@@ -117,16 +116,22 @@ export default function TeachersTable({
                   <td className="p-3 whitespace-nowrap">
                     {t.institute_branch?.name || "—"}
                   </td>
-                  <td className="p-3 whitespace-nowrap">{t.specialization}</td>
-                  <td className="p-3 whitespace-nowrap">{t.phone}</td>
-                  <td className="p-3 whitespace-nowrap">{t.hire_date}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    {t.specialization || "—"}
+                  </td>
+                  <td className="p-3 whitespace-nowrap" dir="ltr">
+                    {t.phone || "—"}
+                  </td>
+                  <td className="p-3 whitespace-nowrap">
+                    {t.hire_date || "—"}
+                  </td>
 
                   <td
                     className="p-3 text-center rounded-l-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ActionsMenu
-                      menuId={t.id}
+                      menuId={`d-${t.id}`}
                       openMenuId={openMenuId}
                       setOpenMenuId={setOpenMenuId}
                       items={[
@@ -154,7 +159,11 @@ export default function TeachersTable({
                           label: "حذف",
                           icon: Trash2,
                           danger: true,
-                          onClick: () => onDelete?.(t),
+                          onClick: () => {
+                            // مهم: سكّر المنيو وبعدين افتح المودال من الأب
+                            setOpenMenuId?.(null);
+                            onDelete?.(t);
+                          },
                         },
                       ]}
                     />
@@ -200,10 +209,9 @@ export default function TeachersTable({
               <Row label="تاريخ التعيين" value={t.hire_date || "—"} />
 
               <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-                {/* ActionsMenu على الموبايل */}
                 <div className="flex justify-center">
                   <ActionsMenu
-                    menuId={t.id}
+                    menuId={`m-${t.id}`}
                     openMenuId={openMenuId}
                     setOpenMenuId={setOpenMenuId}
                     items={[
@@ -231,7 +239,10 @@ export default function TeachersTable({
                         label: "حذف",
                         icon: Trash2,
                         danger: true,
-                        onClick: () => onDelete?.(t),
+                        onClick: () => {
+                          setOpenMenuId?.(null);
+                          onDelete?.(t);
+                        },
                       },
                     ]}
                   />

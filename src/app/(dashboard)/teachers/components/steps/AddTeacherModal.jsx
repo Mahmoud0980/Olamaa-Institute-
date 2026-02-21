@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import PhoneInput from "@/components/common/PhoneInput";
 
 import {
@@ -20,22 +20,21 @@ import TeacherSubjectsStep from "./TeacherSubjectsStep";
 import TeacherBatchesStep from "./TeacherBatchesStep";
 
 function extractTeacherFromResponse(res) {
-  // احتمالات شائعة:
-  // {data: {id, ...}}
-  // {data: {data: {id, ...}}}
   const t1 = res?.data;
   const t2 = res?.data?.data;
   const teacher = t1 && t1.id ? t1 : t2 && t2.id ? t2 : null;
-
   return teacher;
 }
 
 export default function AddTeacherModal({ isOpen, onClose }) {
   const [addTeacher] = useAddTeacherMutation();
 
-  const { data: branchesData } = useGetInstituteBranchesQuery(undefined, {
-    skip: !isOpen,
-  });
+  const { data: branchesData, isFetching: fetchingBranches } =
+    useGetInstituteBranchesQuery(undefined, {
+      skip: !isOpen,
+      refetchOnMountOrArgChange: true,
+    });
+
   const branches = branchesData?.data || [];
 
   const [step, setStep] = useState(1);
@@ -59,12 +58,12 @@ export default function AddTeacherModal({ isOpen, onClose }) {
   // ✅ مواد الأستاذ المربوطة (لنمنع الانتقال للخطوة 3 إذا ما في مواد)
   const { data: linkedSubjectsRes } = useGetTeacherBatchesDetailsQuery(
     teacherId ? { id: teacherId, type: "subjects" } : undefined,
-    { skip: !isOpen || !teacherId || step < 2 }
+    { skip: !isOpen || !teacherId || step < 2 },
   );
 
   const linkedSubjectsCount = useMemo(
     () => (linkedSubjectsRes?.data?.length ? linkedSubjectsRes.data.length : 0),
-    [linkedSubjectsRes]
+    [linkedSubjectsRes],
   );
 
   const resetAll = () => {
@@ -102,7 +101,7 @@ export default function AddTeacherModal({ isOpen, onClose }) {
     // ===== Step 1: Create Teacher =====
     if (step === 1) {
       const error = validateTeacher();
-      if (error) return toast.error(error);
+      if (error) return notify.error(error);
 
       try {
         setLoadingCreate(true);
@@ -115,21 +114,21 @@ export default function AddTeacherModal({ isOpen, onClose }) {
         const res = await addTeacher(payload).unwrap();
 
         const newTeacher = extractTeacherFromResponse(res) || {
-          id: res?.data?.id || res?.id, // احتياط
+          id: res?.data?.id || res?.id,
           name: form.name,
           ...res?.data,
         };
 
         if (!newTeacher?.id) {
-          toast.error("تمت الإضافة لكن لم يتم استلام ID من السيرفر");
+          notify.error("تمت الإضافة لكن لم يتم استلام ID من السيرفر");
           return;
         }
 
         setCreatedTeacher(newTeacher);
-        toast.success("تم إضافة الأستاذ بنجاح");
+        notify.success("تم إضافة الأستاذ بنجاح");
         setStep(2);
       } catch (e) {
-        toast.error(e?.data?.message || "فشل الإضافة");
+        notify.error(e?.data?.message || "فشل الإضافة");
       } finally {
         setLoadingCreate(false);
       }
@@ -138,10 +137,10 @@ export default function AddTeacherModal({ isOpen, onClose }) {
 
     // ===== Step 2: Must have at least 1 subject =====
     if (step === 2) {
-      if (!teacherId) return toast.error("لا يوجد Teacher ID");
+      if (!teacherId) return notify.error("لا يوجد Teacher ID");
       if (linkedSubjectsCount === 0) {
-        return toast.error(
-          "اربط مادة واحدة على الأقل قبل الانتقال لتخصيص الشعب"
+        return notify.error(
+          "اربط مادة واحدة على الأقل قبل الانتقال لتخصيص الشعب",
         );
       }
       setStep(3);
@@ -150,13 +149,12 @@ export default function AddTeacherModal({ isOpen, onClose }) {
 
     // ===== Step 3: Finish =====
     if (step === 3) {
-      toast.success("تمت العملية بنجاح");
+      notify.success("تمت العملية بنجاح");
       handleClose();
     }
   };
 
   const handleBack = () => {
-    // ممنوع ترجع للخطوة 1 بعد إنشاء أستاذ (لتفادي تعقيد تعديل البيانات)
     if (step === 2) return setStep(1);
     if (step === 3) return setStep(2);
   };
@@ -169,9 +167,7 @@ export default function AddTeacherModal({ isOpen, onClose }) {
         {/* Header */}
         <div className="flex justify-between mb-4">
           <div>
-            <h2 className="text-[#6F013F] font-semibold">
-              إضافة أستاذ (خطوات)
-            </h2>
+            <h2 className="text-[#6F013F] font-semibold">إضافة أستاذ</h2>
             {createdTeacher?.id ? (
               <p className="text-xs text-gray-500 mt-1">
                 ID: {createdTeacher.id} — {createdTeacher?.name || form.name}
@@ -179,7 +175,7 @@ export default function AddTeacherModal({ isOpen, onClose }) {
             ) : null}
           </div>
 
-          <button onClick={handleClose}>
+          <button onClick={handleClose} type="button">
             <X />
           </button>
         </div>
@@ -219,14 +215,20 @@ export default function AddTeacherModal({ isOpen, onClose }) {
               onChange={(e) => setForm({ ...form, hire_date: e.target.value })}
             />
 
-            <SelectInput
+            <SearchableSelect
               label="فرع المعهد"
               required
               value={form.institute_branch_id}
-              options={branches.map((b) => ({ value: b.id, label: b.name }))}
-              onChange={(e) =>
-                setForm({ ...form, institute_branch_id: e.target.value })
+              options={branches.map((b, idx) => ({
+                value: String(b.id),
+                label: b.name,
+                key: `branch-${b.id}-${idx}`,
+              }))}
+              placeholder={
+                fetchingBranches ? "جاري تحميل الفروع..." : "اختر الفرع..."
               }
+              disabled={fetchingBranches}
+              onChange={(val) => setForm({ ...form, institute_branch_id: val })}
             />
 
             <StepButtonsSmart
@@ -252,7 +254,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
                 onNext={handleNext}
                 onBack={handleBack}
               />
-              <p className="text-xs text-gray-500 mt-2"></p>
             </div>
           </div>
         )}

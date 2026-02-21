@@ -1,8 +1,8 @@
 "use client";
 
-import { Trash2, ArrowRight } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import CoursesTableSkeleton from "./CoursesTableSkeleton";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
@@ -77,14 +77,14 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
     refetch: refetchAll,
   } = useGetTeacherBatchesDetailsQuery(
     teacherId ? { id: teacherId, type: "all" } : undefined,
-    { skip: !teacherId, refetchOnMountOrArgChange: true }
+    { skip: !teacherId, refetchOnMountOrArgChange: true },
   );
 
   const allBatches = Array.isArray(allData?.data)
     ? allData.data
     : Array.isArray(allData)
-    ? allData
-    : [];
+      ? allData
+      : [];
 
   // ===== Build subject -> batches map (to show batches in Subjects tab) =====
   const subjectToBatchesMap = useMemo(() => {
@@ -115,14 +115,14 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
     {
       skip: !teacherId || tab !== "subjects",
       refetchOnMountOrArgChange: true,
-    }
+    },
   );
 
   const teacherSubjects = Array.isArray(subjectsData?.data)
     ? subjectsData.data
     : Array.isArray(subjectsData)
-    ? subjectsData
-    : [];
+      ? subjectsData
+      : [];
 
   // ===== Derived lists per tab =====
   const batchesList = useMemo(() => {
@@ -144,7 +144,7 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
   const totalPages = Math.max(1, Math.ceil(listForPaging.length / PAGE_SIZE));
   const paginated = listForPaging.slice(
     (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
+    page * PAGE_SIZE,
   );
 
   // ===== Loading UI =====
@@ -164,20 +164,18 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-5">
+    <div className="bg-white rounded-xl shadow-sm p-5 relative">
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute top-3 left-3 w-9 h-9 rounded-full  text-gray-700 inline-flex items-center justify-center"
+        title="اغلاق"
+      >
+        <X size={18} />
+      </button>
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
-            title="رجوع"
-          >
-            <ArrowRight size={18} />
-            رجوع
-          </button>
-
           <h3 className="font-semibold">تفاصيل {selectedTeacher?.name}</h3>
         </div>
       </div>
@@ -312,9 +310,6 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
                       <th className="p-3">الشعبة</th>
                       <th className="p-3">من</th>
                       <th className="p-3">إلى</th>
-                      <th className="p-3 text-center rounded-l-xl">
-                        الإجراءات
-                      </th>
                     </tr>
                   </thead>
 
@@ -331,21 +326,6 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
                           <td className="p-3">{b?.batch_name || "—"}</td>
                           <td className="p-3">{b?.start_date || "—"}</td>
                           <td className="p-3">{b?.end_date || "—"}</td>
-
-                          <td className="p-3 rounded-l-xl">
-                            <div className="flex items-center justify-center">
-                              <DeleteIconButton
-                                onClick={() => {
-                                  if (b?.subjects?.length > 0) {
-                                    return toast.error(
-                                      "لا يمكن حذف الشعبة قبل حذف المواد المرتبطة بها أولاً."
-                                    );
-                                  }
-                                  toast("لا يوجد مواد مرتبطة بهذه الشعبة.");
-                                }}
-                              />
-                            </div>
-                          </td>
                         </tr>
                       );
                     })}
@@ -378,19 +358,6 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
                       <InfoRow label="الشعبة" value={b?.batch_name || "—"} />
                       <InfoRow label="من" value={b?.start_date || "—"} />
                       <InfoRow label="إلى" value={b?.end_date || "—"} />
-
-                      <div className="flex justify-center mt-3">
-                        <DeleteIconButton
-                          onClick={() => {
-                            if (b?.subjects?.length > 0) {
-                              return toast.error(
-                                "لا يمكن حذف الشعبة قبل حذف المواد المرتبطة بها أولاً."
-                              );
-                            }
-                            toast("لا يوجد مواد مرتبطة بهذه الشعبة.");
-                          }}
-                        />
-                      </div>
                     </div>
                   );
                 })}
@@ -415,9 +382,6 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
                       <th className="p-3 rounded-r-xl">#</th>
                       <th className="p-3">المادة</th>
                       <th className="p-3">الشُّعب</th>
-                      <th className="p-3 text-center rounded-l-xl">
-                        الإجراءات
-                      </th>
                     </tr>
                   </thead>
 
@@ -446,21 +410,6 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
                             {batchesForSubject.length > 0
                               ? batchesForSubject.join(" / ")
                               : "—"}
-                          </td>
-
-                          <td className="p-3 rounded-l-xl">
-                            <div className="flex items-center justify-center">
-                              <DeleteIconButton
-                                onClick={() => {
-                                  if (!subjectId) return;
-                                  setToDeleteSubject({
-                                    instructor_id: teacherId,
-                                    subject_id: subjectId,
-                                    subject_name: subjectName,
-                                  });
-                                }}
-                              />
-                            </div>
                           </td>
                         </tr>
                       );
@@ -510,19 +459,6 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
                             : "—"
                         }
                       />
-
-                      <div className="flex justify-center mt-3">
-                        <DeleteIconButton
-                          onClick={() => {
-                            if (!subjectId) return;
-                            setToDeleteSubject({
-                              instructor_id: teacherId,
-                              subject_id: subjectId,
-                              subject_name: subjectName,
-                            });
-                          }}
-                        />
-                      </div>
                     </div>
                   );
                 })}
@@ -561,7 +497,7 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
               subject_id: toDeleteSubject.subject_id,
             }).unwrap();
 
-            toast.success("تم حذف المادة");
+            notify.success("تم حذف المادة");
             setToDeleteSubject(null);
 
             refetchAll();
@@ -577,11 +513,12 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
               msg.includes("foreign key constraint");
 
             if (isFK) {
-              toast.error(
-                "لا يمكن حذف هذه المادة لأنها مربوطة بشُعب/تخصيصات. احذف التخصيصات أولاً."
+              notify.error(
+                msg ||
+                  "لا يمكن حذف هذه المادة لأنها مربوطة بشُعب/تخصيصات. احذف التخصيصات أولاً.",
               );
             } else {
-              toast.error(msg || "فشل حذف المادة");
+              notify.error(msg || "فشل حذف المادة");
             }
           }
         }}
@@ -596,11 +533,11 @@ export default function CoursesTable({ selectedTeacher, onBack }) {
         onConfirm={async () => {
           try {
             await deleteBatchSubject(toDeleteBatchSubject?.id).unwrap();
-            toast.success("تم الحذف");
+            notify.success("تم الحذف");
             setToDeleteBatchSubject(null);
             refetchAll();
           } catch (e) {
-            toast.error(e?.data?.message || "فشل الحذف");
+            notify.error(e?.data?.message || "فشل الحذف");
           }
         }}
       />
