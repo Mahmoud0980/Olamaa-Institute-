@@ -222,8 +222,8 @@ export default function Step6EnrollmentContract({
 
     if (form.discount_percentage !== "") {
       const disc = Number(form.discount_percentage);
-      if (!Number.isFinite(disc) || disc < 1 || disc > 100) {
-        notify.error("الحسم يجب أن يكون بين 1 و 100");
+      if (!Number.isFinite(disc) || disc < 0 || disc > 100) {
+        notify.error("الحسم يجب أن يكون بين 0 و 100");
         return false;
       }
       if (!form.discount_reason?.trim()) {

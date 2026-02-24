@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import Calendar from "react-calendar";
 import { notify } from "@/lib/helpers/toastify";
 
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect"; // ✅ بدل SelectInput
 import FormInput from "@/components/common/InputField";
 import GradientButton from "@/components/common/GradientButton";
 import { useUpdateDailyRecordMutation } from "@/store/services/studentAttendanceApi";
@@ -65,7 +65,6 @@ export default function EditAttendanceModal({
       payload.check_in = form.arrival_time || null;
       payload.check_out = form.leave_time || null;
     } else {
-      // absent / excused
       payload.check_in = null;
       payload.check_out = null;
     }
@@ -87,45 +86,49 @@ export default function EditAttendanceModal({
 
   if (!isOpen) return null;
 
+  const statusOptions = [
+    { value: "present", label: "حاضر" },
+    { value: "absent", label: "غائب" },
+    { value: "late", label: "متأخر" },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-md edit-attendance-moda">
+    <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-md edit-attendance-modal">
       <div className="w-[450px] bg-white h-full shadow-xl p-6 overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[#6F013F] font-semibold text-lg">
             تعديل الغياب والحضور
           </h2>
-          <button onClick={onClose}>
+          <button type="button" onClick={onClose}>
             <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
           </button>
         </div>
 
-        {/* الحالة */}
-        <SelectInput
+        {/* الحالة ✅ SearchableSelect */}
+        <SearchableSelect
           label="الحالة"
           value={form.check}
-          onChange={(e) => {
-            const status = e.target.value;
+          onChange={(val) => {
+            const status = val;
 
             if (status === "absent") {
-              setForm({
-                ...form,
+              setForm((prev) => ({
+                ...prev,
                 check: status,
                 arrival_time: "",
                 leave_time: "",
-              });
+              }));
             } else {
-              setForm({
-                ...form,
+              setForm((prev) => ({
+                ...prev,
                 check: status,
-              });
+              }));
             }
           }}
-          options={[
-            { value: "present", label: "حاضر" },
-            { value: "absent", label: "غائب" },
-            { value: "late", label: "متأخر" },
-          ]}
+          options={statusOptions}
+          placeholder="اختر الحالة..."
+          allowClear
         />
 
         {/* الوصول */}
@@ -136,10 +139,10 @@ export default function EditAttendanceModal({
             value={form.arrival_time}
             disabled={form.check === "absent"}
             onChange={(e) =>
-              setForm({
-                ...form,
+              setForm((prev) => ({
+                ...prev,
                 arrival_time: e.target.value,
-              })
+              }))
             }
           />
         </div>
@@ -152,10 +155,10 @@ export default function EditAttendanceModal({
             value={form.leave_time}
             disabled={form.check === "absent"}
             onChange={(e) =>
-              setForm({
-                ...form,
+              setForm((prev) => ({
+                ...prev,
                 leave_time: e.target.value,
-              })
+              }))
             }
           />
         </div>
@@ -169,7 +172,7 @@ export default function EditAttendanceModal({
             className="my-calendar"
             onChange={(d) => {
               setCalendarValue(d);
-              setForm({ ...form, date: d });
+              setForm((prev) => ({ ...prev, date: d }));
             }}
           />
         </div>

@@ -13,7 +13,7 @@ function getPrimaryPhone(student) {
   const details = guardians.flatMap((g) => g.contact_details || []);
 
   const primaryPhone = details.find(
-    (c) => c.type === "phone" && c.is_primary && c.full_phone_number
+    (c) => c.type === "phone" && c.is_primary && c.full_phone_number,
   );
   if (primaryPhone) return primaryPhone.full_phone_number;
 
@@ -36,17 +36,20 @@ function normalizeRange(start, end) {
   return a <= b ? { min: a, max: b } : { min: b, max: a };
 }
 
+// ✅ preview range بين start و hover
+function inPreviewRange(d, start, hover) {
+  if (!start || !hover) return false;
+  const { min, max } = normalizeRange(start, hover);
+  const y = toYMD(d);
+  return y >= min && y <= max;
+}
+
 export default function StudentCard({
   student,
-
-  // قديم (نتركهم حتى ما ينكسر شي)
   selectedDate,
   onDateChange,
-
   onEditAttendance,
-
-  // ✅ جديد
-  activeTab, // "info" | "attendance" | "payments"
+  activeTab,
   attendanceRange,
   paymentsRange,
   onRangeChange,
@@ -54,7 +57,9 @@ export default function StudentCard({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [monthListOpen, setMonthListOpen] = useState(false);
 
-  // ✅ اظهار/اخفاء حسب التاب
+  // ✅ جديد: hover date لنفس تأثير المعاينة
+  const [hoverDate, setHoverDate] = useState(null);
+
   const showCalendar = activeTab !== "info";
   const showEditButton = activeTab === "attendance";
 
@@ -73,11 +78,9 @@ export default function StudentCard({
     "December",
   ];
 
-  // ✅ تحديد أي Range شغال حسب التبويب
   const activeRange =
     activeTab === "payments" ? paymentsRange : attendanceRange;
 
-  // ✅ دعم double click
   const lastClickRef = useRef({ time: 0, ymd: "" });
   const DOUBLE_CLICK_MS = 450;
 
@@ -87,21 +90,13 @@ export default function StudentCard({
 
     if (s && e) return [s, e];
     if (s && !e) return s;
-    // fallback قديم إذا ما في رينج
     return selectedDate || null;
   }, [activeRange, selectedDate]);
 
   const pushRange = (range) => {
-    onRangeChange?.({
-      tab: activeTab,
-      range,
-    });
+    onRangeChange?.({ tab: activeTab, range });
   };
 
-  // ✅ منطق الاختيار:
-  // - دبل كليك على نفس اليوم => start=end
-  // - كبسة أولى => start فقط
-  // - كبسة ثانية => end
   const handleDayClick = (date) => {
     const now = Date.now();
     const ymd = toYMD(date);
@@ -112,7 +107,6 @@ export default function StudentCard({
 
     lastClickRef.current = { time: now, ymd };
 
-    // ✅ دبل كليك => يوم واحد فقط
     if (isDouble) {
       pushRange({ start: date, end: date });
       onDateChange?.(date);
@@ -122,19 +116,17 @@ export default function StudentCard({
     const s = activeRange?.start || null;
     const e = activeRange?.end || null;
 
-    // إذا ما في بداية أو عندك مجال مكتمل => ابدأ من جديد
     if (!s || (s && e)) {
       pushRange({ start: date, end: null });
       onDateChange?.(date);
       return;
     }
 
-    // إذا في بداية وما في نهاية => هذي الكبسة تحدد النهاية
     pushRange({ start: s, end: date });
     onDateChange?.(date);
   };
 
-  // ✅ تلوين المجال بدون selectRange من الريأكت-كالندر
+  // ✅ نفس منطق التلوين + preview hover
   const tileClassName = ({ date, view }) => {
     if (view !== "month") return "";
 
@@ -143,12 +135,15 @@ export default function StudentCard({
 
     if (!s && !e) return "";
 
-    // حالة start فقط
+    // ✅ start فقط → preview بالهوفر
     if (s && !e) {
-      return isSameDay(date, s) ? "range-start" : "";
+      const base = isSameDay(date, s) ? "range-start" : "";
+      const preview =
+        hoverDate && inPreviewRange(date, s, hoverDate) ? "range-hover" : "";
+      return [base, preview].filter(Boolean).join(" ");
     }
 
-    // start + end
+    // ✅ range مثبت
     const { min, max } = normalizeRange(s, e);
     const d = toYMD(date);
     if (!min || !max || !d) return "";
@@ -159,7 +154,7 @@ export default function StudentCard({
     const startDay = isSameDay(date, s);
     const endDay = isSameDay(date, e);
 
-    if (startDay && endDay) return "range-start range-end range-day"; // نفس اليوم
+    if (startDay && endDay) return "range-start range-end range-day";
     if (startDay) return "range-start range-day";
     if (endDay) return "range-end range-day";
     return "range-day";
@@ -174,10 +169,11 @@ export default function StudentCard({
           image={student?.profile_photo_url || null}
         />
         <h2 className="font-bold mt-4">{student?.full_name}</h2>
-        <p className="text-xs text-gray-500">{getPrimaryPhone(student)}</p>
+        <p className="text-xs text-gray-500" dir="ltr">
+          {getPrimaryPhone(student)}
+        </p>
       </div>
 
-      {/* ✅ الرزنامة حسب التاب */}
       {showCalendar && (
         <>
           <div className="text-right text-sm font-semibold">التاريخ</div>
@@ -191,6 +187,7 @@ export default function StudentCard({
                     d.setMonth(d.getMonth() - 1);
                     setCurrentMonth(d);
                   }}
+                  type="button"
                 >
                   ❮
                 </button>
@@ -200,13 +197,17 @@ export default function StudentCard({
                     d.setMonth(d.getMonth() + 1);
                     setCurrentMonth(d);
                   }}
+                  type="button"
                 >
                   ❯
                 </button>
               </div>
 
               <div className="relative">
-                <button onClick={() => setMonthListOpen(!monthListOpen)}>
+                <button
+                  type="button"
+                  onClick={() => setMonthListOpen(!monthListOpen)}
+                >
                   {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </button>
 
@@ -236,14 +237,24 @@ export default function StudentCard({
               locale="en"
               className="my-calendar"
               value={calendarValue}
-              onClickDay={handleDayClick} // ✅ كل المنطق هون
-              tileClassName={tileClassName} // ✅ تلوين المجال
+              onClickDay={handleDayClick}
+              tileClassName={tileClassName}
+              // ✅ نفس اللي عندك
+              onMouseLeave={() => setHoverDate(null)}
+              tileContent={({ date, view }) => {
+                if (view !== "month") return null;
+                return (
+                  <div
+                    onMouseEnter={() => setHoverDate(date)}
+                    className="w-full h-full"
+                  />
+                );
+              }}
             />
           </div>
         </>
       )}
 
-      {/* ✅ زر التعديل فقط بالحضور والغياب */}
       {showEditButton && (
         <div className="flex justify-end">
           <GradientButton

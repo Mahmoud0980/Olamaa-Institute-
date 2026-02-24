@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useGetStudentPaymentsSummaryQuery } from "@/store/services/studentPaymentsApi";
+import Pagination from "@/components/common/Pagination"; // ✅ كمبوننت الباجينيشن تبعك
 
 function toYMDFromAny(value) {
   if (!value) return "";
@@ -17,10 +18,14 @@ function normalizeRange(start, end) {
   return a <= b ? { min: a, max: b } : { min: b, max: a };
 }
 
+const PAGE_SIZE = 6;
+
 export default function PaymentsTab({ student, paymentsRange }) {
   const { data, isLoading } = useGetStudentPaymentsSummaryQuery(student?.id, {
     skip: !student?.id,
   });
+
+  const [page, setPage] = useState(1);
 
   const paymentsAll = useMemo(() => {
     if (Array.isArray(data?.payments)) return data.payments;
@@ -58,6 +63,21 @@ export default function PaymentsTab({ student, paymentsRange }) {
       return ymd >= min && ymd <= max;
     });
   }, [paymentsAll, paymentsRange]);
+
+  // ✅ reset page لما تتغير الدفعات بعد الفلترة/تحميل
+  useEffect(() => {
+    setPage(1);
+  }, [paymentsFiltered.length]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(paymentsFiltered.length / PAGE_SIZE),
+  );
+
+  const paymentsPaged = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return paymentsFiltered.slice(start, start + PAGE_SIZE);
+  }, [paymentsFiltered, page]);
 
   if (isLoading) {
     return (
@@ -125,8 +145,9 @@ export default function PaymentsTab({ student, paymentsRange }) {
                     <th className="p-3 rounded-l-xl">المبلغ</th>
                   </tr>
                 </thead>
+
                 <tbody>
-                  {paymentsFiltered.map((p, index) => {
+                  {paymentsPaged.map((p, index) => {
                     const rawDate =
                       p.payment_date ||
                       p.date ||
@@ -134,13 +155,15 @@ export default function PaymentsTab({ student, paymentsRange }) {
                       p.created_at ||
                       p.updated_at;
 
+                    const globalIndex = (page - 1) * PAGE_SIZE + index + 1;
+
                     return (
                       <tr
-                        key={p.id ?? index}
+                        key={p.id ?? `${page}-${index}`}
                         className="bg-white hover:bg-pink-50 transition"
                       >
                         <td className="p-3 rounded-r-xl font-medium">
-                          {index + 1}
+                          {globalIndex}
                         </td>
                         <td className="p-3">{toYMDFromAny(rawDate) || "—"}</td>
                         <td className="p-3">{p.receipt_number || "—"}</td>
@@ -153,11 +176,21 @@ export default function PaymentsTab({ student, paymentsRange }) {
                 </tbody>
               </table>
             </div>
+
+            {/* ✅ Pagination */}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              hideIfSinglePage
+              siblingCount={1}
+              className="mt-4"
+            />
           </div>
 
           {/* Mobile */}
           <div className="md:hidden space-y-3">
-            {paymentsFiltered.map((p, index) => {
+            {paymentsPaged.map((p, index) => {
               const rawDate =
                 p.payment_date ||
                 p.date ||
@@ -165,15 +198,17 @@ export default function PaymentsTab({ student, paymentsRange }) {
                 p.created_at ||
                 p.updated_at;
 
+              const globalIndex = (page - 1) * PAGE_SIZE + index + 1;
+
               return (
                 <div
-                  key={p.id ?? index}
+                  key={p.id ?? `${page}-${index}`}
                   className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm"
                 >
                   <div className="flex justify-between mb-2 text-xs text-gray-500">
                     <span>الدفعة</span>
                     <span className="font-semibold text-gray-800">
-                      #{index + 1}
+                      #{globalIndex}
                     </span>
                   </div>
                   <Item
@@ -189,6 +224,16 @@ export default function PaymentsTab({ student, paymentsRange }) {
                 </div>
               );
             })}
+
+            {/* ✅ Pagination */}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              hideIfSinglePage
+              siblingCount={1}
+              className="mt-4"
+            />
           </div>
         </>
       )}

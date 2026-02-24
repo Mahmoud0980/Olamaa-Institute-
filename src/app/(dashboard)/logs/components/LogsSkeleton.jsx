@@ -21,7 +21,7 @@ export default function LogsSkeleton({ count = 7 }) {
       <div className="h-8 w-40 bg-gray-200 rounded-xl animate-pulse" />
 
       {/* filters skeleton */}
-      <div className="p-4 rounded-2xl border bg-white shadow-sm">
+      <div className="p-4 rounded-2xl bg-white shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="h-11 bg-gray-200 rounded-xl animate-pulse" />
           <div className="h-11 bg-gray-200 rounded-xl animate-pulse" />
@@ -41,7 +41,7 @@ export default function LogsSkeleton({ count = 7 }) {
                   className={`absolute right-[2px] top-5 h-4 w-4 rounded-full ${dotStyle[t]} ring-4 ring-white`}
                 />
                 <div
-                  className={`rounded-2xl border bg-white shadow-sm ${typeStyle[t]}`}
+                  className={`rounded-2xl bg-white shadow-sm ${typeStyle[t]}`}
                 >
                   <div className="p-4 flex justify-between gap-3 flex-wrap">
                     <div className="space-y-2 flex-1">
@@ -52,7 +52,7 @@ export default function LogsSkeleton({ count = 7 }) {
                   </div>
 
                   <div className="px-4 pb-4">
-                    <div className="rounded-xl border p-3">
+                    <div className="rounded-xl p-3">
                       <div className="h-4 w-40 bg-gray-200 rounded animate-pulse mb-3" />
                       <div className="space-y-2">
                         <div className="h-16 bg-gray-200 rounded-xl animate-pulse" />

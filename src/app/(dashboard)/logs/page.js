@@ -77,7 +77,7 @@ export default function LogsPage() {
       <div className="p-2 space-y-1">
         <Breadcrumb />
         <h1 className="text-2xl font-bold">سجل العمليات</h1>
-        <div className="p-4 rounded-xl border bg-white">
+        <div className="p-4 rounded-xl bg-white">
           فشل تحميل السجلات
           <button
             className="mr-2 text-pink-700 underline"
