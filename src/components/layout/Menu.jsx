@@ -58,20 +58,20 @@ export default function Menu() {
       title: "الصفحة الرئيسية",
       icon: "/icons/ChartLine.svg",
       href: "/",
-      roles: ["admin", "accountant", "employee"],
+      roles: ["admin", "", "employee"],
     },
     {
       title: "الجداول الرئيسية",
       icon: "/icons/CirclesFour.svg",
-      roles: ["admin", "accountant"],
+      roles: ["admin", ""],
       sub: [
         {
           name: "سجلات الحضور والغياب ",
           href: "/attendance",
-          roles: ["admin", "accountant"],
+          roles: ["admin", ""],
         },
 
-        { name: "المدن", href: "/cities", roles: ["admin", "accountant"] },
+        { name: "المدن", href: "/cities", roles: ["admin", ""] },
         { name: "الباصات", href: "/buses", roles: ["admin"] },
         {
           name: "السجلات الاكاديمية",
@@ -141,12 +141,12 @@ export default function Menu() {
     {
       title: "الدفعات",
       icon: "/icons/HandCoins.svg",
-      roles: ["admin", "accountant"],
+      roles: ["admin", "employee_accountant"],
       sub: [
         {
           name: "عرض الدفعات",
           href: "/payments",
-          roles: ["admin", "accountant"],
+          roles: ["admin", "employee_accountant"],
         },
         { name: "إضافة دفعة", href: "/payments/add", roles: ["admin"] },
       ],

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 
 import api from "@/lib/config/axiosConfig";
 import { isLoggedIn, setAuth } from "@/lib/helpers/auth";
@@ -40,7 +40,7 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (!idOrEmail || !password) {
-      toast.error("يرجى إدخال جميع الحقول");
+      notify.error("يرجى إدخال جميع الحقول");
       return;
     }
 
@@ -64,12 +64,12 @@ export default function LoginPage() {
         user: data.data.user,
       });
 
-      toast.success("تم تسجيل الدخول بنجاح");
+      notify.success("تم تسجيل الدخول بنجاح");
       router.replace("/");
     } catch (error) {
       const msg =
         error?.response?.data?.message || error?.message || "حدث خطأ غير متوقع";
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
