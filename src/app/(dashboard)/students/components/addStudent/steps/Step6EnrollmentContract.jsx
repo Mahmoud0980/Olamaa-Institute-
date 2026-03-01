@@ -42,6 +42,7 @@ export default function Step6EnrollmentContract({
   instituteBranchId,
   onNext,
   onBack,
+  onSkip,
 }) {
   const [currency, setCurrency] = useState("usd");
   const [mode, setMode] = useState("automatic");
@@ -802,13 +803,23 @@ export default function Step6EnrollmentContract({
         )}
       </div>
 
-      <StepButtonsSmart
-        step={6}
-        total={6}
-        onBack={onBack}
-        onNext={handleSubmit}
-        loading={saving || previewLoading}
-      />
+      <div className="flex justify-between items-center mt-4">
+        <button
+          type="button"
+          onClick={onSkip}
+          className="text-xs text-gray-500 hover:text-[#6F013F] transition"
+        >
+          تخطي هذه الخطوة
+        </button>
+
+        <StepButtonsSmart
+          step={6}
+          total={6}
+          onBack={onBack}
+          onNext={handleSubmit}
+          loading={saving || previewLoading}
+        />
+      </div>
     </div>
   );
 }

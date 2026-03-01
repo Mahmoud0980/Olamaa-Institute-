@@ -17,6 +17,7 @@ export default function Step4Record({
   errors,
   onNext,
   onBack,
+  onSkip,
   loading = false,
 }) {
   return (
@@ -98,14 +99,23 @@ export default function Step4Record({
         placeholder="اكتب الوصف (مطلوب) - بحد أقصى 200 محرف"
         className="rounded-xl p-2 text-sm w-full border border-gray-200 outline-none"
       />
+      <div className="flex justify-between items-center mt-4">
+        <button
+          type="button"
+          onClick={onSkip}
+          className="text-xs text-gray-500 hover:text-[#6F013F] transition"
+        >
+          تخطي هذه الخطوة
+        </button>
 
-      <StepButtonsSmart
-        step={4}
-        total={6}
-        onNext={onNext}
-        onBack={onBack}
-        loading={loading}
-      />
+        <StepButtonsSmart
+          step={4}
+          total={6}
+          onNext={onNext}
+          onBack={onBack}
+          loading={loading}
+        />
+      </div>
     </div>
   );
 }

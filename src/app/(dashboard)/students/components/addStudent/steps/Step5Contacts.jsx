@@ -29,6 +29,7 @@ export default function Step5Contacts({
   existingContacts = [],
   onSaveAll,
   onBack,
+  onSkip,
   loading = false,
 }) {
   /* guardians options */
@@ -304,13 +305,23 @@ export default function Step5Contacts({
         )}
       </div>
 
-      <StepButtonsSmart
-        step={5}
-        total={6}
-        onNext={handleSave}
-        onBack={onBack}
-        loading={loading}
-      />
+      <div className="flex justify-between items-center mt-4">
+        <button
+          type="button"
+          onClick={onSkip}
+          className="text-xs text-gray-500 hover:text-[#6F013F] transition"
+        >
+          تخطي هذه الخطوة
+        </button>
+
+        <StepButtonsSmart
+          step={5}
+          total={6}
+          onNext={handleSave}
+          onBack={onBack}
+          loading={loading}
+        />
+      </div>
     </div>
   );
 }

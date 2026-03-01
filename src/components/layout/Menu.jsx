@@ -1,21 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+import { useGetPaymentEditRequestsQuery } from "@/store/services/paymentEditRequestsApi";
+import { useGetExamResultEditRequestsQuery } from "@/store/services/examResultEditRequestsApi";
+
 export default function Menu() {
   const [openMenu, setOpenMenu] = useState(null);
   const [userRoles, setUserRoles] = useState([]);
   const router = useRouter();
+
+  /* ================= Load User ================= */
 
   useEffect(() => {
     const auth = localStorage.getItem("auth");
     if (auth) {
       try {
         const parsed = JSON.parse(auth);
-        console.log("Parsed auth:", parsed);
         setUserRoles(parsed?.user?.roles || []);
       } catch {
         setUserRoles([]);
@@ -23,12 +28,51 @@ export default function Menu() {
     }
   }, []);
 
+  const isAdmin = userRoles.includes("admin");
+
+  /* ================= Pending Requests Count ================= */
+
+  const { data: payRes } = useGetPaymentEditRequestsQuery(
+    { status: "pending" },
+    {
+      skip: !isAdmin,
+      pollingInterval: 10000,
+      refetchOnFocus: true,
+    },
+  );
+
+  const { data: gradeRes } = useGetExamResultEditRequestsQuery(
+    { status: "pending" },
+    {
+      skip: !isAdmin,
+      pollingInterval: 10000,
+      refetchOnFocus: true,
+    },
+  );
+
+  const toArray = (res) =>
+    Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+
+  const pendingCount = useMemo(() => {
+    const pay = toArray(payRes).filter(
+      (x) => String(x?.status).toLowerCase() === "pending",
+    ).length;
+
+    const grades = toArray(gradeRes).filter(
+      (x) => String(x?.status).toLowerCase() === "pending",
+    ).length;
+
+    return pay + grades;
+  }, [payRes, gradeRes]);
+
+  /* ================= Helpers ================= */
+
   const toggleMenu = (title) => {
     setOpenMenu(openMenu === title ? null : title);
   };
 
   const hasAccess = (allowedRoles = []) => {
-    if (allowedRoles.length === 0) return true;
+    if (!allowedRoles || allowedRoles.length === 0) return true;
     return allowedRoles.some((role) => userRoles.includes(role));
   };
 
@@ -44,48 +88,41 @@ export default function Menu() {
           Accept: "application/json",
         },
       });
-    } catch (error) {
-      // ignore
-    } finally {
-      localStorage.removeItem("auth");
-      localStorage.removeItem("currentUser");
-      router.replace("/login");
-    }
+    } catch {}
+
+    localStorage.removeItem("auth");
+    localStorage.removeItem("currentUser");
+    router.replace("/login");
   };
+
+  /* ================= Menu Items ================= */
 
   const menuItems = [
     {
       title: "الصفحة الرئيسية",
       icon: "/icons/ChartLine.svg",
       href: "/",
-      roles: ["admin", "", "employee"],
+      roles: ["admin", "employee"],
     },
     {
       title: "الجداول الرئيسية",
       icon: "/icons/CirclesFour.svg",
-      roles: ["admin", ""],
+      roles: ["admin"],
       sub: [
-        {
-          name: "سجلات الحضور والغياب ",
-          href: "/attendance",
-          roles: ["admin", ""],
-        },
-
-        { name: "المدن", href: "/cities", roles: ["admin", ""] },
+        { name: "سجلات الحضور والغياب", href: "/attendance", roles: ["admin"] },
+        { name: "المدن", href: "/cities", roles: ["admin"] },
         { name: "الباصات", href: "/buses", roles: ["admin"] },
         {
           name: "السجلات الاكاديمية",
           href: "/academicBranches",
           roles: ["admin"],
         },
-
         { name: "المواد", href: "/subjects", roles: ["admin"] },
         { name: "طرق المعرفة بنا", href: "/knowWays", roles: ["admin"] },
         { name: "القاعات الدراسية", href: "/classRooms", roles: ["admin"] },
         { name: "المدارس", href: "/schools", roles: ["admin"] },
       ],
     },
-
     {
       title: "المدرسون",
       icon: "/icons/UsersThree.svg",
@@ -132,10 +169,10 @@ export default function Menu() {
       sub: [
         {
           name: "قائمة المذاكرات",
-          href: "/notes",
+          href: "/exams",
           roles: ["admin", "employee"],
         },
-        { name: "إضافة مذاكرة", href: "/notes/add", roles: ["admin"] },
+        { name: "إضافة مذاكرة", href: "/exams/add", roles: ["admin"] },
       ],
     },
     {
@@ -155,10 +192,7 @@ export default function Menu() {
       title: "الدورات",
       icon: "/icons/Export.svg",
       roles: ["admin"],
-      sub: [
-        { name: "قائمة الدورات", href: "/batches", roles: ["admin"] },
-        // { name: "إضافة دورة", href: "/courses/add", roles: ["admin"] },
-      ],
+      sub: [{ name: "قائمة الدورات", href: "/batches", roles: ["admin"] }],
     },
     {
       title: "التقارير",
@@ -176,32 +210,21 @@ export default function Menu() {
     {
       title: "لوحة التحكم",
       icon: "/icons/ChartBar.svg",
-      roles: ["admin", "accountant"],
+      roles: ["admin"],
       sub: [
         { name: "أفرع المعهد", href: "/instituteBranches", roles: ["admin"] },
-        {
-          name: "السجلات",
-          href: "/logs",
-          roles: ["admin"],
-        },
-        {
-          name: "الإعدادات",
-          href: "",
-          roles: ["admin", ""],
-        },
-        {
-          name: "الطلبات",
-          href: "/requests",
-          roles: ["admin", ""],
-        },
+        { name: "السجلات", href: "/logs", roles: ["admin"] },
+        { name: "الإعدادات", href: "", roles: ["admin"] },
+        { name: "الطلبات", href: "/requests", roles: ["admin"] },
       ],
     },
   ];
 
+  /* ================= UI ================= */
+
   return (
     <div className="w-full h-full text-right font-medium px-2 flex flex-col overflow-hidden">
-      {/* العناصر */}
-      <div className="flex-1 min-h-0 overflow-y-auto mt-1 pr-1 overscroll-contain text-[14px]">
+      <div className="flex-1 overflow-y-auto mt-1 pr-1 text-[14px]">
         {menuItems
           .filter((menu) => hasAccess(menu.roles))
           .map((menu) => {
@@ -212,7 +235,7 @@ export default function Menu() {
                 {menu.sub ? (
                   <button
                     onClick={() => toggleMenu(menu.title)}
-                    className="cursor-pointer group flex items-center justify-between w-full rounded-lg
+                    className="group flex items-center justify-between w-full rounded-lg
                                px-2.5 py-2 text-[#4D4D4D]
                                hover:bg-[#AD164C] hover:text-white transition"
                   >
@@ -222,15 +245,15 @@ export default function Menu() {
                         alt=""
                         width={20}
                         height={20}
-                        className="object-contain transition group-hover:brightness-0 group-hover:invert"
+                        className="group-hover:brightness-0 group-hover:invert"
                       />
-                      <span className="leading-5">{menu.title}</span>
+                      <span>{menu.title}</span>
                     </div>
 
                     <ChevronDown
-                      className={`w-4 h-4 transition-transform duration-300 ${
+                      className={`w-4 h-4 transition ${
                         isOpen ? "rotate-180" : ""
-                      } group-hover:text-white`}
+                      }`}
                     />
                   </button>
                 ) : (
@@ -240,25 +263,21 @@ export default function Menu() {
                                px-2.5 py-2 text-[#4D4D4D]
                                hover:bg-[#AD164C] hover:text-white transition"
                   >
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={menu.icon}
-                        alt=""
-                        width={20}
-                        height={20}
-                        className="object-contain transition group-hover:brightness-0 group-hover:invert"
-                      />
-                      <span className="leading-5">{menu.title}</span>
-                    </div>
+                    <Image
+                      src={menu.icon}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="group-hover:brightness-0 group-hover:invert"
+                    />
+                    <span className="mr-2">{menu.title}</span>
                   </Link>
                 )}
 
                 {menu.sub && (
                   <div
                     className={`overflow-hidden transition-all duration-300 ${
-                      isOpen
-                        ? "max-h-screen opacity-100 mt-1"
-                        : "max-h-0 opacity-0"
+                      isOpen ? "max-h-screen mt-1" : "max-h-0"
                     }`}
                   >
                     <ul className="space-y-1">
@@ -268,10 +287,21 @@ export default function Menu() {
                           <li key={item.name}>
                             <Link
                               href={item.href}
-                              className="block px-2.5 py-1.5 rounded-md text-[13px]
-                                         hover:bg-[#F7CBE3] hover:font-semibold hover:text-black transition"
+                              className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px]
+                                         hover:bg-[#F7CBE3] hover:font-semibold transition"
                             >
-                              {item.name}
+                              <span>{item.name}</span>
+
+                              {item.href === "/requests" &&
+                                pendingCount > 0 && (
+                                  <span
+                                    className="min-w-[20px] h-[20px] px-1 rounded-full
+                                                   bg-[#D40078] text-white text-[11px]
+                                                   flex items-center justify-center"
+                                  >
+                                    {pendingCount}
+                                  </span>
+                                )}
                             </Link>
                           </li>
                         ))}
@@ -283,34 +313,22 @@ export default function Menu() {
           })}
       </div>
 
-      {/* الفوتر */}
-      <div className="shrink-0 pt-2">
+      <div className="pt-2">
         <button
           onClick={handleLogout}
-          className="group flex items-center gap-2 w-full text-right text-[#7B0046]
-                 hover:bg-[#AD164C] hover:text-white
-                 rounded-lg px-2.5 py-2 transition text-[14px]"
+          className="group flex items-center gap-2 w-full text-[#7B0046]
+                     hover:bg-[#AD164C] hover:text-white
+                     rounded-lg px-2.5 py-2 transition"
         >
           <Image
             src="/icons/SignOut.svg"
             alt="logout"
             width={20}
             height={20}
-            className="transition group-hover:brightness-0 group-hover:invert"
+            className="group-hover:brightness-0 group-hover:invert"
           />
-          <span className="leading-5">تسجيل الخروج</span>
+          تسجيل الخروج
         </button>
-
-        {/* الصورة أصغر شوي */}
-        <div className="relative mt-2 h-[170px] w-[84%] mx-auto rounded-xl overflow-hidden">
-          <Image
-            src="/icons/sidebar-footer.png"
-            alt="sidebar footer"
-            fill
-            sizes="(max-width: 768px) 200px, 300px"
-            className="object-cover"
-          />
-        </div>
       </div>
     </div>
   );

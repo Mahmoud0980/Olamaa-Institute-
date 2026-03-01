@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/helpers/toastify";
 import { useDownloadStudentReportMutation } from "@/store/services/studentsApi";
 
 export default function StepSuccess({ studentId, onClose, onReset }) {
@@ -10,7 +10,7 @@ export default function StepSuccess({ studentId, onClose, onReset }) {
   const handleDownload = async () => {
     try {
       if (!studentId) {
-        toast.error("معرف الطالب غير موجود");
+        notify.error("معرف الطالب غير موجود");
         return;
       }
 
@@ -26,9 +26,9 @@ export default function StepSuccess({ studentId, onClose, onReset }) {
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      toast.success("تم تحميل التقرير");
+      notify.success("تم تحميل التقرير");
     } catch (e) {
-      toast.error("فشل تحميل التقرير");
+      notify.error("فشل تحميل التقرير");
     }
   };
 

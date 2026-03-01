@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-
 import { notify } from "@/lib/helpers/toastify";
 
 import Breadcrumb from "@/components/common/Breadcrumb";
@@ -15,8 +14,19 @@ import {
   useRejectPaymentEditRequestMutation,
 } from "@/store/services/paymentEditRequestsApi";
 
-const normalizeArray = (res) =>
+import {
+  useGetExamResultEditRequestsQuery,
+  useApproveExamResultEditRequestMutation,
+  useRejectExamResultEditRequestMutation,
+} from "@/store/services/examResultEditRequestsApi";
+
+/* ================= Helpers ================= */
+
+const toArray = (res) =>
   Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+
+const safe = (v) =>
+  v === undefined || v === null || String(v) === "" ? "—" : v;
 
 const statusBadge = (s) => {
   const v = String(s || "").toLowerCase();
@@ -25,48 +35,185 @@ const statusBadge = (s) => {
   return { text: "معلق", cls: "text-orange-500" };
 };
 
-const actionLabel = (a) => {
+const safeCountLabel = (label, count) =>
+  count > 0 ? `${label} (${count})` : label;
+
+/* ====== PAYMENT format ====== */
+const paymentActionLabel = (a) => {
   const v = String(a || "").toLowerCase();
   if (v === "delete") return "حذف دفعة";
-  if (v === "update") return "تعديل دفعة";
+  if (v === "update" || v === "edit") return "تعديل دفعة";
   return v || "—";
 };
 
-const safe = (v) =>
-  v === undefined || v === null || String(v) === "" ? "—" : v;
+/* ====== GRADES format (based on your response) ====== */
+function gradeActionLabel(t) {
+  const v = String(t || "").toLowerCase(); // update | delete
+  if (v === "delete") return "حذف علامة";
+  return "تعديل علامة";
+}
 
-export default function EditRequestsPage() {
+function studentNameFromReq(r) {
+  const st = r?.exam_result?.student;
+  const full = `${st?.first_name ?? ""} ${st?.last_name ?? ""}`.trim();
+  return full || `طالب #${r?.exam_result?.student_id ?? "—"}`;
+}
+
+function examNameFromReq(r) {
+  return (
+    r?.exam_result?.exam?.name ?? `امتحان #${r?.exam_result?.exam_id ?? "—"}`
+  );
+}
+
+function formatGradeReqText(r) {
+  const action = gradeActionLabel(r?.type);
+  const rid =
+    r?.exam_result_id ?? r?.exam_result?.id ?? r?.original_data?.id ?? "—";
+
+  const student = studentNameFromReq(r);
+  const examName = examNameFromReq(r);
+
+  // diff: proposed_changes مقارنةً بـ original_data
+  const proposed =
+    r?.proposed_changes && typeof r.proposed_changes === "object"
+      ? r.proposed_changes
+      : {};
+
+  const original =
+    r?.original_data && typeof r.original_data === "object"
+      ? r.original_data
+      : {};
+
+  const changesKeys = Object.keys(proposed);
+  const changesText =
+    changesKeys.length === 0
+      ? ""
+      : changesKeys
+          .map((k) => {
+            const before = original?.[k];
+            const after = proposed?.[k];
+            // مثال: obtained_marks: 50 → 58
+            return `${k}: ${safe(before)} → ${safe(after)}`;
+          })
+          .join(" | ");
+
+  const reason = r?.reason ? ` — السبب: ${r.reason}` : "";
+
+  return `${action} — نتيجة #${rid} — ${student} — ${examName}${
+    changesText ? ` — ${changesText}` : ""
+  }${reason}`.trim();
+}
+
+/* ================= Page ================= */
+
+export default function RequestsPage() {
   const search = useSelector((s) => s.search.values?.activity || "");
   const [section, setSection] = useState("payments"); // payments | grades | attendance
 
+  // ====== Counts (pending) - Always fetch to show badges ======
   const {
-    data: res,
-    isLoading,
-    isFetching,
-    refetch,
+    data: payPendingRes,
+    isLoading: loadingPayPending,
+    isFetching: fetchingPayPending,
+    refetch: refetchPayPending,
+  } = useGetPaymentEditRequestsQuery(
+    { status: "pending" },
+    { pollingInterval: 10000, refetchOnFocus: true },
+  );
+
+  const {
+    data: gradesPendingRes,
+    isLoading: loadingGradesPending,
+    isFetching: fetchingGradesPending,
+    refetch: refetchGradesPending,
+  } = useGetExamResultEditRequestsQuery(
+    { status: "pending" },
+    { pollingInterval: 10000, refetchOnFocus: true },
+  );
+
+  const payPendingCount = useMemo(() => {
+    const arr = toArray(payPendingRes);
+    return arr.filter((x) => String(x?.status).toLowerCase() === "pending")
+      .length;
+  }, [payPendingRes]);
+
+  const gradesPendingCount = useMemo(() => {
+    const arr = toArray(gradesPendingRes);
+    return arr.filter((x) => String(x?.status).toLowerCase() === "pending")
+      .length;
+  }, [gradesPendingRes]);
+
+  // ====== Section list (fetch only when active) ======
+  const {
+    data: payAllRes,
+    isLoading: loadingPayments,
+    isFetching: fetchingPayments,
+    refetch: refetchPayments,
   } = useGetPaymentEditRequestsQuery(undefined, {
     skip: section !== "payments",
   });
 
-  const loading = isLoading || isFetching;
+  const {
+    data: gradesAllRes,
+    isLoading: loadingGrades,
+    isFetching: fetchingGrades,
+    refetch: refetchGrades,
+  } = useGetExamResultEditRequestsQuery(undefined, {
+    skip: section !== "grades",
+  });
 
+  const loading =
+    (section === "payments" && (loadingPayments || fetchingPayments)) ||
+    (section === "grades" && (loadingGrades || fetchingGrades));
+
+  // ====== approve/reject mutations ======
+  const [approvePayment, { isLoading: approvingPayment }] =
+    useApprovePaymentEditRequestMutation();
+  const [rejectPayment, { isLoading: rejectingPayment }] =
+    useRejectPaymentEditRequestMutation();
+
+  const [approveGrade, { isLoading: approvingGrade }] =
+    useApproveExamResultEditRequestMutation();
+  const [rejectGrade, { isLoading: rejectingGrade }] =
+    useRejectExamResultEditRequestMutation();
+
+  const approving = approvingPayment || approvingGrade;
+  const rejecting = rejectingPayment || rejectingGrade;
+
+  // ====== items based on section ======
   const items = useMemo(() => {
-    const base = normalizeArray(res);
     const q = String(search || "")
       .trim()
       .toLowerCase();
 
+    const base =
+      section === "payments"
+        ? toArray(payAllRes)
+        : section === "grades"
+          ? toArray(gradesAllRes)
+          : [];
+
     if (!q) return base;
 
     return base.filter((x) => {
-      const name = `${
-        x?.requester?.full_name ?? x?.requester_name ?? ""
-      }`.toLowerCase();
-      const msg = `${x?.reason ?? ""} ${x?.action ?? ""}`.toLowerCase();
-      return name.includes(q) || msg.includes(q);
-    });
-  }, [res, search]);
+      if (section === "payments") {
+        const name =
+          `${x?.requester?.full_name ?? x?.requester_name ?? ""}`.toLowerCase();
+        const msg = `${x?.reason ?? ""} ${x?.action ?? ""}`.toLowerCase();
+        return name.includes(q) || msg.includes(q);
+      }
 
+      if (section === "grades") {
+        // requester_name غير موجود بالـ response يلي بعته، ف منفلتر على نص الرسالة
+        const msg = formatGradeReqText(x).toLowerCase();
+        return msg.includes(q);
+      }
+
+      return false;
+    });
+  }, [section, payAllRes, gradesAllRes, search]);
+
+  // ====== pagination ======
   const [page, setPage] = useState(1);
   const pageSize = 7;
   const totalPages = Math.ceil(items.length / pageSize) || 1;
@@ -74,15 +221,25 @@ export default function EditRequestsPage() {
 
   useEffect(() => setPage(1), [section, items.length]);
 
-  const [approve, { isLoading: approving }] =
-    useApprovePaymentEditRequestMutation();
-  const [reject, { isLoading: rejecting }] =
-    useRejectPaymentEditRequestMutation();
+  // ====== refresh ======
+  const handleRefresh = () => {
+    if (section === "payments") refetchPayments?.();
+    if (section === "grades") refetchGrades?.();
+    refetchPayPending?.();
+    refetchGradesPending?.();
+    notify.success("تم التحديث");
+  };
 
+  // ====== approve/reject handlers ======
   const handleApprove = async (row) => {
     try {
-      await approve(row.id).unwrap();
+      if (section === "payments") {
+        await approvePayment(row.id).unwrap();
+      } else if (section === "grades") {
+        await approveGrade(row.id).unwrap();
+      }
       notify.success("تمت الموافقة على الطلب");
+      handleRefresh();
     } catch (e) {
       notify.error(e?.data?.message || "فشل الموافقة");
     }
@@ -90,35 +247,38 @@ export default function EditRequestsPage() {
 
   const handleReject = async (row) => {
     try {
-      await reject(row.id).unwrap();
+      if (section === "payments") {
+        await rejectPayment(row.id).unwrap();
+      } else if (section === "grades") {
+        await rejectGrade(row.id).unwrap();
+      }
       notify.success("تم رفض الطلب");
+      handleRefresh();
     } catch (e) {
       notify.error(e?.data?.message || "فشل الرفض");
     }
   };
 
+  // ====== buttons with badges ======
   const extraButtons = [
     {
       key: "payments",
-      label: "عرض الدفعات",
+      label: safeCountLabel("عرض الدفعات", payPendingCount),
       onClick: () => setSection("payments"),
       color: section === "payments" ? "pink" : "green",
     },
     {
       key: "grades",
-      label: "عرض العلامات",
-      onClick: () => {
-        setSection("grades");
-        notify.info("صفحة العلامات رح تنعمل بعد الدفعات");
-      },
+      label: safeCountLabel("عرض العلامات", gradesPendingCount),
+      onClick: () => setSection("grades"),
       color: section === "grades" ? "pink" : "green",
     },
     {
       key: "attendance",
-      label: "عرض الحضور والغياب",
+      label: safeCountLabel("عرض الحضور والغياب", 0),
       onClick: () => {
         setSection("attendance");
-        notify.info("صفحة الحضور والغياب رح تنعمل بعد الدفعات");
+        notify.info("قسم الحضور والغياب لاحقاً");
       },
       color: section === "attendance" ? "pink" : "green",
     },
@@ -128,7 +288,7 @@ export default function EditRequestsPage() {
     <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-lg font-semibold text-gray-700">سجل النشاطات</h1>
+          <h1 className="text-lg font-semibold text-gray-700">سجل الطلبات</h1>
           <Breadcrumb />
         </div>
       </div>
@@ -140,15 +300,22 @@ export default function EditRequestsPage() {
           onAdd={null}
           extraButtons={extraButtons}
           showViewAll
-          viewAllLabel="تحديث"
-          onViewAll={() => refetch()}
+          viewAllLabel={
+            loadingPayPending ||
+            fetchingPayPending ||
+            loadingGradesPending ||
+            fetchingGradesPending
+              ? "جارٍ التحديث..."
+              : "تحديث"
+          }
+          onViewAll={handleRefresh}
         />
       </div>
 
       <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
-        {section !== "payments" ? (
+        {section === "attendance" ? (
           <div className="py-10 text-center text-gray-400">
-            اختر قسم الدفعات لعرض الطلبات.
+            قسم الحضور والغياب لاحقاً.
           </div>
         ) : loading ? (
           <div className="py-10 text-center text-gray-400">جارٍ التحميل...</div>
@@ -162,7 +329,7 @@ export default function EditRequestsPage() {
                   <tr className="bg-pink-50 text-gray-700">
                     <th className="p-3">الاسم</th>
                     <th className="p-3">التاريخ</th>
-                    <th className="p-3">رسالة السجل</th>
+                    <th className="p-3">تفاصيل الطلب</th>
                     <th className="p-3 text-center">الحالة</th>
                     <th className="p-3 text-center">الإجراءات</th>
                   </tr>
@@ -172,18 +339,27 @@ export default function EditRequestsPage() {
                   {paginated.map((row) => {
                     const st = statusBadge(row?.status);
                     const created = row?.created_at || row?.updated_at || "—";
-                    const name =
-                      row?.requester?.full_name ??
-                      row?.requester_name ??
-                      `مستخدم #${row?.requester_id ?? "—"}`;
 
-                    const msg = `${actionLabel(row?.action)} — ${
-                      row?.message ?? row?.reason ?? ""
-                    }`.trim();
+                    const name =
+                      section === "payments"
+                        ? (row?.requester?.full_name ??
+                          row?.requester_name ??
+                          `مستخدم #${row?.requester_id ?? "—"}`)
+                        : `مستخدم #${row?.requester_id ?? "—"}`;
+
+                    const msg =
+                      section === "payments"
+                        ? `${paymentActionLabel(row?.action)} — ${
+                            row?.message ?? row?.reason ?? ""
+                          }`.trim()
+                        : formatGradeReqText(row);
+
+                    const disabled =
+                      String(row?.status).toLowerCase() !== "pending";
 
                     return (
                       <tr
-                        key={row.id}
+                        key={`${section}-${row.id}`}
                         className="bg-white hover:bg-pink-50 transition"
                       >
                         <td className="p-3 font-medium">{safe(name)}</td>
@@ -196,11 +372,7 @@ export default function EditRequestsPage() {
                           <div className="flex justify-center gap-3">
                             <button
                               type="button"
-                              disabled={
-                                approving ||
-                                rejecting ||
-                                String(row?.status).toLowerCase() !== "pending"
-                              }
+                              disabled={approving || rejecting || disabled}
                               onClick={() => handleApprove(row)}
                               className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"
                             >
@@ -209,11 +381,7 @@ export default function EditRequestsPage() {
 
                             <button
                               type="button"
-                              disabled={
-                                approving ||
-                                rejecting ||
-                                String(row?.status).toLowerCase() !== "pending"
-                              }
+                              disabled={approving || rejecting || disabled}
                               onClick={() => handleReject(row)}
                               className="px-4 py-1.5 rounded-lg bg-rose-600 text-white text-xs disabled:opacity-50"
                             >
@@ -228,21 +396,31 @@ export default function EditRequestsPage() {
               </table>
             </div>
 
+            {/* Mobile */}
             <div className="md:hidden space-y-3 mt-3">
               {paginated.map((row) => {
                 const st = statusBadge(row?.status);
                 const created = row?.created_at || row?.updated_at || "—";
+                const disabled =
+                  String(row?.status).toLowerCase() !== "pending";
+
                 const name =
-                  row?.requester?.full_name ??
-                  row?.requester_name ??
-                  `مستخدم #${row?.requester_id ?? "—"}`;
-                const msg = `${actionLabel(row?.action)} — ${
-                  row?.message ?? row?.reason ?? ""
-                }`.trim();
+                  section === "payments"
+                    ? (row?.requester?.full_name ??
+                      row?.requester_name ??
+                      `مستخدم #${row?.requester_id ?? "—"}`)
+                    : `مستخدم #${row?.requester_id ?? "—"}`;
+
+                const msg =
+                  section === "payments"
+                    ? `${paymentActionLabel(row?.action)} — ${
+                        row?.message ?? row?.reason ?? ""
+                      }`.trim()
+                    : formatGradeReqText(row);
 
                 return (
                   <div
-                    key={row.id}
+                    key={`${section}-${row.id}`}
                     className="border border-gray-200 rounded-xl p-4"
                   >
                     <div className="flex justify-between mb-2">
@@ -258,11 +436,7 @@ export default function EditRequestsPage() {
                     <div className="flex justify-end gap-2 mt-3">
                       <button
                         type="button"
-                        disabled={
-                          approving ||
-                          rejecting ||
-                          String(row?.status).toLowerCase() !== "pending"
-                        }
+                        disabled={approving || rejecting || disabled}
                         onClick={() => handleApprove(row)}
                         className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"
                       >
@@ -271,11 +445,7 @@ export default function EditRequestsPage() {
 
                       <button
                         type="button"
-                        disabled={
-                          approving ||
-                          rejecting ||
-                          String(row?.status).toLowerCase() !== "pending"
-                        }
+                        disabled={approving || rejecting || disabled}
                         onClick={() => handleReject(row)}
                         className="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs disabled:opacity-50"
                       >

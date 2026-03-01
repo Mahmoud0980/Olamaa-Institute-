@@ -72,39 +72,39 @@ export default function Step1Student({
       {/* birth place */}
       <InputField
         label="مكان الولادة"
-        required
+        //required
         placeholder="مثال: دمشق"
-        register={register("birth_place", {
-          required: "مكان الولادة مطلوب",
-          minLength: {
-            value: 2,
-            message: "مكان الولادة لا يجب أن يقل عن حرفين",
-          },
-          maxLength: {
-            value: 50,
-            message: "مكان الولادة لا يجب أن يتجاوز 50 محرف",
-          },
-        })}
+        // register={register("birth_place", {
+        //   required: "مكان الولادة مطلوب",
+        //   minLength: {
+        //     value: 2,
+        //     message: "مكان الولادة لا يجب أن يقل عن حرفين",
+        //   },
+        //   maxLength: {
+        //     value: 50,
+        //     message: "مكان الولادة لا يجب أن يتجاوز 50 محرف",
+        //   },
+        // })}
       />
 
       {/* date of birth */}
       <InputField
         label="تاريخ الولادة"
         type="date"
-        required
-        register={register("date_of_birth", {
-          required: "تاريخ الولادة مطلوب",
-          validate: (value) => {
-            const d = new Date(value);
-            if (Number.isNaN(d.getTime())) return "تاريخ الولادة غير صالح";
+        //required
+        // register={register("date_of_birth", {
+        //   required: "تاريخ الولادة مطلوب",
+        //   validate: (value) => {
+        //     const d = new Date(value);
+        //     if (Number.isNaN(d.getTime())) return "تاريخ الولادة غير صالح";
 
-            const y = d.getFullYear();
-            if (y >= currentYear)
-              return `تاريخ الولادة يجب أن يكون قبل سنة ${currentYear}`;
+        //     const y = d.getFullYear();
+        //     if (y >= currentYear)
+        //       return `تاريخ الولادة يجب أن يكون قبل سنة ${currentYear}`;
 
-            return true;
-          },
-        })}
+        //     return true;
+        //   },
+        // })}
       />
 
       {/* national id */}
@@ -132,16 +132,37 @@ export default function Step1Student({
         })}
         error={errors?.national_id?.message}
       />
-
-      {/* academic branch */}
       <Controller
         control={control}
         name="branch_id"
-        rules={{ required: "الفرع الدراسي مطلوب" }}
         render={({ field }) => (
           <SearchableSelect
             label="الفرع الدراسي"
-            required
+            value={field.value ? String(field.value) : null}
+            onChange={(v) => {
+              const val = typeof v === "object" ? v?.value : v;
+
+              // إذا انمسح الاختيار → خزّن null
+              field.onChange(val ? String(val) : null);
+            }}
+            options={branches.map((b) => ({
+              value: String(b.id),
+              label: b.name,
+            }))}
+            placeholder="اختر الفرع"
+            allowClear
+          />
+        )}
+      />
+      {/* academic branch */}
+      {/* <Controller
+        control={control}
+        name="branch_id"
+        //rules={{ required: "الفرع الدراسي مطلوب" }}
+        render={({ field }) => (
+          <SearchableSelect
+            label="الفرع الدراسي"
+            //required
             value={field.value ? String(field.value) : ""}
             onChange={(v) => {
               const val = typeof v === "object" ? v?.value : v;
@@ -155,17 +176,17 @@ export default function Step1Student({
             allowClear
           />
         )}
-      />
+      /> */}
 
       {/* institute branch */}
-      <Controller
+      {/* <Controller
         control={control}
         name="institute_branch_id"
-        rules={{ required: "فرع المعهد مطلوب" }}
+        //  rules={{ required: "فرع المعهد مطلوب" }}
         render={({ field }) => (
           <SearchableSelect
             label="فرع المعهد"
-            required
+            // required
             value={field.value ? String(field.value) : ""}
             onChange={(v) => {
               const val = typeof v === "object" ? v?.value : v;
@@ -179,8 +200,29 @@ export default function Step1Student({
             allowClear
           />
         )}
-      />
+      /> */}
+      <Controller
+        control={control}
+        name="institute_branch_id"
+        render={({ field }) => (
+          <SearchableSelect
+            label="فرع المعهد"
+            value={field.value ? String(field.value) : null}
+            onChange={(v) => {
+              const val = typeof v === "object" ? v?.value : v;
 
+              // إذا فاضي → خزّن null
+              field.onChange(val ? String(val) : null);
+            }}
+            options={institutes.map((i) => ({
+              value: String(i.id),
+              label: i.name,
+            }))}
+            placeholder="اختر فرع المعهد"
+            allowClear
+          />
+        )}
+      />
       {/* navigation */}
       <StepButtonsSmart step={1} total={6} onNext={onNext} onBack={onBack} />
     </div>

@@ -19,7 +19,13 @@ export const batcheSubjectsApi = createApi({
         { type: "BatchSubjects", id: `BATCH-${batchId}` },
       ],
     }),
-
+    getBatchSubjectsSummary: builder.query({
+      query: () => ({
+        url: `/batcheSubjects/summary`,
+        method: "GET",
+      }),
+      providesTags: [{ type: "BatchSubjects", id: "SUMMARY" }],
+    }),
     // ========================
     // ASSIGN INSTRUCTOR SUBJECT TO BATCH
     // ========================
@@ -82,6 +88,7 @@ export const batcheSubjectsApi = createApi({
 });
 
 export const {
+  useGetBatchSubjectsSummaryQuery,
   useGetBatchSubjectsQuery,
   useAssignInstructorSubjectToBatchMutation,
   useRemoveInstructorSubjectFromBatchMutation,

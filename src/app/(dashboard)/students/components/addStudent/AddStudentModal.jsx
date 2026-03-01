@@ -226,11 +226,11 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     const ok = await form1.trigger([
       "first_name",
       "last_name",
-      "birth_place",
-      "date_of_birth",
+      // "birth_place",
+      // "date_of_birth",
       "national_id",
-      "branch_id",
-      "institute_branch_id",
+      // "branch_id",
+      // "institute_branch_id",
     ]);
 
     if (!ok) {
@@ -244,18 +244,18 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const handleStep2 = async () => {
     const ok = await form2.trigger([
       "enrollment_date",
-      "start_attendance_date",
-      "gender",
-      "previous_school_name",
-      "how_know_institute",
-      "city_id",
-      "status_id",
-      "bus_id",
-      "health_status",
-      "psychological_status",
-      "notes",
-      "profile_photo",
-      "id_card_photo",
+      // "start_attendance_date",
+      // "gender",
+      // "previous_school_name",
+      // "how_know_institute",
+      // "city_id",
+      // "status_id",
+      // "bus_id",
+      // "health_status",
+      // "psychological_status",
+      // "notes",
+      // "profile_photo",
+      // "id_card_photo",
     ]);
 
     if (!ok) {
@@ -552,6 +552,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
                   if (lockBackFromStep4) return; // ممنوع الرجوع للخطوة 3 بعد الحفظ
                   setStep(3);
                 }}
+                onSkip={() => setStep(5)}
                 loading={loadingStep4}
               />
             )}
@@ -562,6 +563,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
                 existingContacts={existingContacts}
                 onSaveAll={handleSaveContacts}
                 onBack={() => setStep(4)}
+                onSkip={() => setStep(6)}
                 loading={loadingStep5}
               />
             )}
@@ -574,6 +576,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
                   setEnrollmentContractId(id);
                   setStep(7); //7
                 }}
+                onSkip={() => setStep(7)}
               />
             )}
 
