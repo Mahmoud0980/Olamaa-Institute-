@@ -43,6 +43,7 @@ export default function StudentsTable({
   onEditAcademic,
   onEditContacts,
   onEditPayments,
+  onDeleteStudent,
 }) {
   const safeStudents = Array.isArray(students) ? students : [];
 
@@ -99,6 +100,11 @@ export default function StudentsTable({
         label: "إضافة الطالب إلى شعبة",
         onClick: () => onAddToBatch?.(row),
       },
+      {
+        label: "حذف الطالب",
+        danger: true, // إذا ActionsMenu بيدعمها (اختياري)
+        onClick: () => onDeleteStudent?.(row),
+      },
     ];
   }, [
     onViewDetails,
@@ -107,6 +113,7 @@ export default function StudentsTable({
     onEditAcademic,
     onEditContacts,
     onEditPayments,
+    onDeleteStudent,
   ]);
 
   /* ================= render ================= */

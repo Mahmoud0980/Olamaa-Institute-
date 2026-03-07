@@ -24,6 +24,7 @@ const dictionary = {
   schools: "المدارس",
   requests: " الطلبات",
   logs: "سجل العمليات",
+  exams: "الامتحانات",
 };
 
 export default function Breadcrumb() {

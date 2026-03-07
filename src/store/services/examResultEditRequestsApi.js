@@ -20,7 +20,7 @@ export const examResultEditRequestsApi = createApi({
     approveExamResultEditRequest: builder.mutation({
       query: (id) => ({
         url: `/exam-results/edit-requests/${id}/approve`,
-        method: "POST", // إذا طلع عندك GET بدّلها
+        method: "PUT", // إذا طلع عندك GET بدّلها
       }),
       invalidatesTags: [{ type: "ExamResultEditRequests", id: "LIST" }],
     }),
@@ -28,7 +28,7 @@ export const examResultEditRequestsApi = createApi({
     rejectExamResultEditRequest: builder.mutation({
       query: (id) => ({
         url: `/exam-results/edit-requests/${id}/reject`,
-        method: "POST", // إذا طلع عندك GET بدّلها
+        method: "PUT", // إذا طلع عندك GET بدّلها
       }),
       invalidatesTags: [{ type: "ExamResultEditRequests", id: "LIST" }],
     }),

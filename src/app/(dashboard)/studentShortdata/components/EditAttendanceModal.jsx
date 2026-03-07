@@ -2,15 +2,52 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import Calendar from "react-calendar";
 import { notify } from "@/lib/helpers/toastify";
 
-import SearchableSelect from "@/components/common/SearchableSelect"; // ✅ بدل SelectInput
-import FormInput from "@/components/common/InputField";
+import SearchableSelect from "@/components/common/SearchableSelect";
 import GradientButton from "@/components/common/GradientButton";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
+import TimePickerSmart from "@/components/common/TimePickerSmart";
 import { useUpdateDailyRecordMutation } from "@/store/services/studentAttendanceApi";
 
-import "./calendarStyles.css";
+function parseTime24To12(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const m = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return raw;
+
+  let hh = Number(m[1]);
+  const mm = m[2];
+  const period = hh >= 12 ? "PM" : "AM";
+
+  if (hh === 0) hh = 12;
+  else if (hh > 12) hh -= 12;
+
+  return `${String(hh).padStart(2, "0")}:${mm} ${period}`;
+}
+
+function parseTime12To24(value) {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase();
+  if (!raw) return null;
+
+  const m = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (!m) return raw || null;
+
+  let hh = Number(m[1]);
+  const mm = m[2];
+  const period = m[3];
+
+  if (period === "AM") {
+    if (hh === 12) hh = 0;
+  } else {
+    if (hh !== 12) hh += 12;
+  }
+
+  return `${String(hh).padStart(2, "0")}:${mm}`;
+}
 
 export default function EditAttendanceModal({
   isOpen,
@@ -22,48 +59,55 @@ export default function EditAttendanceModal({
     check: "",
     arrival_time: "",
     leave_time: "",
-    date: new Date(),
+    date: "",
   });
-
-  const [calendarValue, setCalendarValue] = useState(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const [updateDailyRecord, { isLoading }] = useUpdateDailyRecordMutation();
 
-  // ================= تحميل بيانات السجل =================
   useEffect(() => {
     if (isOpen && record) {
-      const d = record.date ? new Date(record.date) : new Date();
-
       setForm({
         check: record.status ?? "",
-        arrival_time: record.check_in ?? "",
-        leave_time: record.check_out ?? "",
-        date: d,
+        arrival_time: record.check_in
+          ? parseTime24To12(String(record.check_in).slice(0, 5))
+          : "",
+        leave_time: record.check_out
+          ? parseTime24To12(String(record.check_out).slice(0, 5))
+          : "",
+        date: record.date ? String(record.date).slice(0, 10) : "",
       });
-
-      setCalendarValue(d);
-      setCurrentMonth(d);
     }
   }, [isOpen, record]);
 
-  // ================= حفظ التعديل =================
   const handleSubmit = async () => {
     if (!record?.student_id) {
       notify.error("بيانات السجل غير مكتملة");
       return;
     }
 
+    if (!form.date) {
+      notify.error("يرجى اختيار التاريخ");
+      return;
+    }
+
+    if (!form.check) {
+      notify.error("يرجى اختيار الحالة");
+      return;
+    }
+
     const payload = {
-      date: form.date.toLocaleDateString("en-CA"),
+      date: form.date,
       status: form.check,
       exit_type: "normal",
     };
 
-    // منطق الحالة
     if (form.check === "present" || form.check === "late") {
-      payload.check_in = form.arrival_time || null;
-      payload.check_out = form.leave_time || null;
+      payload.check_in = form.arrival_time
+        ? parseTime12To24(form.arrival_time)
+        : null;
+      payload.check_out = form.leave_time
+        ? parseTime12To24(form.leave_time)
+        : null;
     } else {
       payload.check_in = null;
       payload.check_out = null;
@@ -94,18 +138,23 @@ export default function EditAttendanceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-md edit-attendance-modal">
-      <div className="w-[450px] bg-white h-full shadow-xl p-6 overflow-y-auto">
+      <div
+        dir="rtl"
+        className="w-full sm:w-[450px] bg-white h-full shadow-xl p-6 overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[#6F013F] font-semibold text-lg">
             تعديل الغياب والحضور
           </h2>
+
           <button type="button" onClick={onClose}>
             <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
           </button>
         </div>
 
-        {/* الحالة ✅ SearchableSelect */}
+        {/* الحالة */}
         <SearchableSelect
           label="الحالة"
           value={form.check}
@@ -133,15 +182,14 @@ export default function EditAttendanceModal({
 
         {/* الوصول */}
         <div className="mt-5">
-          <FormInput
+          <TimePickerSmart
             label="الوصول"
-            type="time"
             value={form.arrival_time}
             disabled={form.check === "absent"}
-            onChange={(e) =>
+            onChange={(val) =>
               setForm((prev) => ({
                 ...prev,
-                arrival_time: e.target.value,
+                arrival_time: val || "",
               }))
             }
           />
@@ -149,31 +197,30 @@ export default function EditAttendanceModal({
 
         {/* الانصراف */}
         <div className="mt-5">
-          <FormInput
+          <TimePickerSmart
             label="الانصراف"
-            type="time"
             value={form.leave_time}
             disabled={form.check === "absent"}
-            onChange={(e) =>
+            onChange={(val) =>
               setForm((prev) => ({
                 ...prev,
-                leave_time: e.target.value,
+                leave_time: val || "",
               }))
             }
           />
         </div>
 
-        {/* التقويم */}
-        <div className="mt-6">
-          <Calendar
-            value={calendarValue}
-            locale="en"
-            activeStartDate={currentMonth}
-            className="my-calendar"
-            onChange={(d) => {
-              setCalendarValue(d);
-              setForm((prev) => ({ ...prev, date: d }));
-            }}
+        {/* التاريخ */}
+        <div className="mt-5">
+          <DatePickerSmart
+            label="التاريخ"
+            value={form.date}
+            onChange={(iso) =>
+              setForm((prev) => ({
+                ...prev,
+                date: iso || "",
+              }))
+            }
           />
         </div>
 
@@ -188,6 +235,8 @@ export default function EditAttendanceModal({
           </GradientButton>
         </div>
       </div>
+
+      <div className="flex-1" onClick={onClose} />
     </div>
   );
 }

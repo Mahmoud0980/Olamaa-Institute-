@@ -9,6 +9,8 @@ import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import BatchSubjectSelect from "@/components/common/BatchSubjectSelect";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
+import TimePickerSmart from "@/components/common/TimePickerSmart";
 
 import { useGetBatchSubjectsSummaryQuery } from "@/store/services/batcheSubjectsApi";
 import { useGetExamTypesQuery } from "@/store/services/examTypesApi";
@@ -25,13 +27,53 @@ function normalizeArray(res) {
   if (Array.isArray(res?.data?.data)) return res.data.data;
   return [];
 }
+
+function parseTime12To24(value) {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase();
+  if (!raw) return null;
+
+  const m = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (!m) return raw || null; // إذا كانت أصلاً HH:mm خليه يمر
+
+  let hh = Number(m[1]);
+  const mm = m[2];
+  const period = m[3];
+
+  if (period === "AM") {
+    if (hh === 12) hh = 0;
+  } else {
+    if (hh !== 12) hh += 12;
+  }
+
+  return `${String(hh).padStart(2, "0")}:${mm}`;
+}
+
+function parseTime24To12(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const m = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return raw;
+
+  let hh = Number(m[1]);
+  const mm = m[2];
+  const period = hh >= 12 ? "PM" : "AM";
+
+  if (hh === 0) hh = 12;
+  else if (hh > 12) hh -= 12;
+
+  return `${String(hh).padStart(2, "0")}:${mm} ${period}`;
+}
+
 export default function ExamAddModal({
   open,
   title = "إضافة مذاكرة",
   loading = false,
   onClose,
   onSubmit,
-  initialData = null, // للمستقبل (تعديل)
+  initialData = null,
 }) {
   const step = 1;
   const total = 1;
@@ -105,37 +147,22 @@ export default function ExamAddModal({
         passing_marks: initialData.passing_marks ?? "",
         exam_date: initialData.exam_date ?? "",
         exam_time: initialData.exam_time
-          ? String(initialData.exam_time).slice(0, 5)
+          ? parseTime24To12(String(initialData.exam_time).slice(0, 5))
           : "",
         exam_end_time: initialData.exam_end_time
-          ? String(initialData.exam_end_time).slice(0, 5)
+          ? parseTime24To12(String(initialData.exam_end_time).slice(0, 5))
           : "",
         status: initialData.status ?? "scheduled",
         remarks: initialData.remarks ?? "",
       });
     } else {
-      setForm((p) => ({
+      setForm({
         ...emptyForm,
-        // ✅ إذا في أنواع امتحان حمّلهم، خليه يختار أول واحد تلقائيًا
-        exam_type_id: examTypeOptions?.[0]?.value
-          ? String(examTypeOptions[0].value)
-          : "",
-      }));
+        exam_type_id: "",
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialData]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    // فقط أول فتح للمودال
-    if (!initialData && examTypeOptions?.length > 0) {
-      setForm((p) => ({
-        ...p,
-        exam_type_id: "",
-      }));
-    }
-  }, [open]);
 
   const validate = () => {
     if (!form.batch_subject_id) return "يرجى اختيار الدورة/المادة";
@@ -149,9 +176,12 @@ export default function ExamAddModal({
 
     const total = Number(form.total_marks);
     const pass = Number(form.passing_marks);
+
     if (!Number.isFinite(total) || total <= 0)
       return "العلامة العظمى غير صحيحة";
+
     if (!Number.isFinite(pass) || pass < 0) return "العلامة الدنيا غير صحيحة";
+
     if (pass > total)
       return "علامة النجاح لا يمكن أن تكون أكبر من العلامة العظمى";
 
@@ -166,8 +196,8 @@ export default function ExamAddModal({
       batch_subject_id: toNumOrNull(form.batch_subject_id),
       name: form.name || null,
       exam_date: form.exam_date || null,
-      exam_time: form.exam_time || null,
-      exam_end_time: form.exam_end_time || null,
+      exam_time: parseTime12To24(form.exam_time),
+      exam_end_time: parseTime12To24(form.exam_end_time),
       total_marks: toNumOrNull(form.total_marks),
       passing_marks: toNumOrNull(form.passing_marks),
       status: form.status || "scheduled",
@@ -244,7 +274,10 @@ export default function ExamAddModal({
               placeholder="100"
               value={form.total_marks}
               onChange={(e) =>
-                setForm((p) => ({ ...p, total_marks: e.target.value }))
+                setForm((p) => ({
+                  ...p,
+                  total_marks: e.target.value.replace(/[^\d.]/g, ""),
+                }))
               }
             />
 
@@ -254,36 +287,36 @@ export default function ExamAddModal({
               placeholder="60"
               value={form.passing_marks}
               onChange={(e) =>
-                setForm((p) => ({ ...p, passing_marks: e.target.value }))
+                setForm((p) => ({
+                  ...p,
+                  passing_marks: e.target.value.replace(/[^\d.]/g, ""),
+                }))
               }
             />
 
-            <FormInput
+            <DatePickerSmart
               label="التاريخ"
               required
-              type="date"
               value={form.exam_date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, exam_date: e.target.value }))
+              onChange={(iso) =>
+                setForm((p) => ({ ...p, exam_date: iso || "" }))
               }
             />
 
-            <FormInput
+            <TimePickerSmart
               label="الوقت"
               required
-              type="time"
               value={form.exam_time}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, exam_time: e.target.value }))
+              onChange={(val) =>
+                setForm((p) => ({ ...p, exam_time: val || "" }))
               }
             />
 
-            <FormInput
+            <TimePickerSmart
               label="وقت الانتهاء"
-              type="time"
               value={form.exam_end_time}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, exam_end_time: e.target.value }))
+              onChange={(val) =>
+                setForm((p) => ({ ...p, exam_end_time: val || "" }))
               }
             />
 

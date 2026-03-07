@@ -81,7 +81,7 @@ export default function Menu() {
       const auth = localStorage.getItem("auth");
       const token = auth ? JSON.parse(auth)?.token : null;
 
-      await fetch("https://norma910-001-site1.mtempurl.com/api/logout", {
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/logout`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -165,25 +165,29 @@ export default function Menu() {
     {
       title: "المذاكرات",
       icon: "/icons/EyeSlash.svg",
-      roles: ["admin", "employee"],
+      roles: ["admin", "accountant"],
       sub: [
         {
           name: "قائمة المذاكرات",
           href: "/exams",
-          roles: ["admin", "employee"],
+          roles: ["admin", "accountant"],
         },
-        { name: "إضافة مذاكرة", href: "/exams/add", roles: ["admin"] },
+        {
+          name: "إضافة مذاكرة",
+          href: "/exams/add",
+          roles: ["admin", "accountant"],
+        },
       ],
     },
     {
       title: "الدفعات",
       icon: "/icons/HandCoins.svg",
-      roles: ["admin", "employee_accountant"],
+      roles: ["admin", "employee_accountant", "accountant"],
       sub: [
         {
           name: "عرض الدفعات",
           href: "/payments",
-          roles: ["admin", "employee_accountant"],
+          roles: ["admin", "employee_accountant", "accountant"],
         },
         { name: "إضافة دفعة", href: "/payments/add", roles: ["admin"] },
       ],

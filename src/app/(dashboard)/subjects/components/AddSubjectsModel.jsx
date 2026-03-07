@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { notify } from "@/lib/helpers/toastify";
 
 import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
-import SelectInput from "@/components/common/SelectInput";
+import SearchableSelect from "@/components/common/SearchableSelect";
 
 import {
   useAddSubjectMutation,
@@ -51,8 +51,9 @@ export default function AddSubjectModal({
         setForm({
           name: subject.name || "",
           description: subject.description || "",
-          academic_branch_id:
+          academic_branch_id: String(
             subject.academic_branch_id || subject.academic_branch?.id || "",
+          ),
         });
       } else {
         setForm({
@@ -64,19 +65,36 @@ export default function AddSubjectModal({
     }
   }, [isOpen, subject]);
 
-  // ===== أسماء المواد (للتحقق عند الحفظ فقط)
-  const subjectNames = subjects
-    .filter((s) => !subject || s.id !== subject.id)
-    .map((s) => s.name?.toLowerCase().trim());
+  // ===========================
+  // SUBJECT NAMES CHECK
+  // ===========================
+  const subjectNames = useMemo(() => {
+    return subjects
+      .filter((s) => !subject || s.id !== subject.id)
+      .map((s) => s.name?.toLowerCase().trim());
+  }, [subjects, subject]);
+
+  // ===========================
+  // OPTIONS
+  // ===========================
+  const branchOptions = useMemo(() => {
+    return academicBranches.map((b, idx) => ({
+      key: b.id ?? `branch-${idx}`,
+      value: String(b.id),
+      label: b.name,
+    }));
+  }, [academicBranches]);
 
   // ===========================
   // SUBMIT
   // ===========================
   const handleSubmit = async () => {
-    if (!form.name.trim()) return notify.error("اسم المادة مطلوب");
-    if (form.name.length > 100) return notify.error("اسم المادة طويل جدًا ");
+    const trimmedName = form.name.trim();
 
-    const normalized = form.name.trim().toLowerCase();
+    if (!trimmedName) return notify.error("اسم المادة مطلوب");
+    if (trimmedName.length > 100) return notify.error("اسم المادة طويل جدًا");
+
+    const normalized = trimmedName.toLowerCase();
     if (subjectNames.includes(normalized)) return notify.error("المادة موجودة");
 
     if (!form.academic_branch_id) return notify.error("الفرع الأكاديمي مطلوب");
@@ -85,8 +103,8 @@ export default function AddSubjectModal({
       setLoading(true);
 
       const payload = {
-        name: form.name,
-        description: form.description || "",
+        name: trimmedName,
+        description: form.description?.trim() || "",
         academic_branch_id: Number(form.academic_branch_id),
       };
 
@@ -98,22 +116,14 @@ export default function AddSubjectModal({
         notify.success("تمت إضافة المادة بنجاح");
       }
 
-      setLoading(false);
       onClose();
     } catch (err) {
       console.log(err);
-      setLoading(false);
       notify.error(err?.data?.message || "حدث خطأ أثناء حفظ البيانات");
+    } finally {
+      setLoading(false);
     }
   };
-
-  // ===========================
-  // OPTIONS
-  // ===========================
-  const branchOptions = academicBranches.map((b) => ({
-    value: b.id,
-    label: b.name,
-  }));
 
   return (
     <div
@@ -128,7 +138,7 @@ export default function AddSubjectModal({
             {subject ? "تعديل مادة" : "إضافة مادة جديدة"}
           </h2>
 
-          <button onClick={onClose}>
+          <button type="button" onClick={onClose}>
             <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
           </button>
         </div>
@@ -143,7 +153,7 @@ export default function AddSubjectModal({
             placeholder="مثال: فيزياء"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            error={!form.name ? "اسم المادة مطلوب" : ""}
+            error={!form.name.trim() ? "اسم المادة مطلوب" : ""}
           />
 
           <FormInput
@@ -153,17 +163,20 @@ export default function AddSubjectModal({
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
 
-          <SelectInput
+          <SearchableSelect
             label="الفرع الأكاديمي"
             required
             placeholder="اختر الفرع"
             value={form.academic_branch_id}
             options={branchOptions}
-            onChange={(e) =>
-              setForm({ ...form, academic_branch_id: e.target.value })
+            onChange={(value) =>
+              setForm({ ...form, academic_branch_id: value })
             }
-            error={!form.academic_branch_id ? "الفرع الأكاديمي مطلوب" : ""}
           />
+
+          {!form.academic_branch_id && (
+            <p className="text-sm text-red-500 -mt-3">الفرع الأكاديمي مطلوب</p>
+          )}
 
           <StepButtonsSmart
             step={step}

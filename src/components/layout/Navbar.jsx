@@ -10,9 +10,8 @@ import QRModal from "../common/QRModal";
 import { setSearchValue } from "@/store/slices/searchSlice";
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
 
-// ✅ هون لازم يكون عندك endpoint GET: /api/payments/edit-requests
-// إذا اسم الهوك عندك مختلف، عدّله هون فقط
 import { useGetPaymentEditRequestsQuery } from "@/store/services/paymentEditRequestsApi";
+import { useGetExamResultEditRequestsQuery } from "@/store/services/examResultEditRequestsApi";
 
 /* ===============================
    helpers
@@ -37,7 +36,6 @@ function readAuthFromLocalStorage() {
     if (!parsed) continue;
 
     if (parsed?.user) return parsed;
-
     if (parsed?.full_name || parsed?.first_name || parsed?.photo_url) {
       return { user: parsed };
     }
@@ -63,19 +61,49 @@ function readAuthFromLocalStorage() {
 function formatDateTime(v) {
   if (!v) return "—";
   const s = String(v);
-  // إذا جاي ISO: 2026-02-03T09:27:08...
   if (s.includes("T")) return s.replace("T", " ").slice(0, 16);
   return s;
 }
 
-function pickRequesterName(r) {
-  const u = r?.requester || r?.requester_user || r?.user || null;
+// يدعم: data[], data.items[], items[], أو array مباشر
+function toArray(res) {
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.data?.items)) return res.data.items;
+  if (Array.isArray(res?.items)) return res.items;
+  if (Array.isArray(res)) return res;
+  return [];
+}
 
-  if (!u) {
-    // fallback
-    return r?.requester_name || r?.requester_full_name || "—";
+/* ====== Notifications labels (Payments + Grades) ====== */
+function statusLabelFromRaw(r) {
+  const s = String(r?.status || "").toLowerCase();
+  if (s === "pending") return "قيد الانتظار";
+  if (s === "approved") return "مقبول";
+  if (s === "rejected") return "مرفوض";
+  return r?.status ?? "—";
+}
+
+function actionLabel(item) {
+  const r = item?.raw;
+
+  if (item?.kind === "payment") {
+    const act = String(r?.action || "").toLowerCase();
+    if (act === "delete") return "طلب حذف دفعة";
+    if (act === "edit" || act === "update") return "طلب تعديل دفعة";
+    return "طلب دفعة";
   }
 
+  // grade
+  const t = String(r?.type || r?.action || "").toLowerCase(); // update | delete
+  if (t === "delete") return "طلب حذف علامة";
+  if (t === "update" || t === "edit") return "طلب تعديل علامة";
+  return "طلب علامة";
+}
+
+function requesterNameFromRaw(r) {
+  const u =
+    r?.requester || r?.requester_user || r?.user || r?.requested_by || null;
+  if (!u) return r?.requester_name || r?.requester_full_name || "—";
   return (
     u?.full_name ||
     [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
@@ -85,41 +113,143 @@ function pickRequesterName(r) {
   );
 }
 
-function pickRequesterAvatar(r) {
-  const u = r?.requester || r?.requester_user || r?.user || null;
+function requesterAvatarFromRaw(r) {
+  const u =
+    r?.requester || r?.requester_user || r?.user || r?.requested_by || null;
   return u?.photo_url || u?.avatar || "/avatar.svg";
 }
 
-function pickStatusLabel(r) {
-  const st = String(r?.status || "").toLowerCase();
-  if (st === "pending") return "قيد الانتظار";
-  if (st === "approved") return "مقبول";
-  if (st === "rejected") return "مرفوض";
-  return r?.status || "—";
-}
+function secondaryLine(item) {
+  const r = item?.raw;
 
-function pickActionLabel(r) {
-  const act = String(r?.action || "").toLowerCase();
-  if (act === "delete") return "طلب حذف دفعة";
-  if (act === "edit") return "طلب تعديل دفعة";
-  return "طلب";
+  if (item?.kind === "payment") {
+    const paymentId =
+      r?.payment_id ?? r?.payment?.id ?? r?.original_data?.id ?? "—";
+    return `المستخدم: ${requesterNameFromRaw(r)} — الدفعة #${paymentId}`;
+  }
+
+  // grade
+  const rid =
+    r?.exam_result_id ?? r?.exam_result?.id ?? r?.original_data?.id ?? "—";
+  const st = r?.exam_result?.student;
+  const studentName =
+    `${st?.first_name ?? ""} ${st?.last_name ?? ""}`.trim() ||
+    `طالب #${r?.exam_result?.student_id ?? "—"}`;
+  const examName =
+    r?.exam_result?.exam?.name ?? `امتحان #${r?.exam_result?.exam_id ?? "—"}`;
+  return `المستخدم: ${requesterNameFromRaw(r)} — نتيجة #${rid} — ${studentName} (${examName})`;
 }
 
 /* ===============================
-   Notifications Dropdown (anchored)
+   Smart Auto Flip positioning
    =============================== */
-function NotificationsDropdown({ loading, count, items, onClose, onMore }) {
+function computeDropdownPos(anchorRect, panelRect, gap = 10, margin = 10) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // الافتراضي: تحت الزر (bottom-end في RTL غالباً)
+  let top = anchorRect.bottom + gap;
+  let left = anchorRect.right - panelRect.width; // يمين
+
+  // لو خرج يمين/يسار
+  if (left < margin) left = margin;
+  if (left + panelRect.width > vw - margin)
+    left = Math.max(margin, vw - margin - panelRect.width);
+
+  // Flip لو ما في مساحة تحت
+  const spaceBelow = vh - anchorRect.bottom;
+  const spaceAbove = anchorRect.top;
+
+  const needHeight = panelRect.height + gap;
+  const canPlaceBelow = spaceBelow >= needHeight;
+  const canPlaceAbove = spaceAbove >= needHeight;
+
+  if (!canPlaceBelow && canPlaceAbove) {
+    top = anchorRect.top - gap - panelRect.height; // فوق
+  } else {
+    // إذا neither كافي، خليها بالأفضل (أكبر مساحة) وتقص بالـ maxHeight من CSS
+    if (!canPlaceBelow && !canPlaceAbove) {
+      top =
+        spaceBelow >= spaceAbove
+          ? anchorRect.bottom + gap
+          : Math.max(margin, anchorRect.top - gap - panelRect.height);
+    }
+  }
+
+  // لو خرج فوق/تحت
+  if (top < margin) top = margin;
+  if (top + panelRect.height > vh - margin)
+    top = Math.max(margin, vh - margin - panelRect.height);
+
+  return { top, left };
+}
+
+/* ===============================
+   Notifications Dropdown (smart flip)
+   =============================== */
+function NotificationsDropdown({
+  anchorRef,
+  loading,
+  count,
+  items,
+  onClose,
+  onMore,
+}) {
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, ready: false });
+
+  const updatePos = () => {
+    const anchorEl = anchorRef?.current;
+    const panelEl = panelRef.current;
+    if (!anchorEl || !panelEl) return;
+
+    const a = anchorEl.getBoundingClientRect();
+
+    // قياس فعلي للوحة
+    const p = panelEl.getBoundingClientRect();
+
+    const next = computeDropdownPos(a, p, 10, 10);
+    setPos({ ...next, ready: true });
+  };
+
+  useEffect(() => {
+    // أول تموضع
+    const t = setTimeout(updatePos, 0);
+
+    // تحديث عند resize/scroll
+    const onResize = () => updatePos();
+    const onScroll = () => updatePos();
+
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true); // مهم لو في containers scroll
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       {/* overlay لإغلاق عند الضغط خارج */}
       <div className="fixed inset-0 z-[60]" onClick={onClose} />
 
-      {/* dropdown تحت الزر مباشرة */}
+      {/* dropdown floating */}
       <div
         dir="rtl"
+        ref={panelRef}
+        style={{
+          position: "fixed",
+          top: pos.top,
+          left: pos.left,
+          opacity: pos.ready ? 1 : 0,
+          transform: pos.ready ? "translateY(0)" : "translateY(-4px)",
+          transition: "opacity 120ms ease, transform 120ms ease",
+        }}
         className="
-          absolute z-[70]
-          right-0 mt-3
+          z-[70]
           w-[380px] max-w-[92vw]
           bg-white rounded-xl shadow-xl
           border border-gray-200
@@ -156,50 +286,54 @@ function NotificationsDropdown({ loading, count, items, onClose, onMore }) {
               لا توجد إشعارات حالياً
             </div>
           ) : (
-            items.map((r) => (
-              <div
-                key={String(r?.id ?? `${r?.payment_id}-${r?.created_at}`)}
-                className="rounded-xl border border-gray-200 p-3 shadow-sm bg-white"
-              >
-                <div className="flex gap-3">
-                  <img
-                    src={pickRequesterAvatar(r)}
-                    alt=""
-                    className="h-9 w-9 rounded-full ring-2 ring-white object-cover"
-                  />
+            items.map((it) => {
+              const r = it.raw;
+              const key = `${it.kind}-${String(it.id ?? it.created_at ?? "")}`;
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[13px] font-semibold text-gray-800 line-clamp-1">
-                        {pickActionLabel(r)}
+              return (
+                <div
+                  key={key}
+                  className="rounded-xl border border-gray-200 p-3 shadow-sm bg-white"
+                >
+                  <div className="flex gap-3">
+                    <img
+                      src={requesterAvatarFromRaw(r)}
+                      alt=""
+                      className="h-9 w-9 rounded-full ring-2 ring-white object-cover"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[13px] font-semibold text-gray-800 line-clamp-1">
+                          {actionLabel(it)}
+                        </p>
+
+                        <span className="text-[11px] text-gray-400">
+                          {formatDateTime(r?.created_at || r?.updated_at)}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-[12px] leading-5 text-gray-600 line-clamp-2">
+                        {secondaryLine(it)}
                       </p>
 
-                      <span className="text-[11px] text-gray-400">
-                        {formatDateTime(r?.created_at || r?.updated_at)}
-                      </span>
-                    </div>
-
-                    <p className="mt-1 text-[12px] leading-5 text-gray-600 line-clamp-2">
-                      المستخدم: {pickRequesterName(r)} — الدفعة #
-                      {r?.payment_id ?? "—"}
-                    </p>
-
-                    <div className="mt-2 flex items-center gap-2 text-[12px]">
-                      <span className="text-gray-500">الحالة:</span>
-                      <span className="font-medium text-[#6D003E]">
-                        {pickStatusLabel(r)}
-                      </span>
-                    </div>
-
-                    {r?.reason && (
-                      <div className="mt-2 text-[12px] text-gray-500 line-clamp-1">
-                        السبب: {String(r.reason)}
+                      <div className="mt-2 flex items-center gap-2 text-[12px]">
+                        <span className="text-gray-500">الحالة:</span>
+                        <span className="font-medium text-[#6D003E]">
+                          {statusLabelFromRaw(r)}
+                        </span>
                       </div>
-                    )}
+
+                      {r?.reason && (
+                        <div className="mt-2 text-[12px] text-gray-500 line-clamp-1">
+                          السبب: {String(r.reason)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -218,9 +352,10 @@ function NotificationsDropdown({ loading, count, items, onClose, onMore }) {
   );
 }
 
-function IconBox({ icon, onClick, badgeCount = 0 }) {
+function IconBox({ icon, onClick, badgeCount = 0, buttonRef }) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       className="relative w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 cursor-pointer hover:bg-gray-200"
@@ -300,31 +435,33 @@ export default function Navbar() {
   const searchKey = pathname.startsWith("/employees")
     ? "employees"
     : pathname.startsWith("/batches")
-    ? "batches"
-    : pathname.startsWith("/students")
-    ? "students"
-    : pathname.startsWith("/knowWays")
-    ? "knowWays"
-    : pathname.startsWith("/classRooms")
-    ? "classRooms"
-    : pathname.startsWith("/academic-branches") ||
-      pathname.startsWith("/academicBranches")
-    ? "academicBranches"
-    : pathname.startsWith("/instituteBranches")
-    ? "instituteBranches"
-    : pathname.startsWith("/cities")
-    ? "cities"
-    : pathname.startsWith("/buses")
-    ? "buses"
-    : pathname.startsWith("/teachers")
-    ? "teachers"
-    : pathname.startsWith("/subjects")
-    ? "subjects"
-    : pathname.startsWith("/attendance")
-    ? "attendance"
-    : pathname.startsWith("/payments")
-    ? "payments"
-    : "employees";
+      ? "batches"
+      : pathname.startsWith("/students")
+        ? "students"
+        : pathname.startsWith("/knowWays")
+          ? "knowWays"
+          : pathname.startsWith("/classRooms")
+            ? "classRooms"
+            : pathname.startsWith("/academic-branches") ||
+                pathname.startsWith("/academicBranches")
+              ? "academicBranches"
+              : pathname.startsWith("/instituteBranches")
+                ? "instituteBranches"
+                : pathname.startsWith("/cities")
+                  ? "cities"
+                  : pathname.startsWith("/buses")
+                    ? "buses"
+                    : pathname.startsWith("/teachers")
+                      ? "teachers"
+                      : pathname.startsWith("/subjects")
+                        ? "subjects"
+                        : pathname.startsWith("/attendance")
+                          ? "attendance"
+                          : pathname.startsWith("/payments")
+                            ? "payments"
+                            : pathname.startsWith("/exams")
+                              ? "exams"
+                              : "employees";
 
   const search = useSelector((state) => state.search.values[searchKey]);
 
@@ -403,41 +540,47 @@ export default function Navbar() {
   }, []);
 
   /* ===============================
-     🔔 Notifications (real API)
+     🔔 Notifications (payments + grades) + smart flip dropdown
      =============================== */
   const [openNotifications, setOpenNotifications] = useState(false);
+  const notifBtnRef = useRef(null);
 
-  // ✅ جلب طلبات التعديل/الحذف للدفعات (عرض فقط)
-  const {
-    data: requestsRes,
-    isLoading: loadingNotifs,
-    isFetching: fetchingNotifs,
-  } = useGetPaymentEditRequestsQuery(undefined, {
-    pollingInterval: 10000, // كل 10 ثواني
-    refetchOnFocus: true,
-  });
+  const payQ = useGetPaymentEditRequestsQuery(
+    { status: "pending" },
+    { pollingInterval: 10000, refetchOnFocus: true },
+  );
 
-  const allRequests = useMemo(() => {
-    // API عندك غالباً: {status, message, data: []}
-    const arr = requestsRes?.data ?? requestsRes;
-    return Array.isArray(arr) ? arr : [];
-  }, [requestsRes]);
+  const gradeQ = useGetExamResultEditRequestsQuery(
+    { status: "pending" },
+    { pollingInterval: 10000, refetchOnFocus: true },
+  );
 
-  const pendingOnly = useMemo(() => {
-    return allRequests.filter(
-      (r) => String(r?.status).toLowerCase() === "pending"
+  const loadingNotifs =
+    payQ.isLoading || payQ.isFetching || gradeQ.isLoading || gradeQ.isFetching;
+
+  const mergedLatest5 = useMemo(() => {
+    const payments = toArray(payQ.data).map((x) => ({
+      kind: "payment",
+      id: x.id,
+      created_at: x.created_at,
+      raw: x,
+    }));
+
+    const grades = toArray(gradeQ.data).map((x) => ({
+      kind: "grade",
+      id: x.id,
+      created_at: x.created_at,
+      raw: x,
+    }));
+
+    const merged = [...payments, ...grades].sort((a, b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || "")),
     );
-  }, [allRequests]);
 
-  const unreadCount = pendingOnly.length;
+    return merged.slice(0, 5);
+  }, [payQ.data, gradeQ.data]);
 
-  const latest5 = useMemo(() => {
-    return [...pendingOnly]
-      .sort((a, b) =>
-        String(b?.created_at || "").localeCompare(String(a?.created_at || ""))
-      )
-      .slice(0, 5);
-  }, [pendingOnly]);
+  const unreadCount = useMemo(() => mergedLatest5.length, [mergedLatest5]);
 
   // ESC close
   useEffect(() => {
@@ -475,7 +618,7 @@ export default function Navbar() {
                 setSearchValue({
                   key: searchKey,
                   value: e.target.value,
-                })
+                }),
               )
             }
             className="w-full h-full bg-transparent outline-none text-[16px] text-gray-700"
@@ -484,21 +627,23 @@ export default function Navbar() {
 
         {/* ================= RIGHT SIDE ================= */}
         <div className="flex items-center gap-5">
-          {/* 🔔 Notifications anchored */}
+          {/* 🔔 Notifications (smart flip) */}
           <div className="relative">
             {isAdmin && (
               <IconBox
+                buttonRef={notifBtnRef}
                 icon="/icons/notification.png"
                 badgeCount={unreadCount}
-                onClick={() => setOpenNotifications(true)}
+                onClick={() => setOpenNotifications((v) => !v)}
               />
             )}
 
             {isAdmin && openNotifications && (
               <NotificationsDropdown
-                loading={loadingNotifs || fetchingNotifs}
+                anchorRef={notifBtnRef}
+                loading={loadingNotifs}
                 count={unreadCount}
-                items={latest5}
+                items={mergedLatest5}
                 onClose={() => setOpenNotifications(false)}
                 onMore={() => {
                   setOpenNotifications(false);
@@ -550,7 +695,7 @@ export default function Navbar() {
                     setSearchValue({
                       key: "branch",
                       value: e.target.value,
-                    })
+                    }),
                   )
                 }
                 disabled={!isAdmin}

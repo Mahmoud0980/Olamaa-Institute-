@@ -1,4 +1,3 @@
-// ./components/ExamResultsTable.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,11 +8,15 @@ const getResultId = (r) =>
   String(r?.id ?? r?.exam_result_id ?? r?.result_id ?? "");
 
 function PassChip({ passed }) {
-  if (passed === true)
+  if (!passed) return <span className="text-gray-400">—</span>;
+
+  if (passed === true || passed === 1 || passed === "1" || passed === "ناجح")
     return <span className="text-green-700 font-medium">ناجح</span>;
-  if (passed === false)
+
+  if (passed === false || passed === 0 || passed === "0" || passed === "راسب")
     return <span className="text-red-700 font-medium">راسب</span>;
-  return <span className="text-gray-400">—</span>;
+
+  return <span className="text-gray-400">{passed}</span>;
 }
 
 function PendingChip({ pending }) {
@@ -66,7 +69,7 @@ export default function ExamResultsTable({
                   <th className="p-3 text-center rounded-r-xl">#</th>
                   <th className="p-3">الطالب</th>
                   <th className="p-3">المادة</th>
-                  <th className="p-3">المذاكرة</th>
+                  <th className="p-3">نوع الإمتحان</th>
                   <th className="p-3">التاريخ</th>
                   <th className="p-3">العلامة</th>
                   <th className="p-3">النتيجة</th>
@@ -80,8 +83,8 @@ export default function ExamResultsTable({
                   const pending = !!pendingMap?.[id];
 
                   const studentName =
-                    `${row?.student_first_name ?? ""} ${row?.student_last_name ?? ""}`.trim() ||
                     row?.student_name ||
+                    `${row?.student_first_name ?? ""} ${row?.student_last_name ?? ""}`.trim() ||
                     "—";
 
                   return (
@@ -103,12 +106,10 @@ export default function ExamResultsTable({
 
                       <td className="p-3 font-medium">{studentName}</td>
                       <td className="p-3">{row?.subject_name ?? "—"}</td>
-                      <td className="p-3">
-                        {row?.exam_name ?? row?.name ?? "—"}
-                      </td>
+                      <td className="p-3">{row?.exam_name ?? "—"}</td>
                       <td className="p-3">{row?.exam_date ?? "—"}</td>
                       <td className="p-3">
-                        {row?.obtained_marks ?? row?.marks ?? "—"}
+                        {row?.obtained_marks ?? row?.is_passed ?? "—"}
                       </td>
                       <td className="p-3">
                         <PassChip passed={row?.is_passed} />
@@ -161,9 +162,10 @@ export default function ExamResultsTable({
             {paginated.map((row, index) => {
               const id = getResultId(row);
               const pending = !!pendingMap?.[id];
+
               const studentName =
-                `${row?.student_first_name ?? ""} ${row?.student_last_name ?? ""}`.trim() ||
                 row?.student_name ||
+                `${row?.student_first_name ?? ""} ${row?.student_last_name ?? ""}`.trim() ||
                 "—";
 
               return (
@@ -192,12 +194,12 @@ export default function ExamResultsTable({
                   </div>
 
                   <Info label="الطالب" value={studentName} />
-                  <Info label="المادة" value={row?.subject_name} />
-                  <Info label="المذاكرة" value={row?.exam_name ?? row?.name} />
-                  <Info label="التاريخ" value={row?.exam_date} />
+                  <Info label="المادة" value={row?.subject_name ?? "—"} />
+                  <Info label="المذاكرة" value={row?.exam_name ?? "—"} />
+                  <Info label="التاريخ" value={row?.exam_date ?? "—"} />
                   <Info
                     label="العلامة"
-                    value={row?.obtained_marks ?? row?.marks}
+                    value={row?.obtained_marks ?? row?.marks ?? "—"}
                   />
 
                   <div className="flex justify-end gap-4 mt-3">

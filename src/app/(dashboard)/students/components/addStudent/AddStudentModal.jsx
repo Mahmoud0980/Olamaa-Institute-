@@ -229,8 +229,8 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       // "birth_place",
       // "date_of_birth",
       "national_id",
-      // "branch_id",
-      // "institute_branch_id",
+      "branch_id",
+      "institute_branch_id",
     ]);
 
     if (!ok) {
@@ -304,13 +304,13 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
           first_name: clean(p.father_first_name),
           last_name: clean(p.father_last_name),
           national_id: clean(p.father_national_id),
-          phone: clean(p.father_phone),
+          // phone: clean(p.father_phone),
         },
         mother: {
           first_name: clean(p.mother_first_name),
           last_name: clean(p.mother_last_name),
           national_id: clean(p.mother_national_id),
-          phone: clean(p.mother_phone),
+          // phone: clean(p.mother_phone),
         },
       };
 
@@ -488,118 +488,120 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       )}
 
       <div className="fixed inset-0 bg-black/40 z-50 flex">
-        <div className="w-[520px] bg-white h-full p-6 overflow-y-auto">
-          <div className="flex justify-between mb-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-[#6F013F] font-semibold">
-                {isEdit ? "تعديل طالب" : "إضافة طالب"}
-              </h2>
+        {/* ✅ Panel بدون scroll */}
+        <div className="w-full max-w-[520px] bg-white h-full flex flex-col">
+          {/* ✅ Header ثابت */}
+          <div className="shrink-0 p-6 pb-4 border-b border-gray-100 bg-white/90 backdrop-blur">
+            <div className="flex justify-between items-start">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-[#6F013F] font-semibold">
+                  {isEdit ? "تعديل طالب" : "إضافة طالب"}
+                </h2>
+                <span className="text-xs text-gray-500">
+                  {isOnline ? "متصل" : "غير متصل"}
+                </span>
+              </div>
 
-              {/* اختياري: مؤشر اتصال صغير */}
-              <span className="text-xs text-gray-500">
-                {isOnline ? "متصل" : "غير متصل"}
-              </span>
+              <button
+                onClick={handleClose}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <X />
+              </button>
             </div>
-
-            <button onClick={handleClose}>
-              <X />
-            </button>
           </div>
 
-          <Stepper current={step} total={total} />
+          {/* ✅ Stepper ثابت */}
+          <div className="shrink-0 px-6 py-4 border-b border-gray-100 bg-white">
+            <Stepper current={step} total={total} />
+          </div>
 
-          <div className="mt-6">
-            {step === 1 && (
-              <Step1Student
-                control={form1.control}
-                register={form1.register}
-                errors={form1.formState.errors}
-                onNext={handleStep1}
-                onBack={handleClose}
-              />
-            )}
+          {/* ✅ محتوى الخطوة: ياخد باقي الارتفاع */}
+          <div className="flex-1 min-h-0 px-6 py-4 overflow-hidden">
+            {/* مهم: نعطي h-full حتى Step1Student يشتغل تثبيتو */}
+            <div className="h-full">
+              {step === 1 && (
+                <Step1Student
+                  control={form1.control}
+                  register={form1.register}
+                  errors={form1.formState.errors}
+                  onNext={handleStep1}
+                  onBack={handleClose}
+                />
+              )}
 
-            {step === 2 && (
-              <Step2StudentExtra
-                control={form2.control}
-                register={form2.register}
-                errors={form2.formState.errors}
-                watch={form2.watch}
-                onNext={handleStep2}
-                onBack={() => setStep(1)}
-              />
-            )}
+              {step === 2 && (
+                <Step2StudentExtra
+                  control={form2.control}
+                  register={form2.register}
+                  errors={form2.formState.errors}
+                  watch={form2.watch}
+                  onNext={handleStep2}
+                  onBack={() => setStep(1)}
+                />
+              )}
 
-            {step === 3 && (
-              <Step3Parents
-                register={form3.register}
-                errors={form3.formState.errors}
-                setValue={form3.setValue}
-                watch={form3.watch}
-                onNext={handleStep3}
-                onBack={() => setStep(2)}
-                loading={loadingStep3}
-              />
-            )}
+              {step === 3 && (
+                <Step3Parents
+                  register={form3.register}
+                  errors={form3.formState.errors}
+                  setValue={form3.setValue}
+                  watch={form3.watch}
+                  onNext={handleStep3}
+                  onBack={() => setStep(2)}
+                  loading={loadingStep3}
+                />
+              )}
 
-            {step === 4 && (
-              <Step4Record
-                control={form4.control}
-                register={form4.register}
-                errors={form4.formState.errors}
-                onNext={handleStep4}
-                onBack={() => {
-                  if (lockBackFromStep4) return; // ممنوع الرجوع للخطوة 3 بعد الحفظ
-                  setStep(3);
-                }}
-                onSkip={() => setStep(5)}
-                loading={loadingStep4}
-              />
-            )}
+              {step === 4 && (
+                <Step4Record
+                  control={form4.control}
+                  register={form4.register}
+                  errors={form4.formState.errors}
+                  onNext={handleStep4}
+                  onBack={() => {
+                    if (lockBackFromStep4) return;
+                    setStep(3);
+                  }}
+                  onSkip={() => setStep(5)}
+                  loading={loadingStep4}
+                />
+              )}
 
-            {step === 5 && (
-              <Step5Contacts
-                guardians={guardians}
-                existingContacts={existingContacts}
-                onSaveAll={handleSaveContacts}
-                onBack={() => setStep(4)}
-                onSkip={() => setStep(6)}
-                loading={loadingStep5}
-              />
-            )}
+              {step === 5 && (
+                <Step5Contacts
+                  guardians={guardians}
+                  existingContacts={existingContacts}
+                  onSaveAll={handleSaveContacts}
+                  onBack={() => setStep(4)}
+                  onSkip={() => setStep(6)}
+                  loading={loadingStep5}
+                />
+              )}
 
-            {step === 6 && (
-              <Step6EnrollmentContract
-                studentId={studentId}
-                onBack={() => setStep(5)}
-                onNext={(id) => {
-                  setEnrollmentContractId(id);
-                  setStep(7); //7
-                }}
-                onSkip={() => setStep(7)}
-              />
-            )}
+              {step === 6 && (
+                <Step6EnrollmentContract
+                  studentId={studentId}
+                  onBack={() => setStep(5)}
+                  onNext={(id) => {
+                    setEnrollmentContractId(id);
+                    setStep(7);
+                  }}
+                  onSkip={() => setStep(7)}
+                />
+              )}
 
-            {/* {step === 7 && (
-              <Step7Payment
-                studentId={studentId}
-                instituteBranchId={form1.getValues("institute_branch_id")}
-                enrollmentContractId={enrollmentContractId}
-                onBack={() => setStep(6)}
-                onFinish={() => setStep(8)}
-              />
-            )} */}
-
-            {step === 7 && (
-              <StepSuccess
-                studentId={studentId}
-                onReset={() => {
-                  resetAll();
-                  onAdded?.();
-                }}
-                onClose={handleClose}
-              />
-            )}
+              {step === 7 && (
+                <StepSuccess
+                  studentId={studentId}
+                  onReset={() => {
+                    resetAll();
+                    onAdded?.();
+                  }}
+                  onClose={handleClose}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

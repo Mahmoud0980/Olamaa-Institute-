@@ -150,11 +150,11 @@ export default function TeachersTable({
                           icon: Layers,
                           onClick: () => onEditBatches?.(t),
                         },
-                        {
-                          label: "تعديل الصورة",
-                          icon: ImageIcon,
-                          onClick: () => onEditPhoto?.(t),
-                        },
+                        // {
+                        //   label: "تعديل الصورة",
+                        //   icon: ImageIcon,
+                        //   onClick: () => onEditPhoto?.(t),
+                        // },
                         {
                           label: "حذف",
                           icon: Trash2,

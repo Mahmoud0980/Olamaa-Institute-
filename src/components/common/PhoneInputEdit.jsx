@@ -8,38 +8,56 @@ const phoneUtil = PhoneNumberUtil.getInstance();
 
 export default function PhoneInputEdit({
   name,
-  value, // +963999999999
+  value, // +9639xxxxxxxx
   setValue,
 }) {
   const [selectedCountry, setSelectedCountry] = useState("SY");
   const [phoneValue, setPhoneValue] = useState("");
 
-  /* =============================
-     تفكيك الرقم القادم من API
-  ============================== */
   useEffect(() => {
-    if (!value) return;
+    if (!value) {
+      setSelectedCountry("SY");
+      setPhoneValue("");
+      return;
+    }
 
     try {
       const parsed = phoneUtil.parse(value);
       const region = phoneUtil.getRegionCodeForNumber(parsed);
 
+      let national = parsed.getNationalNumber().toString();
+
+      // ✅ سوريا: رجّع الصفر المحلي
+      if ((region || "SY") === "SY" && national && !national.startsWith("0")) {
+        national = `0${national}`;
+      }
+
       setSelectedCountry(region || "SY");
-      setPhoneValue(parsed.getNationalNumber().toString());
+      setPhoneValue(national);
     } catch {
-      // fallback
       setSelectedCountry("SY");
-      setPhoneValue(value.replace(/^\+\d+/, ""));
+
+      let cleaned = String(value).replace(/[^\d]/g, "");
+
+      // ✅ إذا الرقم جاي بصيغة 9639xxxxxxx نحوله إلى 09xxxxxxx
+      if (cleaned.startsWith("963")) {
+        cleaned = `0${cleaned.slice(3)}`;
+      }
+
+      setPhoneValue(cleaned);
     }
   }, [value]);
 
   const maxLen = phoneLengths[selectedCountry] || 20;
 
-  /* =============================
-     عند التغيير
-  ============================== */
   const handleChange = (e) => {
     let val = e.target.value.replace(/\D/g, "");
+
+    if (selectedCountry === "SY") {
+      if (val.length === 1 && val !== "0") return;
+      if (val.length >= 2 && !val.startsWith("09")) return;
+    }
+
     if (val.length > maxLen) val = val.slice(0, maxLen);
 
     setPhoneValue(val);
@@ -50,7 +68,13 @@ export default function PhoneInputEdit({
       calling = c ? `+${c}` : "";
     } catch {}
 
-    setValue(name, calling + val);
+    if (typeof setValue === "function") {
+      if (name !== undefined) {
+        setValue(name, calling + val);
+      } else {
+        setValue(calling + val);
+      }
+    }
   };
 
   const options = useMemo(() => {
@@ -72,9 +96,23 @@ export default function PhoneInputEdit({
         <select
           value={selectedCountry}
           onChange={(e) => {
-            setSelectedCountry(e.target.value);
+            const newCountry = e.target.value;
+            setSelectedCountry(newCountry);
             setPhoneValue("");
-            setValue(name, "");
+
+            let calling = "";
+            try {
+              const c = phoneUtil.getCountryCodeForRegion(newCountry);
+              calling = c ? `+${c}` : "";
+            } catch {}
+
+            if (typeof setValue === "function") {
+              if (name !== undefined) {
+                setValue(name, "");
+              } else {
+                setValue("");
+              }
+            }
           }}
           className="border border-gray-200 rounded-r-lg p-2 bg-gray-50 text-sm"
         >

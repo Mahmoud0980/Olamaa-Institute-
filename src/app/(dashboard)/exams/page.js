@@ -7,7 +7,11 @@ import ActionsRow from "@/components/common/ActionsRow";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { notify } from "@/lib/helpers/toastify";
-
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import { useSelector } from "react-redux";
+import PrintButton from "@/components/common/PrintButton";
+import ExcelButton from "@/components/common/ExcelButton";
 import { useGetBatchesQuery } from "@/store/services/batchesApi";
 import { useGetStudentsDetailsQuery } from "@/store/services/studentsApi";
 
@@ -32,6 +36,7 @@ import ExamsTable from "./components/ExamsTable";
 import ExamResultsTable from "./components/ExamResultsTable";
 import ExamAddModal from "./components/ExamAddModal";
 import ExamResultAddModal from "./components/ExamResultAddModal";
+import TableSkeleton from "@/components/common/TableSkeleton";
 
 /* ================= Helpers ================= */
 
@@ -42,8 +47,8 @@ function normalizeArray(res) {
 }
 
 function normalizeResultsItems(res) {
-  const items = res?.data?.items;
-  if (Array.isArray(items)) return items;
+  if (Array.isArray(res?.data)) return res.data; // 👈 هذا المهم
+  if (Array.isArray(res?.data?.items)) return res.data.items;
   if (Array.isArray(res?.items)) return res.items;
   return [];
 }
@@ -62,6 +67,7 @@ function buildParams({ studentId, batchId }) {
 }
 
 const getExamId = (row) => row?.id ?? row?.exam_id ?? row?.examId ?? null;
+
 const getResultId = (row) =>
   row?.id ??
   row?.exam_result_id ??
@@ -106,19 +112,20 @@ export default function ExamsPage() {
 
   const { data: batchesRes } = useGetBatchesQuery();
   const batches = useMemo(() => normalizeArray(batchesRes), [batchesRes]);
-
+  const search = useSelector((state) => state.search.values.exams);
+  const branchId = useSelector((state) => state.search.values.branch);
   const params = useMemo(
     () =>
       buildParams({ studentId: selectedStudentId, batchId: selectedBatchId }),
     [selectedStudentId, selectedBatchId],
   );
 
-  // queries
+  // ✅ exams always fetched (needed to show exam_name/date/subject in results)
   const {
     data: examsRes,
     isLoading: loadingExams,
     isFetching: fetchingExams,
-  } = useGetFilteredExamsQuery(params, { skip: mode !== "exams" });
+  } = useGetFilteredExamsQuery(params);
 
   const {
     data: resultsRes,
@@ -126,20 +133,106 @@ export default function ExamsPage() {
     isFetching: fetchingResults,
   } = useGetStudentExamResultsQuery(params, { skip: mode !== "results" });
 
+  /* ================= ✅ MAPS ================= */
+
+  const studentsMap = useMemo(() => {
+    const m = {};
+    students.forEach((s) => (m[String(s.id)] = s));
+    return m;
+  }, [students]);
+
+  const exams = useMemo(() => normalizeArray(examsRes), [examsRes]);
+
+  const examsMap = useMemo(() => {
+    const m = {};
+    exams.forEach((e) => (m[String(e.id)] = e));
+    return m;
+  }, [exams]);
+
   const loading =
     mode === "exams"
       ? loadingExams || fetchingExams
       : loadingResults || fetchingResults;
 
   const rows = useMemo(() => {
-    if (mode === "exams") return normalizeArray(examsRes);
-    return normalizeResultsItems(resultsRes);
-  }, [mode, examsRes, resultsRes]);
-  console.log("FIRST RESULT ROW:", rows?.[0]);
+    if (mode === "exams") return exams;
+
+    const base = normalizeResultsItems(resultsRes);
+
+    return base.map((r) => {
+      const st = studentsMap[String(r?.student_id)];
+
+      const studentName =
+        st?.full_name ||
+        `${r?.student_first_name ?? ""} ${r?.student_last_name ?? ""}`.trim() ||
+        "—";
+
+      return {
+        ...r,
+
+        student_name: studentName,
+
+        // ✅ المذاكرة = نوع الامتحان
+        exam_name: r?.exam_type ?? "—",
+
+        // ✅ التاريخ
+        exam_date: r?.exam_date ?? "—",
+
+        // ✅ المادة
+        subject_name: r?.subject_name ?? "—",
+
+        // ✅ النتيجة مباشرة
+        is_passed: r?.is_passed,
+      };
+    });
+  }, [mode, resultsRes, studentsMap]);
+  const filteredRows = useMemo(() => {
+    if (!search?.trim()) return rows;
+
+    const q = search.toLowerCase();
+
+    return rows.filter((r) => {
+      if (mode === "exams") {
+        return (
+          String(r?.name ?? "")
+            .toLowerCase()
+            .includes(q) ||
+          String(r?.exam_type ?? "")
+            .toLowerCase()
+            .includes(q) ||
+          String(r?.exam_date ?? "")
+            .toLowerCase()
+            .includes(q)
+        );
+      }
+
+      // results
+      return (
+        String(r?.student_name ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r?.subject_name ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r?.exam_name ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r?.is_passed ?? "")
+          .toLowerCase()
+          .includes(q)
+      );
+    });
+  }, [rows, search, mode]);
   // selection (optional)
   const [selectedIds, setSelectedIds] = useState([]);
   const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
-
+  function esc(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
   useEffect(() => {
     setSelectedIds([]);
   }, [mode, selectedStudentId, selectedBatchId]);
@@ -162,7 +255,148 @@ export default function ExamsPage() {
       notify.error(firstErr(err) || err?.data?.message || "فشل إضافة المذاكرة");
     }
   };
+  const handlePrint = () => {
+    if (!selectedIds.length) {
+      notify.error("يرجى تحديد عنصر واحد على الأقل");
+      return;
+    }
 
+    const selectedRows = rows.filter((r) => selectedIds.includes(rowKey(r)));
+
+    let headers = "";
+    let bodyRows = "";
+
+    if (mode === "exams") {
+      // ===== جدول المذكرات =====
+      headers = `
+      <th>#</th>
+      <th>اسم المذاكرة</th>
+      <th>التاريخ</th>
+      <th>نوع الامتحان</th>
+      <th>الوقت</th>
+      <th>العلامة العظمى</th>
+      <th>علامة النجاح</th>
+      <th>الحالة</th>
+    `;
+
+      bodyRows = selectedRows
+        .map(
+          (r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${esc(r.name)}</td>
+          <td>${esc(r.exam_date)}</td>
+          <td>${esc(r.exam_type)}</td>
+          <td>${esc(r.exam_time?.slice(0, 5) ?? "—")}</td>
+          <td>${esc(r.total_marks)}</td>
+          <td>${esc(r.passing_marks)}</td>
+          <td>${esc(r.status)}</td>
+        </tr>
+      `,
+        )
+        .join("");
+    } else {
+      // ===== جدول العلامات =====
+      headers = `
+      <th>#</th>
+      <th>الطالب</th>
+      <th>المادة</th>
+      <th>نوع الامتحان</th>
+      <th>التاريخ</th>
+      <th>العلامة</th>
+      <th>النتيجة</th>
+    `;
+
+      bodyRows = selectedRows
+        .map(
+          (r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${esc(r.student_name)}</td>
+          <td>${esc(r.subject_name)}</td>
+          <td>${esc(r.exam_name)}</td>
+          <td>${esc(r.exam_date)}</td>
+          <td>${esc(r.obtained_marks)}</td>
+          <td>${esc(r.is_passed)}</td>
+        </tr>
+      `,
+        )
+        .join("");
+    }
+
+    const html = `
+    <html dir="rtl">
+      <head>
+        <style>
+          body{font-family:Arial;padding:20px}
+          table{width:100%;border-collapse:collapse;font-size:12px}
+          th,td{border:1px solid #ccc;padding:6px;text-align:right}
+          th{background:#fbeaf3}
+        </style>
+      </head>
+      <body>
+        <h3>${mode === "exams" ? "مذكرات الدورة" : "علامات الامتحانات"}</h3>
+        <table>
+          <thead><tr>${headers}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+    const w = window.open("", "", "width=900,height=700");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.print();
+  };
+
+  const handleExcel = () => {
+    if (!selectedIds.length) {
+      notify.error("يرجى تحديد عنصر واحد على الأقل");
+      return;
+    }
+
+    const selectedRows = rows.filter((r) => selectedIds.includes(rowKey(r)));
+
+    let data = [];
+
+    if (mode === "exams") {
+      // ===== المذكرات =====
+      data = selectedRows.map((r) => ({
+        "اسم المذاكرة": r.name,
+        التاريخ: r.exam_date,
+        "نوع الامتحان": r.exam_type,
+        الوقت: r.exam_time?.slice(0, 5),
+        "العلامة العظمى": r.total_marks,
+        "علامة النجاح": r.passing_marks,
+        الحالة: r.status,
+      }));
+    } else {
+      // ===== العلامات =====
+      data = selectedRows.map((r) => ({
+        الطالب: r.student_name,
+        المادة: r.subject_name,
+        "نوع الامتحان": r.exam_name,
+        التاريخ: r.exam_date,
+        العلامة: r.obtained_marks,
+        النتيجة: r.is_passed,
+      }));
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      ws,
+      mode === "exams" ? "Exams" : "Results",
+    );
+
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(new Blob([buf]), mode === "exams" ? "exams.xlsx" : "results.xlsx");
+
+    notify.success("تم تصدير الإكسل");
+  };
   const submitAddResult = async (payload) => {
     try {
       const res = await addExamResult(payload).unwrap();
@@ -224,7 +458,8 @@ export default function ExamsPage() {
       const id = getExamId(examToDelete);
       if (!id) return notify.error("لا يوجد معرف للمذاكرة");
 
-      const res = await deleteExam({ id, reason: "طلب حذف" }).unwrap();
+      // ✅ API expects id only
+      const res = await deleteExam(id).unwrap();
       notify.success(res?.message || "تم حذف المذاكرة");
       setOpenDeleteExam(false);
       setExamToDelete(null);
@@ -277,6 +512,7 @@ export default function ExamsPage() {
 
   const handleEditResult = (row) => {
     const id = getResultId(row);
+    console.log("row:", row);
     if (!id) return notify.error("لا يوجد معرف للعلامة");
     setActiveResultId(id);
     setOpenEditResult(true);
@@ -313,7 +549,8 @@ export default function ExamsPage() {
       const id = getResultId(resultToDelete);
       if (!id) return notify.error("لا يوجد معرف للعلامة");
 
-      const res = await deleteExamResult({ id, reason: "طلب حذف" }).unwrap();
+      // ✅ API expects id only
+      const res = await deleteExamResult(id).unwrap();
       notify.success(res?.message || "تمت العملية");
 
       if (isPendingResponse(res)) markResultPending(id, "delete");
@@ -340,7 +577,8 @@ export default function ExamsPage() {
     if (mode === "exams") return String(getExamId(r) ?? "");
     return String(getResultId(r) ?? "");
   };
-
+  // console.log("resultsRes", resultsRes);
+  // console.log("examsRes", examsRes);
   return (
     <div dir="rtl" className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row gap-2 justify-between items-start">
@@ -350,32 +588,37 @@ export default function ExamsPage() {
           </h1>
           <Breadcrumb />
         </div>
+        <div className="flex flex-col gap-4 items-start md:items-end">
+          <div className="flex flex-wrap gap-4">
+            <SearchableSelect
+              label="اسم الطالب"
+              value={selectedStudentId}
+              onChange={setSelectedStudentId}
+              options={[
+                { value: "", label: "كل الطلاب" },
+                ...students.map((s) => ({
+                  value: String(s.id),
+                  label: s.full_name,
+                })),
+              ]}
+              allowClear
+            />
 
-        <div className="flex flex-wrap gap-4">
-          <SearchableSelect
-            label="اسم الطالب"
-            value={selectedStudentId}
-            onChange={setSelectedStudentId}
-            options={[
-              { value: "", label: "كل الطلاب" },
-              ...students.map((s) => ({
-                value: String(s.id),
-                label: s.full_name,
-              })),
-            ]}
-            allowClear
-          />
-
-          <SearchableSelect
-            label="الشعبة"
-            value={selectedBatchId}
-            onChange={setSelectedBatchId}
-            options={[
-              { value: "", label: "كل الشعب" },
-              ...batches.map((b) => ({ value: String(b.id), label: b.name })),
-            ]}
-            allowClear
-          />
+            <SearchableSelect
+              label="الشعبة"
+              value={selectedBatchId}
+              onChange={setSelectedBatchId}
+              options={[
+                { value: "", label: "كل الشعب" },
+                ...batches.map((b) => ({ value: String(b.id), label: b.name })),
+              ]}
+              allowClear
+            />
+          </div>
+          <div className="flex gap-2">
+            <PrintButton onClick={handlePrint} />
+            <ExcelButton onClick={handleExcel} />
+          </div>
         </div>
       </div>
 
@@ -392,12 +635,47 @@ export default function ExamsPage() {
       />
 
       {loading ? (
-        <div className="bg-white border rounded-xl p-8 text-center text-gray-400">
-          جارٍ التحميل...
-        </div>
+        mode === "exams" ? (
+          <TableSkeleton
+            headers={[
+              "#",
+              "اسم المذاكرة",
+              "التاريخ",
+              "نوع الامتحان",
+              "الوقت",
+              "العلامة العظمى",
+              "علامة النجاح",
+              "الحالة",
+              "إجراءات",
+            ]}
+            rows={6}
+            mobileFields={6}
+            actionCount={2}
+            showCheckbox
+            showStatus
+          />
+        ) : (
+          <TableSkeleton
+            headers={[
+              "#",
+              "الطالب",
+              "المادة",
+              "نوع الإمتحان",
+              "التاريخ",
+              "العلامة",
+              "النتيجة",
+              "الإجراءات",
+            ]}
+            rows={7}
+            mobileFields={5}
+            actionCount={2}
+            showCheckbox
+            showStatus
+          />
+        )
       ) : mode === "exams" ? (
         <ExamsTable
-          rows={rows}
+          rows={filteredRows}
           selectedIds={selectedIds}
           onSelectChange={setSelectedIds}
           onEdit={handleEditExam}
@@ -405,7 +683,7 @@ export default function ExamsPage() {
         />
       ) : (
         <ExamResultsTable
-          rows={rows}
+          rows={filteredRows}
           selectedIds={selectedIds}
           onSelectChange={setSelectedIds}
           onEdit={handleEditResult}
@@ -453,7 +731,7 @@ export default function ExamsPage() {
         onConfirm={confirmDeleteExam}
       />
 
-      {/* EDIT RESULT (✅ نفس مودال الإضافة لكن initialData + showReason) */}
+      {/* EDIT RESULT */}
       <ExamResultAddModal
         open={openEditResult}
         title="تعديل علامة"

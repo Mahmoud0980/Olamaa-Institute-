@@ -9,6 +9,7 @@ import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import PhoneInput from "@/components/common/PhoneInput";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 import {
   useAddTeacherMutation,
@@ -42,8 +43,7 @@ export default function AddTeacherModal({ isOpen, onClose }) {
 
   const [loadingCreate, setLoadingCreate] = useState(false);
 
-  // بعد الإنشاء
-  const [createdTeacher, setCreatedTeacher] = useState(null); // {id, name, ...}
+  const [createdTeacher, setCreatedTeacher] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -55,7 +55,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
 
   const teacherId = createdTeacher?.id;
 
-  // ✅ مواد الأستاذ المربوطة (لنمنع الانتقال للخطوة 3 إذا ما في مواد)
   const { data: linkedSubjectsRes } = useGetTeacherBatchesDetailsQuery(
     teacherId ? { id: teacherId, type: "subjects" } : undefined,
     { skip: !isOpen || !teacherId || step < 2 },
@@ -98,7 +97,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
   };
 
   const handleNext = async () => {
-    // ===== Step 1: Create Teacher =====
     if (step === 1) {
       const error = validateTeacher();
       if (error) return notify.error(error);
@@ -135,7 +133,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
       return;
     }
 
-    // ===== Step 2: Must have at least 1 subject =====
     if (step === 2) {
       if (!teacherId) return notify.error("لا يوجد Teacher ID");
       if (linkedSubjectsCount === 0) {
@@ -147,7 +144,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
       return;
     }
 
-    // ===== Step 3: Finish =====
     if (step === 3) {
       notify.success("تمت العملية بنجاح");
       handleClose();
@@ -164,7 +160,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-start">
       <div className="w-full sm:w-[520px] bg-white h-full shadow-xl p-6 overflow-y-auto">
-        {/* Header */}
         <div className="flex justify-between mb-4">
           <div>
             <h2 className="text-[#6F013F] font-semibold">إضافة أستاذ</h2>
@@ -182,7 +177,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
 
         <Stepper current={step} total={total} />
 
-        {/* ===== Step 1 ===== */}
         {step === 1 && (
           <div className="mt-6 space-y-5">
             <FormInput
@@ -207,12 +201,12 @@ export default function AddTeacherModal({ isOpen, onClose }) {
               }
             />
 
-            <FormInput
-              type="date"
+            <DatePickerSmart
               label="تاريخ التعيين"
               required
               value={form.hire_date}
-              onChange={(e) => setForm({ ...form, hire_date: e.target.value })}
+              onChange={(iso) => setForm({ ...form, hire_date: iso })}
+              placeholder="dd/mm/yyyy"
             />
 
             <SearchableSelect
@@ -241,7 +235,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {/* ===== Step 2 ===== */}
         {step === 2 && (
           <div className="mt-6">
             <TeacherSubjectsStep teacher={createdTeacher} />
@@ -258,7 +251,6 @@ export default function AddTeacherModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {/* ===== Step 3 ===== */}
         {step === 3 && (
           <div className="mt-6">
             <TeacherBatchesStep teacher={createdTeacher} />

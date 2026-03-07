@@ -484,6 +484,7 @@ export default function StudentsPage() {
         onEditAcademic={onEditAcademic}
         onEditContacts={onEditContacts}
         onAddToBatch={onAddToBatch}
+        onDeleteStudent={handleDelete}
       />
 
       {/* ============ DETAILS MODAL ============ */}

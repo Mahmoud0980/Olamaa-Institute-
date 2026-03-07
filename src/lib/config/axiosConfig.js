@@ -41,7 +41,7 @@ import axios from "axios";
 import { getToken, clearAuth } from "../helpers/auth";
 
 const api = axios.create({
-  baseURL: "https://norma910-001-site1.mtempurl.com/api/",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 15000,
   // ❌ احذف Content-Type من هنا
 });

@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
+
+import { notify } from "@/lib/helpers/toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -40,10 +41,10 @@ export default function BatchesPage() {
     b.is_completed
       ? "مكتملة"
       : b.is_hidden
-      ? "مخفية"
-      : b.is_archived
-      ? "مؤرشفة"
-      : "نشطة";
+        ? "مخفية"
+        : b.is_archived
+          ? "مؤرشفة"
+          : "نشطة";
 
   // ===== Filtering =====
   const filteredBatches = useMemo(() => {
@@ -96,19 +97,19 @@ export default function BatchesPage() {
 
     try {
       await deleteBatch(batchToDelete.id).unwrap();
-      toast.success("تم حذف الشعبة بنجاح");
+      notify.success("تم حذف الشعبة بنجاح");
       setIsDeleteOpen(false);
       setBatchToDelete(null);
       setSelectedIds([]);
     } catch (err) {
-      toast.error(err?.data?.message || "فشل حذف الشعبة");
+      notify.error(err?.data?.message || "فشل حذف الشعبة");
     }
   };
 
   // ===== Print =====
   const handlePrint = () => {
     if (!selectedIds.length)
-      return toast.error("يرجى تحديد شعبة واحدة على الأقل");
+      return notify.error("يرجى تحديد شعبة واحدة على الأقل");
 
     const rows = batches.filter((b) => selectedIds.includes(b.id));
 
@@ -158,7 +159,7 @@ export default function BatchesPage() {
                 <td>${b.end_date}</td>
                 <td>${getStatusLabel(b)}</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -176,7 +177,7 @@ export default function BatchesPage() {
   // ===== Excel =====
   const handleExcel = () => {
     if (!selectedIds.length)
-      return toast.error("يرجى تحديد شعبة واحدة على الأقل");
+      return notify.error("يرجى تحديد شعبة واحدة على الأقل");
 
     const rows = batches.filter((b) => selectedIds.includes(b.id));
 
@@ -202,7 +203,7 @@ export default function BatchesPage() {
 
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_الشعب.xlsx"
+      "قائمة_الشعب.xlsx",
     );
   };
 

@@ -9,6 +9,7 @@ import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import PhoneInputEdit from "@/components/common/PhoneInputEdit";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 import { useUpdateTeacherMutation } from "@/store/services/teachersApi";
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
@@ -33,7 +34,6 @@ export default function EditTeacherModal({ isOpen, onClose, teacher }) {
     institute_branch_id: "",
   });
 
-  /* ✅ تعبئة البيانات كاملة */
   useEffect(() => {
     if (!isOpen || !teacher) return;
 
@@ -102,18 +102,16 @@ export default function EditTeacherModal({ isOpen, onClose, teacher }) {
             }}
           />
 
-          <FormInput
-            type="date"
+          <DatePickerSmart
             label="تاريخ التعيين"
             value={form.hire_date}
-            register={{
-              onChange: (e) => setForm({ ...form, hire_date: e.target.value }),
-            }}
+            onChange={(iso) => setForm({ ...form, hire_date: iso })}
+            placeholder="dd/mm/yyyy"
           />
 
           <SearchableSelect
             label="فرع المعهد"
-            value={form.institute_branch_id}
+            value={String(form.institute_branch_id || "")}
             options={branches.map((b, idx) => ({
               value: String(b.id),
               label: b.name,

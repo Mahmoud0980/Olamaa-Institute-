@@ -8,6 +8,7 @@ import { useForm, Controller } from "react-hook-form";
 import InputField from "@/components/common/InputField";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 import { useUpdateStudentMutation } from "@/store/services/studentsApi";
 import { useGetAcademicBranchesQuery } from "@/store/services/academicBranchesApi";
@@ -23,9 +24,14 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
   const [updateStudent, { isLoading }] = useUpdateStudentMutation();
 
   const form = useForm({ mode: "onTouched" });
-  const { register, control, reset, trigger, getValues } = form;
+  const {
+    register,
+    control,
+    reset,
+    getValues,
+    formState: { errors },
+  } = form;
 
-  /* ================= data ================= */
   const { data: branchesRes } = useGetAcademicBranchesQuery();
   const { data: institutesRes } = useGetInstituteBranchesQuery();
   const { data: citiesRes } = useGetCitiesQuery();
@@ -40,7 +46,6 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
   const buses = busesRes?.data || [];
   const knowWays = knowWaysRes?.data || [];
 
-  /* ================= empty values (يمسح القديم فوراً) ================= */
   const emptyValues = useMemo(
     () => ({
       first_name: "",
@@ -66,18 +71,13 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
     [],
   );
 
-  /* ================= init / prevent old flash ================= */
   useEffect(() => {
     if (!isOpen) return;
 
-    // ✅ كل فتح مودال: لا تعرض القيم القديمة أبداً
     setStep(1);
     setShowSpinner(true);
-
-    // ✅ امسح الفورم فوراً (حتى لو كان في طالب سابق)
     reset(emptyValues);
 
-    // ✅ إذا الطالب موجود حالياً (أو وصل مباشرة) حط قيمه
     if (student) {
       reset({
         first_name: student.first_name ?? "",
@@ -103,26 +103,20 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
         notes: student.notes ?? "",
       });
 
-      // ✅ طفي السبينر بعد ما تتطبّق القيم (سلاسة)
       const t = setTimeout(() => setShowSpinner(false), 150);
       return () => clearTimeout(t);
     }
-
-    // ✅ إذا لسه ما وصل student، خلي السبينر شغال
   }, [isOpen, student, reset, emptyValues]);
 
-  // ✅ كمان: لما يتغير student والمودال مفتوح (طالب جديد) شغّل السبينر وطبّق القيم
   useEffect(() => {
     if (!isOpen) return;
 
-    // إذا تغيّر الطالب ومو موجود، خليك على السبينر
     if (!student) {
       setShowSpinner(true);
       reset(emptyValues);
       return;
     }
 
-    // طالب جديد وصل → سبينر لحظي → reset لقيمه → طفي
     setShowSpinner(true);
 
     reset({
@@ -151,32 +145,11 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
 
     const t = setTimeout(() => setShowSpinner(false), 150);
     return () => clearTimeout(t);
-  }, [student?.id]); // ✅ المهم: يتفعّل فقط عند تغيير الطالب فعلياً
+  }, [student?.id, isOpen, reset, emptyValues, student]);
 
   if (!isOpen) return null;
 
-  /* ================= steps ================= */
   const handleNext = async () => {
-    const fieldsStep1 = [
-      "first_name",
-      "last_name",
-      "birth_place",
-      "date_of_birth",
-      "national_id",
-      "branch_id",
-      "institute_branch_id",
-    ];
-
-    const fieldsStep2 = ["enrollment_date", "start_attendance_date", "gender"];
-
-    const ok =
-      step === 1 ? await trigger(fieldsStep1) : await trigger(fieldsStep2);
-
-    if (!ok) {
-      notify.error("يرجى تعبئة جميع الحقول المطلوبة");
-      return;
-    }
-
     setStep((s) => Math.min(2, s + 1));
   };
 
@@ -194,13 +167,15 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
       const payload = {
         id: student.id,
 
-        first_name: v.first_name,
-        last_name: v.last_name,
-        birth_place: v.birth_place,
-        date_of_birth: v.date_of_birth,
-        national_id: v.national_id,
-        branch_id: Number(v.branch_id),
-        institute_branch_id: Number(v.institute_branch_id),
+        first_name: v.first_name || null,
+        last_name: v.last_name || null,
+        birth_place: v.birth_place || null,
+        date_of_birth: v.date_of_birth || null,
+        national_id: v.national_id || null,
+        branch_id: v.branch_id ? Number(v.branch_id) : null,
+        institute_branch_id: v.institute_branch_id
+          ? Number(v.institute_branch_id)
+          : null,
 
         enrollment_date: v.enrollment_date || null,
         start_attendance_date: v.start_attendance_date || null,
@@ -223,11 +198,9 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
     }
   };
 
-  /* ================= render ================= */
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex justify-start">
       <div className="w-[520px] bg-white h-full flex flex-col">
-        {/* ===== Header ===== */}
         <div className="flex items-center justify-between px-6 py-4">
           <h2 className="text-[#6F013F] font-semibold text-lg">
             تعديل بيانات الطالب
@@ -235,12 +208,12 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-700"
+            type="button"
           >
             <X />
           </button>
         </div>
 
-        {/* ===== Body ===== */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {showSpinner ? (
             <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -255,51 +228,61 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
                 <>
                   <InputField
                     label="اسم الطالب"
-                    required
-                    register={register("first_name", { required: true })}
+                    register={register("first_name")}
                   />
 
                   <InputField
                     label="كنية الطالب"
-                    required
-                    register={register("last_name", { required: true })}
+                    register={register("last_name")}
                   />
 
                   <InputField
                     label="مكان الولادة"
-                    required
-                    register={register("birth_place", { required: true })}
+                    register={register("birth_place")}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="date_of_birth"
+                    render={({ field }) => (
+                      <DatePickerSmart
+                        label="تاريخ الولادة"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="dd/mm/yyyy"
+                      />
+                    )}
                   />
 
                   <InputField
-                    label="تاريخ الولادة"
-                    type="date"
-                    required
-                    register={register("date_of_birth", { required: true })}
-                  />
-
-                  <InputField
-                    label="الرقم الوطني"
-                    required
+                    label="الرقم الوطني (اختياري)"
+                    type="text"
+                    placeholder="10 أرقام فقط"
                     register={register("national_id", {
-                      required: true,
-                      pattern: /^[0-9]{10}$/,
+                      setValueAs: (v) =>
+                        String(v ?? "")
+                          .replace(/\D/g, "")
+                          .slice(0, 10),
+                      validate: (v) => {
+                        const digits = String(v ?? "").replace(/\D/g, "");
+                        if (digits.length === 0) return true;
+                        return digits.length === 10 || "يجب إدخال 10 أرقام فقط";
+                      },
                       onChange: (e) => {
                         e.target.value = e.target.value
                           .replace(/\D/g, "")
                           .slice(0, 10);
                       },
                     })}
+                    error={form.formState.errors?.national_id?.message}
                   />
 
                   <Controller
                     control={control}
                     name="branch_id"
-                    rules={{ required: true }}
                     render={({ field }) => (
                       <SearchableSelect
                         label="الفرع الدراسي"
-                        required
                         value={field.value || ""}
                         onChange={field.onChange}
                         options={branches.map((b) => ({
@@ -315,11 +298,9 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
                   <Controller
                     control={control}
                     name="institute_branch_id"
-                    rules={{ required: true }}
                     render={({ field }) => (
                       <SearchableSelect
                         label="فرع المعهد"
-                        required
                         value={field.value || ""}
                         onChange={field.onChange}
                         options={institutes.map((i) => ({
@@ -336,23 +317,35 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
 
               {step === 2 && (
                 <>
-                  <InputField
-                    label="تاريخ التسجيل"
-                    type="date"
-                    required
-                    register={register("enrollment_date", { required: true })}
+                  <Controller
+                    control={control}
+                    name="enrollment_date"
+                    render={({ field }) => (
+                      <DatePickerSmart
+                        label="تاريخ التسجيل"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="dd/mm/yyyy"
+                      />
+                    )}
                   />
 
-                  <InputField
-                    label="تاريخ بدء الحضور"
-                    type="date"
-                    register={register("start_attendance_date")}
+                  <Controller
+                    control={control}
+                    name="start_attendance_date"
+                    render={({ field }) => (
+                      <DatePickerSmart
+                        label="تاريخ بدء الحضور"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="dd/mm/yyyy"
+                      />
+                    )}
                   />
 
                   <Controller
                     control={control}
                     name="gender"
-                    rules={{ required: true }}
                     render={({ field }) => (
                       <SearchableSelect
                         label="الجنس"
@@ -365,6 +358,11 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
                         placeholder="اختر الجنس"
                       />
                     )}
+                  />
+
+                  <InputField
+                    label="اسم المدرسة السابقة"
+                    register={register("previous_school_name")}
                   />
 
                   <Controller
@@ -455,7 +453,6 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
           )}
         </div>
 
-        {/* ===== Footer ===== */}
         <div className="px-6 py-4">
           <StepButtonsSmart
             step={step}
@@ -463,15 +460,13 @@ export default function EditStudentInfoModal({ isOpen, onClose, student }) {
             onBack={step === 1 ? onClose : handleBack}
             onNext={step === 2 ? handleSave : handleNext}
             loading={isLoading}
-            disabled={showSpinner} // ✅ اختياري: امنع ضغط أزرار أثناء التحميل
+            disabled={showSpinner}
           />
         </div>
       </div>
     </div>
   );
 }
-
-/* ================= UI PARTS ================= */
 
 function Spinner() {
   return (

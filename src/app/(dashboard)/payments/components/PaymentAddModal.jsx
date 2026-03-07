@@ -10,6 +10,7 @@ import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
 
 import { useGetInstituteBranchesQuery } from "@/store/services/instituteBranchesApi";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 function toNumOrNull(v) {
   if (v === "" || v === null || v === undefined) return null;
@@ -60,7 +61,7 @@ export default function PaymentAddModal({
       { value: "USD", label: "USD" },
       { value: "SYP", label: "SYP" },
     ],
-    []
+    [],
   );
 
   const emptyForm = useMemo(
@@ -78,7 +79,7 @@ export default function PaymentAddModal({
       description: "",
       reason: "",
     }),
-    [defaultInstituteBranchId]
+    [defaultInstituteBranchId],
   );
 
   const [form, setForm] = useState(emptyForm);
@@ -123,7 +124,7 @@ export default function PaymentAddModal({
           s.full_name ??
             s.fullName ??
             `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() ??
-            `طالب #${s.id}`
+            `طالب #${s.id}`,
         ).trim(),
       }))
       .filter((o) => o.label.length > 0);
@@ -140,7 +141,7 @@ export default function PaymentAddModal({
     }
 
     const current = safeStudents.find(
-      (s) => String(s?.id) === String(form.student_id)
+      (s) => String(s?.id) === String(form.student_id),
     );
     if (!current) {
       setForm((p) => ({ ...p, student_id: "" }));
@@ -148,7 +149,7 @@ export default function PaymentAddModal({
     }
 
     const currentBid = String(
-      current?.institute_branch_id ?? current?.institute_branch?.id ?? ""
+      current?.institute_branch_id ?? current?.institute_branch?.id ?? "",
     );
 
     if (currentBid && currentBid !== bid) {
@@ -291,14 +292,12 @@ export default function PaymentAddModal({
               allowClear
             />
 
-            <FormInput
+            <DatePickerSmart
               label="تاريخ الدفع"
               required
-              type="date"
               value={form.paid_date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, paid_date: e.target.value }))
-              }
+              onChange={(iso) => setForm((p) => ({ ...p, paid_date: iso }))}
+              placeholder="dd/mm/yyyy"
             />
 
             {form.currency === "USD" && (
