@@ -1,662 +1,3 @@
-// "use client";
-
-// import { useEffect, useMemo, useState } from "react";
-// import { X, Trash2, Pencil } from "lucide-react";
-// import { notify } from "@/lib/helpers/toastify";
-
-// import SearchableSelect from "@/components/common/SearchableSelect";
-// import InputField from "@/components/common/InputField";
-// import StepButtonsSmart from "@/components/common/StepButtonsSmart";
-// import PhoneInputSplit from "@/components/common/PhoneInputSplit";
-// import GradientButton from "@/components/common/GradientButton";
-
-// import {
-//   useAddContactMutation,
-//   useUpdateContactMutation,
-//   useDeleteContactMutation,
-// } from "@/store/services/contactsApi";
-
-// /* ================= constants ================= */
-// const TYPE_OPTIONS = [
-//   { key: "phone", value: "phone", label: "هاتف" },
-//   { key: "whatsapp", value: "whatsapp", label: "واتساب" },
-//   { key: "email", value: "email", label: "إيميل" },
-// ];
-
-// const TYPE_LABEL = {
-//   phone: "هاتف",
-//   whatsapp: "واتساب",
-//   email: "إيميل",
-// };
-
-// const clean = (v) => String(v ?? "").trim();
-
-// /* ===== split full phone to cc/pn ===== */
-// const splitFromFull = (full) => {
-//   const v = clean(full);
-//   if (!v) return { country_code: "", phone_number: "" };
-
-//   // +963981644243 => +963 / 981644243
-//   const m = v.match(/^(\+\d{1,4})(\d+)$/);
-//   if (m) return { country_code: m[1], phone_number: m[2] };
-
-//   // fallback
-//   const cc = v.startsWith("+") ? v.match(/^\+\d{1,4}/)?.[0] || "" : "";
-//   const pn = v.replace(cc, "").replace(/\D/g, "");
-//   return { country_code: cc, phone_number: pn };
-// };
-
-// const emptyDraft = (guardianId = "") => ({
-//   id: null,
-//   guardian_id: guardianId ? String(guardianId) : "",
-//   type: "",
-//   country_code: "",
-//   phone_number: "",
-//   full_phone_number: "",
-//   value: "",
-//   notes: "",
-//   is_primary: false,
-//   _isNew: true,
-// });
-
-// const toLocalContact = (c, guardianId) => ({
-//   id: c?.id ?? null,
-//   guardian_id: guardianId,
-//   type: c?.type ?? "",
-//   country_code: c?.country_code ?? "",
-//   phone_number: c?.phone_number ?? "",
-//   full_phone_number: c?.full_phone_number ?? "",
-//   value: c?.value ?? c?.address ?? "",
-//   notes: c?.notes ?? "",
-//   is_primary: !!c?.is_primary,
-//   _isNew: false,
-// });
-
-// // contact_details ممكن تكون Array أو {data:[...]}
-// const pickContacts = (guardian) => {
-//   const cd = guardian?.contact_details;
-//   if (Array.isArray(cd?.data)) return cd.data;
-//   if (Array.isArray(cd)) return cd;
-//   return [];
-// };
-
-// export default function EditContactsModal({ open, onClose, student, onSaved }) {
-//   const guardians = student?.family?.guardians || [];
-//   const father = guardians.find((g) => g.relationship === "father");
-//   const mother = guardians.find((g) => g.relationship === "mother");
-
-//   const [step, setStep] = useState(1);
-
-//   const [itemsFather, setItemsFather] = useState([]);
-//   const [itemsMother, setItemsMother] = useState([]);
-
-//   const [draftFather, setDraftFather] = useState(emptyDraft());
-//   const [draftMother, setDraftMother] = useState(emptyDraft());
-
-//   const [addContact, { isLoading: creating }] = useAddContactMutation();
-//   const [updateContact, { isLoading: updating }] = useUpdateContactMutation();
-//   const [deleteContact, { isLoading: deleting }] = useDeleteContactMutation();
-//   const isSaving = creating || updating || deleting;
-
-//   /* ================= init ================= */
-//   useEffect(() => {
-//     if (!open) return;
-
-//     setStep(1);
-
-//     const fatherContacts = father?.id ? pickContacts(father) : [];
-//     const motherContacts = mother?.id ? pickContacts(mother) : [];
-
-//     setItemsFather(
-//       father?.id ? fatherContacts.map((c) => toLocalContact(c, father.id)) : [],
-//     );
-//     setItemsMother(
-//       mother?.id ? motherContacts.map((c) => toLocalContact(c, mother.id)) : [],
-//     );
-
-//     setDraftFather(emptyDraft(father?.id));
-//     setDraftMother(emptyDraft(mother?.id));
-//   }, [open, father?.id, mother?.id]);
-
-//   /* ================= pick current ================= */
-//   const items = step === 1 ? itemsFather : itemsMother;
-//   const setItems = step === 1 ? setItemsFather : setItemsMother;
-
-//   const draft = step === 1 ? draftFather : draftMother;
-//   const setDraft = step === 1 ? setDraftFather : setDraftMother;
-
-//   const guardian = step === 1 ? father : mother;
-
-//   /* ================= UI helpers ================= */
-//   const guardianName = (gid) => {
-//     const g = guardians.find((x) => String(x?.id) === String(gid));
-//     if (!g) return `#${gid}`;
-//     const full =
-//       g?.full_name ||
-//       `${g?.first_name ?? ""} ${g?.last_name ?? ""}`.trim() ||
-//       `#${gid}`;
-//     const rel =
-//       g?.relationship === "father"
-//         ? "الأب"
-//         : g?.relationship === "mother"
-//           ? "الأم"
-//           : "";
-//     return rel ? `${rel} — ${full}` : full;
-//   };
-
-//   const displayPhone = (it) =>
-//     clean(it.full_phone_number) ||
-//     `${clean(it.country_code)} ${clean(it.phone_number)}`.trim() ||
-//     clean(it.value) ||
-//     "-";
-
-//   /* ================= derived (Primary phone) ================= */
-//   const hasPhonePrimary = useMemo(
-//     () => items.some((x) => x.type === "phone" && x.is_primary),
-//     [items],
-//   );
-
-//   const phonePrimaryOwner = useMemo(() => {
-//     const it = items.find((x) => x.type === "phone" && x.is_primary);
-//     return it?.guardian_id ? String(it.guardian_id) : null;
-//   }, [items]);
-
-//   const showPrimaryCheckbox =
-//     !!draft.type &&
-//     (draft.type === "whatsapp" ||
-//       (draft.type === "phone" &&
-//         (!hasPhonePrimary ||
-//           (draft.type === "phone" && draft.id && draft.is_primary))));
-
-//   const primaryHint =
-//     draft.type === "phone" && hasPhonePrimary && !draft.is_primary
-//       ? `هناك رقم هاتف أساسي محدد مسبقًا (${guardianName(
-//           phonePrimaryOwner,
-//         )}). لا يمكن تحديد رقم هاتف أساسي آخر.`
-//       : "";
-
-//   /* ================= validation ================= */
-//   const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(v));
-
-//   const canAdd = () => {
-//     if (!guardian?.id) return false;
-//     if (!draft.type) return false;
-
-//     if (clean(draft.notes).length > 200) return false;
-
-//     if (draft.type === "email") {
-//       const v = clean(draft.value);
-//       if (!v) return false;
-//       if (!isValidEmail(v)) return false;
-//       return true;
-//     }
-
-//     if (draft.type === "phone" || draft.type === "whatsapp") {
-//       if (!clean(draft.country_code)) return false;
-//       if (!clean(draft.phone_number)) return false;
-//       return true;
-//     }
-
-//     return false;
-//   };
-
-//   const normalizePhoneRow = (it) => {
-//     if (it.type !== "phone" && it.type !== "whatsapp") return it;
-
-//     const cc = clean(it.country_code);
-//     const pn = clean(it.phone_number);
-//     if (cc && pn) return it;
-
-//     const from = clean(it.full_phone_number) || clean(it.value);
-//     const sp = splitFromFull(from);
-
-//     const next = {
-//       ...it,
-//       country_code: cc || sp.country_code,
-//       phone_number: pn || sp.phone_number,
-//     };
-
-//     next.full_phone_number =
-//       clean(next.country_code) && clean(next.phone_number)
-//         ? `${clean(next.country_code)}${clean(next.phone_number)}`
-//         : clean(it.full_phone_number);
-
-//     // توافق: خلي value للواتساب/الهاتف هو الرقم
-//     next.value = clean(next.phone_number) || clean(next.value);
-
-//     return next;
-//   };
-
-//   const buildPayload = (row) => {
-//     const base = {
-//       guardian_id: Number(row.guardian_id),
-//       type: row.type,
-//       is_primary: !!row.is_primary,
-//       notes: clean(row.notes) || null,
-//     };
-
-//     if (row.type === "email") {
-//       const v = clean(row.value);
-//       return { ...base, value: v, address: v };
-//     }
-
-//     // phone / whatsapp
-//     const cc = clean(row.country_code);
-//     const pn = clean(row.phone_number);
-
-//     return {
-//       ...base,
-//       country_code: cc,
-//       phone_number: pn,
-//       value: pn, // swagger: whatsapp يحتاج value، phone كمان ما بتضر
-//     };
-//   };
-
-//   /* ================= actions ================= */
-//   const resetDraft = () => setDraft(emptyDraft(guardian?.id));
-
-//   const addOrUpdateItem = () => {
-//     if (!canAdd()) {
-//       notify.error("يرجى تعبئة الحقول المطلوبة بشكل صحيح", "تحقق من البيانات");
-//       return;
-//     }
-
-//     // منع phone primary مكرر
-//     const wantsPhonePrimary = draft.type === "phone" && !!draft.is_primary;
-//     if (wantsPhonePrimary) {
-//       const otherPrimary = items.find(
-//         (x) => x.type === "phone" && x.is_primary && x.id !== draft.id,
-//       );
-//       if (otherPrimary) {
-//         notify.error(
-//           "مسموح رقم هاتف واحد فقط كجهة اتصال أساسية (Primary)",
-//           "تنبيه",
-//         );
-//         return;
-//       }
-//     }
-
-//     let normalized = {
-//       id: draft.id ?? null,
-//       guardian_id: guardian?.id,
-//       type: draft.type,
-//       country_code: clean(draft.country_code),
-//       phone_number: clean(draft.phone_number),
-//       full_phone_number:
-//         clean(draft.country_code) && clean(draft.phone_number)
-//           ? `${clean(draft.country_code)}${clean(draft.phone_number)}`
-//           : "",
-//       value: clean(draft.value) || "",
-//       notes: clean(draft.notes) || "",
-//       is_primary: !!draft.is_primary,
-//       _isNew: !draft.id,
-//     };
-
-//     // توافق: value للواتساب/الهاتف
-//     if (normalized.type === "whatsapp" || normalized.type === "phone") {
-//       normalized.value = normalized.phone_number;
-//     }
-
-//     // تأكيد normalization (لو full موجود بس حقول ناقصة)
-//     normalized = normalizePhoneRow(normalized);
-//     setItems((prev) => {
-//       // تعديل محلي
-//       if (normalized.id) {
-//         return prev.map((x) => (x.id === normalized.id ? normalized : x));
-//       }
-
-//       // ✅ إضافة محلية فورية (حتى قبل الحفظ)
-//       return [...prev, { ...normalized, _cid: crypto.randomUUID() }];
-//     });
-
-//     resetDraft();
-//   };
-
-//   const editItem = (it) => {
-//     setDraft({
-//       id: it.id ?? null,
-//       guardian_id: String(it.guardian_id ?? guardian?.id ?? ""),
-//       type: it.type ?? "",
-//       country_code: it.country_code ?? "",
-//       phone_number: it.phone_number ?? "",
-//       full_phone_number: it.full_phone_number ?? "",
-//       value: it.value ?? "",
-//       notes: it.notes ?? "",
-//       is_primary: !!it.is_primary,
-//       _isNew: !it.id,
-//     });
-//   };
-
-//   const removeItem = async (it) => {
-//     try {
-//       if (it?.id) {
-//         await deleteContact(it.id).unwrap();
-//       }
-//       setItems((p) => p.filter((x) => (it?.id ? x.id !== it.id : x !== it)));
-//       notify.success("تم حذف وسيلة التواصل");
-//       if (draft?.id && it?.id && draft.id === it.id) resetDraft();
-//     } catch (e) {
-//       notify.error(e?.data?.message || "فشل الحذف");
-//     }
-//   };
-
-//   const validateRow = (it, whoLabel, idx) => {
-//     if (!it.type) return `(${whoLabel}) صف #${idx + 1}: نوع الاتصال مطلوب`;
-
-//     if (it.type === "email") {
-//       const v = clean(it.value);
-//       if (!v) return `(${whoLabel}) صف #${idx + 1}: البريد الإلكتروني مطلوب`;
-//       if (!isValidEmail(v))
-//         return `(${whoLabel}) صف #${idx + 1}: البريد الإلكتروني غير صحيح`;
-//       return "";
-//     }
-
-//     if (it.type === "phone" || it.type === "whatsapp") {
-//       const cc = clean(it.country_code);
-//       const pn = clean(it.phone_number);
-//       if (!cc || !pn) {
-//         return `(${whoLabel}) صف #${idx + 1}: رقم الهاتف مطلوب`;
-//       }
-//       return "";
-//     }
-
-//     return "";
-//   };
-
-//   const saveAllForGuardian = async (list, whoLabel) => {
-//     // Normalize أولاً
-//     const fixed = list.map(normalizePhoneRow);
-
-//     // تحقق Primary phone واحد فقط
-//     const primaries = fixed.filter((x) => x.type === "phone" && x.is_primary);
-//     if (primaries.length > 1) {
-//       throw new Error(`(${whoLabel}) مسموح رقم هاتف واحد فقط كـ Primary`);
-//     }
-
-//     // ✅ تجاهل الصفوف الناقصة بدل ما توقف الحفظ كله
-//     const validRows = [];
-//     for (let i = 0; i < fixed.length; i++) {
-//       const err = validateRow(fixed[i], whoLabel, i);
-//       if (err) {
-//         // إذا بدك توقف مباشرة بدل التجاهل، استبدل السطرين الجايين بـ: throw new Error(err)
-//         notify.error(err);
-//         continue;
-//       }
-//       validRows.push(fixed[i]);
-//     }
-
-//     // ما في صفوف صالحة
-//     if (!validRows.length) return;
-
-//     for (const it of validRows) {
-//       const payload = buildPayload(it);
-
-//       if (it.id) {
-//         setItems((prev) =>
-//           prev.map((x) => (x.id === it.id ? { ...x, ...it } : x)),
-//         );
-
-//         await updateContact({ id: it.id, ...payload }).unwrap();
-//       } else {
-//         const res = await addContact(payload).unwrap();
-
-//         // إذا السيرفر رجّع عنصر
-//         const created = res?.data;
-
-//         // ✅ بدّل العنصر المحلي الجديد (اللي ما معه id) بعنصر معه id
-//         if (created?.id) {
-//           setItems((prev) =>
-//             prev.map((x) =>
-//               x._cid === it._cid ? { ...x, id: created.id, _isNew: false } : x,
-//             ),
-//           );
-//         } else {
-//           // حتى لو السيرفر رجع nulls، على الأقل اعتبره محفوظ
-//           setItems((prev) =>
-//             prev.map((x) => (x._cid === it._cid ? { ...x, _isNew: false } : x)),
-//           );
-//         }
-//       }
-//     }
-//   };
-
-//   const handleSave = async () => {
-//     try {
-//       await saveAllForGuardian(itemsFather, "الأب");
-//       await saveAllForGuardian(itemsMother, "الأم");
-
-//       notify.success("تم حفظ معلومات التواصل");
-//       await onSaved?.(); // ✅ إذا onSaved refetch
-//       onClose?.();
-//     } catch (e) {
-//       notify.error(e?.message || e?.data?.message || "فشل الحفظ");
-//       console.error(e);
-//     }
-//   };
-
-//   /* ================= UI ================= */
-//   const title = step === 1 ? "معلومات تواصل الأب" : "معلومات تواصل الأم";
-
-//   return open ? (
-//     <div className="fixed inset-0 bg-black/40 z-50 flex justify-start">
-//       <div className="w-[520px] bg-white h-full flex flex-col">
-//         {/* Header */}
-//         <div className="flex items-center justify-between px-6 py-4">
-//           <div>
-//             <h2 className="text-[#6F013F] font-semibold">
-//               تعديل معلومات التواصل
-//             </h2>
-//             <p className="text-xs text-gray-500 mt-0.5">
-//               {student?.full_name ?? ""}
-//             </p>
-//           </div>
-//           <button
-//             onClick={onClose}
-//             className="text-gray-400 hover:text-gray-800"
-//           >
-//             <X />
-//           </button>
-//         </div>
-
-//         {/* Body */}
-//         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-//           <h3 className="text-[#6F013F] font-semibold text-sm">{title}</h3>
-
-//           {/* add/edit */}
-//           <div className="space-y-3 border border-gray-200 rounded-xl p-4">
-//             <p className="text-sm font-medium text-gray-700">
-//               {draft?.id ? "تعديل جهة تواصل" : "إضافة جهة تواصل"}
-//             </p>
-
-//             <SearchableSelect
-//               label="نوع جهة الاتصال"
-//               required
-//               value={draft.type}
-//               onChange={(v) =>
-//                 setDraft((d) => ({
-//                   ...d,
-//                   type: v,
-//                   country_code: "",
-//                   phone_number: "",
-//                   full_phone_number: "",
-//                   value: "",
-//                   notes: d.notes || "",
-//                   is_primary: false,
-//                 }))
-//               }
-//               options={TYPE_OPTIONS}
-//               placeholder="اختر النوع"
-//               allowClear
-//             />
-
-//             {(draft.type === "phone" || draft.type === "whatsapp") && (
-//               <PhoneInputSplit
-//                 label={draft.type === "whatsapp" ? "رقم واتساب" : "رقم الهاتف"}
-//                 countryCode={draft.country_code}
-//                 phoneNumber={draft.phone_number}
-//                 onChange={({ country_code, phone_number }) =>
-//                   setDraft((d) => ({
-//                     ...d,
-//                     country_code,
-//                     phone_number,
-//                     full_phone_number:
-//                       clean(country_code) && clean(phone_number)
-//                         ? `${clean(country_code)}${clean(phone_number)}`
-//                         : "",
-//                     value:
-//                       d.type === "whatsapp" || d.type === "phone"
-//                         ? phone_number
-//                         : d.value,
-//                   }))
-//                 }
-//               />
-//             )}
-
-//             {draft.type === "email" && (
-//               <InputField
-//                 label="البريد الإلكتروني"
-//                 required
-//                 type="email"
-//                 value={draft.value}
-//                 onChange={(e) =>
-//                   setDraft((d) => ({ ...d, value: e.target.value }))
-//                 }
-//               />
-//             )}
-
-//             <InputField
-//               label="ملاحظات (اختياري)"
-//               placeholder="200 محرف كحد أقصى"
-//               value={draft.notes}
-//               onChange={(e) => {
-//                 const v = e.target.value;
-//                 if (String(v).length > 200) return;
-//                 setDraft((d) => ({ ...d, notes: v }));
-//               }}
-//               error=""
-//             />
-
-//             {showPrimaryCheckbox ? (
-//               <label className="flex items-center gap-2 text-sm text-gray-700">
-//                 <input
-//                   type="checkbox"
-//                   className="accent-[#6F013F]"
-//                   checked={!!draft.is_primary}
-//                   onChange={(e) =>
-//                     setDraft((d) => ({ ...d, is_primary: e.target.checked }))
-//                   }
-//                 />
-//                 جهة الاتصال الأساسية (Primary)
-//               </label>
-//             ) : primaryHint ? (
-//               <div className="text-xs text-gray-500">{primaryHint}</div>
-//             ) : null}
-
-//             <div className="flex items-center gap-2 justify-end">
-//               {draft?.id ? (
-//                 <button
-//                   type="button"
-//                   onClick={resetDraft}
-//                   className="text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50"
-//                 >
-//                   إلغاء التعديل
-//                 </button>
-//               ) : null}
-
-//               <GradientButton
-//                 type="button"
-//                 onClick={addOrUpdateItem}
-//                 disabled={!canAdd()}
-//                 className="py-2"
-//               >
-//                 {draft?.id ? "تحديث" : "إضافة"}
-//               </GradientButton>
-//             </div>
-//           </div>
-
-//           {/* list */}
-//           <div className="space-y-2">
-//             {items.length === 0 ? (
-//               <p className="text-xs text-gray-500">لا يوجد بيانات تواصل.</p>
-//             ) : (
-//               items.map((it, idx) => (
-//                 <div
-//                   key={it.id ?? `new-${idx}`}
-//                   className="border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-3"
-//                 >
-//                   <div className="space-y-1">
-//                     <p className="text-sm font-medium text-gray-800">
-//                       {guardianName(it.guardian_id)}
-//                     </p>
-
-//                     <p className="text-xs text-gray-600">
-//                       النوع: {TYPE_LABEL[it.type] || it.type}
-//                     </p>
-
-//                     {it.type === "email" ? (
-//                       <p className="text-xs text-gray-600">
-//                         الإيميل: {it.value}
-//                       </p>
-//                     ) : (
-//                       <p className="text-xs text-gray-600">
-//                         الرقم: {displayPhone(it)}
-//                       </p>
-//                     )}
-
-//                     {it.notes ? (
-//                       <p className="text-xs text-gray-500">
-//                         ملاحظات: {it.notes}
-//                       </p>
-//                     ) : null}
-
-//                     {it.is_primary && (
-//                       <span className="inline-block mt-1 text-[11px] px-2 py-0.5 rounded-full bg-pink-100 text-[#6F013F]">
-//                         Primary
-//                       </span>
-//                     )}
-//                   </div>
-
-//                   <div className="flex items-center gap-2">
-//                     <button
-//                       type="button"
-//                       onClick={() => editItem(it)}
-//                       className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
-//                       title="تعديل"
-//                     >
-//                       <Pencil className="w-4 h-4" />
-//                     </button>
-
-//                     <button
-//                       type="button"
-//                       onClick={() => removeItem(it)}
-//                       className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
-//                       title="حذف"
-//                       disabled={isSaving}
-//                     >
-//                       <Trash2 className="w-4 h-4" />
-//                     </button>
-//                   </div>
-//                 </div>
-//               ))
-//             )}
-//           </div>
-//         </div>
-
-//         {/* Footer */}
-//         <div className="px-6 py-4">
-//           <StepButtonsSmart
-//             step={step}
-//             total={2}
-//             onBack={step === 1 ? onClose : () => setStep(1)}
-//             onNext={step === 2 ? handleSave : () => setStep(2)}
-//             submitLabel="حفظ"
-//             loading={isSaving}
-//           />
-//         </div>
-//       </div>
-//     </div>
-//   ) : null;
-// }
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -667,6 +8,7 @@ import SearchableSelect from "@/components/common/SearchableSelect";
 import InputField from "@/components/common/InputField";
 import PhoneInputSplit from "@/components/common/PhoneInputSplit";
 import GradientButton from "@/components/common/GradientButton";
+import Checkbox from "@/components/common/Checkbox";
 
 import {
   useAddContactMutation,
@@ -694,6 +36,22 @@ const OWNER_LABEL = {
   other: "أخرى",
   family: "العائلة / المنزل",
 };
+
+const SYRIA_CITY_CODES = [
+  { key: "011", value: "011", label: "011 - دمشق وريفها" },
+  { key: "021", value: "021", label: "021 - حلب" },
+  { key: "031", value: "031", label: "031 - حمص" },
+  { key: "033", value: "033", label: "033 - حماة" },
+  { key: "041", value: "041", label: "041 - اللاذقية" },
+  { key: "043", value: "043", label: "043 - طرطوس" },
+  { key: "015", value: "015", label: "015 - درعا" },
+  { key: "016", value: "016", label: "016 - السويداء" },
+  { key: "014", value: "014", label: "014 - القنيطرة" },
+  { key: "022", value: "022", label: "022 - الرقة" },
+  { key: "051", value: "051", label: "051 - دير الزور" },
+  { key: "052", value: "052", label: "052 - الحسكة" },
+  { key: "023", value: "023", label: "023 - إدلب" },
+];
 
 const FAMILY_BASED_OWNER_TYPES = new Set([
   "sibling",
@@ -793,10 +151,9 @@ const emptyDraft = () => ({
   owner_name: "",
   country_code: "",
   phone_number: "",
-  supports_call: true,
+  supports_call: false,
   supports_whatsapp: false,
   supports_sms: false,
-  is_primary: false,
   notes: "",
 });
 
@@ -834,7 +191,7 @@ const normalizeExistingContact = (contact, ctx) => {
       ? "landline"
       : rawType === "phone"
         ? "phone"
-        : "phone";
+        : "phone"; // map other legacy to phone if needed
 
   const split = splitFromFull(
     contact?.full_phone_number ||
@@ -874,41 +231,16 @@ const normalizeExistingContact = (contact, ctx) => {
     phone_number: clean(contact?.phone_number) || split.phone_number,
     supports_call:
       type === "landline"
-        ? true
-        : toBool(contact?.supports_call) ||
-          (!("supports_call" in (contact || {})) && type === "phone"),
+        ? false // landline defaults set in backend
+        : toBool(contact?.supports_call),
     supports_whatsapp:
       type === "landline" ? false : toBool(contact?.supports_whatsapp),
     supports_sms: type === "landline" ? false : toBool(contact?.supports_sms),
-    is_primary: type === "phone" ? toBool(contact?.is_primary) : false,
     notes: clean(contact?.notes),
     guardian_id: contact?.guardian_id ?? null,
     student_id: contact?.student_id ?? ctx.studentId ?? null,
     family_id: contact?.family_id ?? ctx.familyId ?? null,
   };
-};
-
-const getOwnerKey = (row, ctx) => {
-  const type = clean(row?.type);
-  const ownerType = type === "landline" ? "family" : clean(row?.owner_type);
-
-  if (type === "landline") return ctx.familyId ? `family:${ctx.familyId}` : "";
-  if (!ownerType) return "";
-
-  if (ownerType === "father" || ownerType === "mother") {
-    const gid = resolveGuardianIdByOwnerType(ownerType, ctx.father, ctx.mother);
-    return gid ? `guardian:${gid}` : "";
-  }
-
-  if (ownerType === "student") {
-    return ctx.studentId ? `student:${ctx.studentId}` : "";
-  }
-
-  if (FAMILY_BASED_OWNER_TYPES.has(ownerType)) {
-    return ctx.familyId ? `family:${ctx.familyId}` : "";
-  }
-
-  return "";
 };
 
 const validateRow = (row, ctx) => {
@@ -934,10 +266,6 @@ const validateRow = (row, ctx) => {
 
     if (!row?.supports_call && !row?.supports_whatsapp && !row?.supports_sms) {
       return "يجب تحديد استخدام واحد على الأقل للرقم (اتصال أو واتساب أو رسائل).";
-    }
-
-    if (row?.is_primary && !row?.supports_sms) {
-      return "الرقم الأساسي يعتمد على استقبال الرسائل، لذلك يجب تفعيل supports_sms.";
     }
 
     if (
@@ -981,7 +309,6 @@ const buildPayload = (row, ctx) => {
     payload.supports_call = !!row.supports_call;
     payload.supports_whatsapp = !!row.supports_whatsapp;
     payload.supports_sms = !!row.supports_sms;
-    payload.is_primary = !!row.is_primary;
 
     if (ownerType === "father" || ownerType === "mother") {
       const guardianId = resolveGuardianIdByOwnerType(
@@ -1001,7 +328,6 @@ const buildPayload = (row, ctx) => {
   if (type === "landline") {
     payload.owner_type = "family";
     payload.family_id = Number(ctx.familyId);
-    payload.is_primary = false;
 
     if (clean(row.country_code)) payload.country_code = clean(row.country_code);
     if (clean(row.owner_name)) payload.owner_name = clean(row.owner_name);
@@ -1022,7 +348,7 @@ const ownerDisplay = (row, ctx) => {
     return clean(ctx.studentName) ? `الطالب — ${ctx.studentName}` : "الطالب";
   }
 
-  if (ownerType === "family") {
+  if (ownerType === "family" || type === "landline") {
     return clean(row?.owner_name)
       ? `العائلة / المنزل — ${clean(row.owner_name)}`
       : "العائلة / المنزل";
@@ -1063,17 +389,16 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
   const familyId = student?.family_id ?? student?.family?.id ?? null;
   const studentName = clean(student?.full_name);
 
-  const ctx = useMemo(
-    () => ({
-      guardians,
-      father,
-      mother,
-      studentId,
-      familyId,
-      studentName,
-    }),
-    [guardians, father, mother, studentId, familyId, studentName],
-  );
+  // Re-declared without useMemo so it's fresh on every render.
+  // We MUST NOT pass this object into any useEffect dependencies to avoid infinite loops.
+  const ctx = {
+    guardians,
+    father,
+    mother,
+    studentId,
+    familyId,
+    studentName,
+  };
 
   const [items, setItems] = useState([]);
   const [deletedIds, setDeletedIds] = useState([]);
@@ -1095,7 +420,25 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
     setItems(collected);
     setDeletedIds([]);
     setDraft(emptyDraft());
-  }, [open, student, ctx]);
+  }, [
+    open,
+    student,
+    studentId,
+    familyId,
+    studentName,
+    // we purposefully omit complex objects like `guardians`, `father`, `mother` from deps to avoid infinite loop
+    // or stringify them if we absolutely needed to
+  ]);
+
+  /* check SMS constraint */
+  const hasSmsContact = useMemo(() => {
+    return items.some(
+      (x) =>
+        x.type === "phone" &&
+        x.supports_sms &&
+        localRowId(x) !== localRowId(draft),
+    );
+  }, [items, draft]);
 
   const ownerOptions = useMemo(
     () =>
@@ -1108,18 +451,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
       }),
     [draft.type, father, mother, studentId, familyId],
   );
-
-  const currentOwnerKey = useMemo(() => getOwnerKey(draft, ctx), [draft, ctx]);
-
-  const hasOtherPrimaryForCurrentOwner = useMemo(() => {
-    if (!currentOwnerKey) return false;
-
-    return items.some((x) => {
-      if (x.type !== "phone" || !x.is_primary) return false;
-      if (getOwnerKey(x, ctx) !== currentOwnerKey) return false;
-      return localRowId(x) !== localRowId(draft);
-    });
-  }, [items, currentOwnerKey, draft, ctx]);
 
   const resetDraft = () => setDraft(emptyDraft());
 
@@ -1135,7 +466,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
       supports_call: !!it.supports_call,
       supports_whatsapp: !!it.supports_whatsapp,
       supports_sms: !!it.supports_sms,
-      is_primary: !!it.is_primary,
       notes: it.notes ?? "",
     });
   };
@@ -1158,14 +488,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
 
     setItems((prev) => {
       let next = [...prev];
-
-      if (row.is_primary) {
-        const key = getOwnerKey(row, ctx);
-        next = next.map((it) =>
-          getOwnerKey(it, ctx) === key ? { ...it, is_primary: false } : it,
-        );
-      }
-
       const currentId = localRowId(row);
       const exists = next.some((it) => localRowId(it) === currentId);
 
@@ -1198,7 +520,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
       for (const it of items) {
         const err = validateRow(it, ctx);
         if (err) {
-          notify.error(err, "تحقق من البيانات");
+          notify.error(err, "تحقق من البيانات قبل الحفظ");
           return;
         }
       }
@@ -1265,7 +587,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
 
             <SearchableSelect
               label="نوع الرقم"
-              required
               value={draft.type}
               onChange={(v) =>
                 setDraft((d) => ({
@@ -1274,7 +595,10 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                   _cid: d._cid ?? null,
                   type: v,
                   owner_type: v === "landline" ? "family" : "",
-                  supports_call: v === "phone",
+                  country_code: v === "landline" ? "021" : "+963",
+                  supports_call: false,
+                  supports_whatsapp: false,
+                  supports_sms: false,
                   notes: d.notes || "",
                 }))
               }
@@ -1286,13 +610,11 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
             {draft.type ? (
               draft.type === "landline" ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  الهاتف الأرضي يُربط بالعائلة تلقائياً، والـ Backend سيجعل
-                  الاتصال مفعلاً ويمنع جعله رقماً أساسياً.
+                  الهاتف الأرضي يُربط بالعائلة تلقائياً
                 </div>
               ) : (
                 <SearchableSelect
                   label="مالك الرقم"
-                  required
                   value={draft.owner_type}
                   onChange={(v) =>
                     setDraft((d) => ({
@@ -1301,7 +623,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                       owner_name: FAMILY_BASED_OWNER_TYPES.has(v)
                         ? d.owner_name
                         : "",
-                      is_primary: false,
                     }))
                   }
                   options={ownerOptions}
@@ -1328,103 +649,84 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
               />
             ) : null}
 
-            {(draft.type === "phone" || draft.type === "landline") && (
+            {draft.type === "phone" ? (
               <PhoneInputSplit
-                label={
-                  draft.type === "landline" ? "رقم الهاتف الأرضي" : "رقم الهاتف"
-                }
                 countryCode={draft.country_code}
                 phoneNumber={draft.phone_number}
                 onChange={({ country_code, phone_number }) =>
                   setDraft((d) => ({ ...d, country_code, phone_number }))
                 }
               />
-            )}
-
-            {draft.type === "phone" ? (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">
-                  استخدامات الرقم
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="accent-[#6F013F]"
-                      checked={!!draft.supports_call}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          supports_call: e.target.checked,
-                        }))
-                      }
-                    />
-                    للاتصال
-                  </label>
-
-                  <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="accent-[#6F013F]"
-                      checked={!!draft.supports_whatsapp}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          supports_whatsapp: e.target.checked,
-                        }))
-                      }
-                    />
-                    للواتساب
-                  </label>
-
-                  <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="accent-[#6F013F]"
-                      checked={!!draft.supports_sms}
-                      onChange={(e) =>
-                        setDraft((d) => {
-                          const checked = e.target.checked;
-                          return {
-                            ...d,
-                            supports_sms: checked,
-                            is_primary: checked ? d.is_primary : false,
-                          };
-                        })
-                      }
-                    />
-                    للرسائل
-                  </label>
+            ) : draft.type === "landline" ? (
+              <div className="flex gap-2 items-start">
+                <div className="w-1/3">
+                  <SearchableSelect
+                    label="رمز المنطقة"
+                    value={draft.country_code}
+                    onChange={(v) =>
+                      setDraft((d) => ({ ...d, country_code: v }))
+                    }
+                    options={SYRIA_CITY_CODES}
+                    placeholder="مثل 011"
+                    allowClear
+                  />
+                </div>
+                <div className="w-2/3">
+                  <InputField
+                    label="رقم الهاتف الأرضي"
+                    placeholder="2134567"
+                    value={draft.phone_number}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, phone_number: e.target.value }))
+                    }
+                  />
                 </div>
               </div>
             ) : null}
 
             {draft.type === "phone" ? (
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    className="accent-[#6F013F]"
-                    checked={!!draft.is_primary}
-                    disabled={!draft.supports_sms}
+              <div className="border border-gray-100 bg-gray-50/50 p-3 rounded-lg space-y-2">
+                <p className="text-xs font-semibold text-gray-700">
+                  استخدامات الرقم (يجب تحديد خيار واحد على الأقل)
+                </p>
+                <div className="flex gap-4">
+                  <Checkbox
+                    label="اتصال"
+                    checked={draft.supports_call}
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, is_primary: e.target.checked }))
+                      setDraft((d) => ({
+                        ...d,
+                        supports_call: e.target.checked,
+                      }))
                     }
                   />
-                  الرقم الأساسي لهذا المالك
-                </label>
-
-                {!draft.supports_sms ? (
-                  <p className="text-xs text-gray-500">
-                    لا يمكن جعل الرقم أساسياً إلا إذا كان يستقبل رسائل SMS.
-                  </p>
-                ) : hasOtherPrimaryForCurrentOwner ? (
-                  <p className="text-xs text-gray-500">
-                    يوجد رقم أساسي آخر لهذا المالك، وسيتم استبداله محلياً عند
-                    الحفظ.
-                  </p>
-                ) : null}
+                  <Checkbox
+                    label="واتساب"
+                    checked={draft.supports_whatsapp}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        supports_whatsapp: e.target.checked,
+                      }))
+                    }
+                  />
+                  <Checkbox
+                    label={
+                      hasSmsContact
+                        ? "الرسائل النصية (مضاف رقم مسبقاً)"
+                        : "رسائل نصية (SMS)"
+                    }
+                    labelClassName={`text-xs ${hasSmsContact ? "text-gray-400" : "text-gray-700"}`}
+                    disabled={hasSmsContact}
+                    checked={draft.supports_sms}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        supports_sms: e.target.checked,
+                      }))
+                    }
+                  />
+                </div>
               </div>
             ) : null}
 
@@ -1447,7 +749,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                   onClick={resetDraft}
                   className="text-sm px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
                 >
-                  إلغاء التعديل
+                  إلغاء
                 </button>
               ) : null}
 
@@ -1457,12 +759,12 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                 disabled={!!validateRow(draft, ctx)}
                 className="py-2"
               >
-                {draft?.id || draft?._cid ? "تحديث" : "إضافة"}
+                {draft?.id || draft?._cid ? "تحديث الرقم" : "إضافة الرقم"}
               </GradientButton>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 pb-4">
             {items.length === 0 ? (
               <p className="text-xs text-gray-500">
                 لا يوجد وسائل تواصل حالياً.
@@ -1478,29 +780,31 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                       {ownerDisplay(it, ctx)}
                     </p>
 
-                    <div className="flex flex-wrap gap-2 text-[11px]">
-                      <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                        {TYPE_LABEL[it.type] || it.type}
+                    <p className="text-xs text-gray-600 flex items-center gap-2">
+                      <span>
+                        النوع: {it.type === "landline" ? "أرضي" : "محمول"}
                       </span>
-
-                      {usageBadges(it).map((b) => (
-                        <span
-                          key={b}
-                          className="px-2 py-0.5 rounded-full bg-purple-50 text-[#6F013F]"
-                        >
-                          {b}
+                      {it.type === "phone" && (
+                        <span className="flex gap-1">
+                          [{it.supports_call ? "اتصال" : ""}
+                          {it.supports_call &&
+                          (it.supports_whatsapp || it.supports_sms)
+                            ? " | "
+                            : ""}
+                          {it.supports_whatsapp ? "واتساب" : ""}
+                          {it.supports_whatsapp && it.supports_sms ? " | " : ""}
+                          {it.supports_sms ? "رسائل" : ""}]
                         </span>
-                      ))}
+                      )}
+                    </p>
 
-                      {it.is_primary ? (
-                        <span className="px-2 py-0.5 rounded-full bg-pink-100 text-[#6F013F]">
-                          Primary
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <p className="text-xs text-gray-600">
-                      الرقم: {clean(it.country_code)} {clean(it.phone_number)}
+                    <p
+                      className="text-xs text-gray-600"
+                      dir="ltr"
+                      style={{ textAlign: "right" }}
+                    >
+                      {it.country_code ? `${it.country_code} ` : ""}
+                      {it.phone_number}
                     </p>
 
                     {it.notes ? (
@@ -1514,7 +818,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                     <button
                       type="button"
                       onClick={() => editItem(it)}
-                      className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50"
+                      className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
                       title="تعديل"
                     >
                       <Pencil className="w-4 h-4" />
@@ -1523,7 +827,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                     <button
                       type="button"
                       onClick={() => removeItem(it)}
-                      className="p-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
                       title="حذف"
                       disabled={isSaving}
                     >

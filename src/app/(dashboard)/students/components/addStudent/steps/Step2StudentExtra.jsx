@@ -59,12 +59,12 @@ export default function Step2StudentExtra({
           <Controller
             control={control}
             name="enrollment_date"
-            rules={{ required: "تاريخ التسجيل مطلوب" }}
+            // rules={{ required: "تاريخ التسجيل مطلوب" }}
             render={({ field }) => (
               <div className="space-y-1">
                 <DatePickerSmart
                   label="تاريخ التسجيل"
-                  required
+                  //  required
                   value={field.value || ""}
                   onChange={(iso) => field.onChange(iso || "")}
                   format="DD/MM/YYYY"

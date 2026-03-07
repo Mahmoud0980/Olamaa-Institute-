@@ -61,9 +61,15 @@ export default function PhoneInputSplit({
   const handleNumberChange = (e) => {
     let val = e.target.value.replace(/\D/g, "");
 
-    // ✅ مسموح فقط بداية 9 أو 09
-    if (val.length > 0) {
-      if (!(val.startsWith("9") || val.startsWith("09"))) {
+    // ✅ السماح فقط بأرقام تبدأ بـ 9 أو 09 بشكل تدريجي
+    if (val.length >= 1) {
+      if (val[0] !== "0" && val[0] !== "9") {
+        return;
+      }
+    }
+
+    if (val.length >= 2) {
+      if (val[0] === "0" && val[1] !== "9") {
         return;
       }
     }
