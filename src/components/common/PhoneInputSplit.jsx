@@ -31,7 +31,7 @@ export default function PhoneInputSplit({
     });
   }, []);
 
-  /* ===== 🔴 SYNC FROM PROPS (الحل الأساسي) ===== */
+  /* ===== SYNC FROM PROPS ===== */
   useEffect(() => {
     if (phoneNumber !== undefined) {
       setLocalNumber(phoneNumber || "");
@@ -60,6 +60,14 @@ export default function PhoneInputSplit({
   /* ===== handlers ===== */
   const handleNumberChange = (e) => {
     let val = e.target.value.replace(/\D/g, "");
+
+    // ✅ مسموح فقط بداية 9 أو 09
+    if (val.length > 0) {
+      if (!(val.startsWith("9") || val.startsWith("09"))) {
+        return;
+      }
+    }
+
     if (val.length > maxLen) val = val.slice(0, maxLen);
 
     setLocalNumber(val);

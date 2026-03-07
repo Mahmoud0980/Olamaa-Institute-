@@ -570,6 +570,8 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
 
               {step === 5 && (
                 <Step5Contacts
+                  studentId={studentId}
+                  familyId={familyId}
                   guardians={guardians}
                   existingContacts={existingContacts}
                   onSaveAll={handleSaveContacts}

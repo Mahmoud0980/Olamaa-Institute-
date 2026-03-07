@@ -18,6 +18,8 @@ import PaymentsTable from "./components/PaymentsTable";
 import PaymentsTableSkeleton from "./components/PaymentsTableSkeleton";
 import PaymentAddModal from "./components/PaymentAddModal";
 import PaymentDetailsModal from "./components/PaymentDetailsModal";
+import PaymentInstallmentAddModal from "./components/PaymentInstallmentAddModal";
+import PaymentInstallmentsTable from "./components/PaymentInstallmentsTable";
 
 import { useGetBatchesQuery } from "@/store/services/batchesApi";
 import { useGetStudentsDetailsQuery } from "@/store/services/studentsApi";
@@ -30,6 +32,16 @@ import {
   useUpdatePaymentMutation,
   useDeletePaymentMutation,
 } from "@/store/services/paymentsApi";
+
+import {
+  useGetPaymentInstallmentsQuery,
+  useGetPaymentInstallmentByIdQuery,
+  useAddPaymentInstallmentMutation,
+  useUpdatePaymentInstallmentMutation,
+  useDeletePaymentInstallmentMutation,
+} from "@/store/services/paymentInstallmentsApi";
+
+/* ================= Helpers ================= */
 
 function esc(s) {
   return String(s ?? "")
@@ -47,22 +59,28 @@ function normalizeArray(res) {
 
 function normalizeObject(res) {
   if (res?.data && typeof res.data === "object") return res.data;
-  if (typeof res === "object") return res;
+  if (typeof res === "object" && res !== null) return res;
   return null;
 }
 
-const rowId = (r) =>
+const paymentRowId = (r) =>
   String(
     r?.payment_id ??
       r?.id ??
-      r?.installment_id ?? // ✅ للـ late mode
-      `${r?.student_id ?? "s"}-${r?.paid_date ?? r?.due_date ?? "d"}`
+      r?.installment_id ??
+      `${r?.student_id ?? "s"}-${r?.paid_date ?? r?.due_date ?? "d"}`,
   );
 
-// رح يجيب تفاصيل الدفعة للتعديل عبر useGetPaymentByIdQuery
+const installmentRowId = (r) =>
+  String(
+    r?.id ??
+      r?.installment_id ??
+      `${r?.enrollment_contract_id ?? "c"}-${r?.installment_number ?? "n"}-${
+        r?.due_date ?? "d"
+      }`,
+  );
 
-const moneyLabel = (r) => {
-  // ✅ late mode amount
+const paymentMoneyLabel = (r) => {
   if (
     r?.amount !== undefined &&
     r?.amount !== null &&
@@ -91,32 +109,77 @@ const moneyLabel = (r) => {
   return "—";
 };
 
+const installmentMoneyLabel = (r) => {
+  const usd =
+    r?.planned_amount_usd ?? r?.amount_usd ?? r?.plannedUsd ?? r?.amountUsd;
+  const syp =
+    r?.planned_amount_syp ?? r?.amount_syp ?? r?.plannedSyp ?? r?.amountSyp;
+
+  if (usd && syp) return `${usd}$ / ${syp} ل.س`;
+  if (usd) return `${usd}$`;
+  if (syp) return `${syp} ل.س`;
+  return "—";
+};
+
+const installmentStatusLabel = (status) => {
+  const s = String(status || "").toLowerCase();
+  if (s === "paid") return "مدفوع";
+  if (s === "overdue") return "متأخر";
+  if (s === "pending") return "معلّق";
+  return status || "—";
+};
+
 export default function PaymentsPage() {
-  const [mode, setMode] = useState("latest");
+  const [viewType, setViewType] = useState("payments"); // payments | installments
+  const [mode, setMode] = useState("latest"); // latest | late (only for payments)
   const [pendingMap, setPendingMap] = useState({});
+
   const search = useSelector((s) => s.search.values.payments || "");
   const branchId = useSelector((s) => s.search.values.branch || "");
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const { data: studentsRes } = useGetStudentsDetailsQuery();
   const students = useMemo(() => normalizeArray(studentsRes), [studentsRes]);
 
   const { data: batchesRes } = useGetBatchesQuery();
+  const batches = useMemo(() => normalizeArray(batchesRes), [batchesRes]);
+
+  /* ================= Payments Queries ================= */
 
   const { data: latestRes, isLoading: loadingLatest } =
-    useGetLatestPaymentsPerStudentQuery();
+    useGetLatestPaymentsPerStudentQuery(undefined, {
+      skip: viewType !== "payments",
+    });
 
   const { data: lateRes, isLoading: loadingLate } =
-    useGetStudentLatePaymentsQuery();
+    useGetStudentLatePaymentsQuery(undefined, {
+      skip: viewType !== "payments",
+    });
 
-  const loading = mode === "latest" ? loadingLatest : loadingLate;
+  /* ================= Installments Queries ================= */
 
-  const rows = useMemo(() => {
+  const { data: installmentsRes, isLoading: loadingInstallments } =
+    useGetPaymentInstallmentsQuery(undefined, {
+      skip: viewType !== "installments",
+    });
+
+  /* ================= Loading ================= */
+
+  const loading =
+    viewType === "payments"
+      ? mode === "latest"
+        ? loadingLatest
+        : loadingLate
+      : loadingInstallments;
+
+  /* ================= Payments Rows ================= */
+
+  const paymentRows = useMemo(() => {
     const q = search.toLowerCase().trim();
 
-    // ===== latest mode =====
     if (mode === "latest") {
       const base = normalizeArray(latestRes);
 
@@ -125,12 +188,20 @@ export default function PaymentsPage() {
           .toLowerCase()
           .trim();
 
-        const matchSearch = !q || fullName.includes(q);
+        const matchSearch =
+          !q ||
+          fullName.includes(q) ||
+          String(r?.receipt_number ?? r?.payment_id ?? "")
+            .toLowerCase()
+            .includes(q);
+
         const matchStudent =
           !selectedStudentId ||
           String(r.student_id) === String(selectedStudentId);
+
         const matchBatch =
           !selectedBatchId || String(r.batch_id) === String(selectedBatchId);
+
         const matchBranch =
           !branchId || String(r.institute_branch_id) === String(branchId);
 
@@ -138,7 +209,6 @@ export default function PaymentsPage() {
       });
     }
 
-    // ===== late mode (API: student_name + late_installments[]) =====
     const baseLate = normalizeArray(lateRes);
 
     const flattened = baseLate.flatMap((s) => {
@@ -152,13 +222,10 @@ export default function PaymentsPage() {
       return installments.map((inst) => ({
         student_id: studentId,
         installment_id: inst?.installment_id,
-
         student_name: studentName,
         due_date: inst?.due_date,
         amount: inst?.amount,
         status: inst?.status,
-
-        // optional for filters if exist in response
         batch_id: s?.batch_id,
         institute_branch_id: s?.institute_branch_id,
       }));
@@ -169,12 +236,20 @@ export default function PaymentsPage() {
         .toLowerCase()
         .trim();
 
-      const matchSearch = !q || fullName.includes(q);
+      const matchSearch =
+        !q ||
+        fullName.includes(q) ||
+        String(r?.installment_id ?? "")
+          .toLowerCase()
+          .includes(q);
+
       const matchStudent =
         !selectedStudentId ||
         String(r.student_id) === String(selectedStudentId);
+
       const matchBatch =
         !selectedBatchId || String(r.batch_id) === String(selectedBatchId);
+
       const matchBranch =
         !branchId || String(r.institute_branch_id) === String(branchId);
 
@@ -190,8 +265,57 @@ export default function PaymentsPage() {
     branchId,
   ]);
 
-  const [selectedIds, setSelectedIds] = useState([]);
+  /* ================= Installments Rows ================= */
+
+  const installmentRows = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const base = normalizeArray(installmentsRes);
+
+    return base.filter((r) => {
+      const matchSearch =
+        !q ||
+        String(r?.enrollment_contract_id ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r?.installment_number ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(r?.status ?? "")
+          .toLowerCase()
+          .includes(q);
+
+      const matchStudent =
+        !selectedStudentId ||
+        String(r?.student_id ?? r?.student?.id ?? "") ===
+          String(selectedStudentId);
+
+      const matchBatch =
+        !selectedBatchId ||
+        String(r?.batch_id ?? r?.student?.batch_id ?? "") ===
+          String(selectedBatchId);
+
+      const matchBranch =
+        !branchId ||
+        String(
+          r?.institute_branch_id ?? r?.student?.institute_branch_id ?? "",
+        ) === String(branchId);
+
+      return matchSearch && matchStudent && matchBatch && matchBranch;
+    });
+  }, [installmentsRes, search, selectedStudentId, selectedBatchId, branchId]);
+
+  const rows = viewType === "payments" ? paymentRows : installmentRows;
+  const currentRowId =
+    viewType === "payments" ? paymentRowId : installmentRowId;
+
   const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [viewType, mode, search, selectedStudentId, selectedBatchId, branchId]);
+
+  /* ================= Pending Helpers ================= */
+
   const markPending = (paymentId, type) => {
     if (!paymentId) return;
     setPendingMap((p) => ({
@@ -208,13 +332,27 @@ export default function PaymentsPage() {
       return copy;
     });
   };
-  useEffect(() => {
-    setSelectedIds([]);
-  }, [mode, search, selectedStudentId, selectedBatchId, branchId]);
 
-  const [addPayment, { isLoading: adding }] = useAddPaymentMutation();
-  const [updatePayment, { isLoading: updating }] = useUpdatePaymentMutation();
-  const [deletePayment, { isLoading: deleting }] = useDeletePaymentMutation();
+  /* ================= Payments Mutations ================= */
+
+  const [addPayment, { isLoading: addingPayment }] = useAddPaymentMutation();
+  const [updatePayment, { isLoading: updatingPayment }] =
+    useUpdatePaymentMutation();
+  const [deletePayment, { isLoading: deletingPayment }] =
+    useDeletePaymentMutation();
+
+  /* ================= Installments Mutations ================= */
+
+  const [addInstallment, { isLoading: addingInstallment }] =
+    useAddPaymentInstallmentMutation();
+
+  const [updateInstallment, { isLoading: updatingInstallment }] =
+    useUpdatePaymentInstallmentMutation();
+
+  const [deleteInstallment, { isLoading: deletingInstallment }] =
+    useDeletePaymentInstallmentMutation();
+
+  /* ================= Active Payment ================= */
 
   const [activePaymentId, setActivePaymentId] = useState(null);
   const [activeStudentId, setActiveStudentId] = useState(null);
@@ -226,12 +364,42 @@ export default function PaymentsPage() {
 
   const activePayment = useMemo(
     () => normalizeObject(paymentDetailsRes),
-    [paymentDetailsRes]
+    [paymentDetailsRes],
   );
 
+  /* ================= Active Installment ================= */
+
+  const [activeInstallmentId, setActiveInstallmentId] = useState(null);
+
+  const { data: installmentDetailsRes } = useGetPaymentInstallmentByIdQuery(
+    activeInstallmentId,
+    {
+      skip: !activeInstallmentId,
+    },
+  );
+
+  const activeInstallment = useMemo(
+    () => normalizeObject(installmentDetailsRes),
+    [installmentDetailsRes],
+  );
+
+  /* ================= Modals ================= */
+
   const [openAdd, setOpenAdd] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
+
+  const [openPaymentEdit, setOpenPaymentEdit] = useState(false);
+  const [openInstallmentEdit, setOpenInstallmentEdit] = useState(false);
+
   const [openDetails, setOpenDetails] = useState(false);
+
+  const [openDeletePayment, setOpenDeletePayment] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+
+  const [openDeleteInstallment, setOpenDeleteInstallment] = useState(false);
+  const [installmentToDelete, setInstallmentToDelete] = useState(null);
+
+  /* ================= Payment Handlers ================= */
+
   const editFromDetails = (row) => {
     const id = row?.id ?? row?.payment_id;
     if (!id) {
@@ -239,19 +407,15 @@ export default function PaymentsPage() {
       return;
     }
 
-    setActivePaymentId(id); // ✅ هيك صح
-    setOpenDetails(false); // ✅ سكّر التفاصيل
-    setOpenEdit(true); // ✅ افتح مودال التعديل
+    setActivePaymentId(id);
+    setOpenDetails(false);
+    setOpenPaymentEdit(true);
   };
-
-  const [openDelete, setOpenDelete] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState(null);
 
   const handleViewDetails = (row) => {
     setActiveRow(row);
     setActiveStudentId(row.student_id);
 
-    // ✅ في late mode ما في payment_id عادة
     const id = row.payment_id ?? row.id;
     if (!id) {
       notify.error("لا يوجد معرف دفعة لعرض التفاصيل");
@@ -262,22 +426,22 @@ export default function PaymentsPage() {
     setOpenDetails(true);
   };
 
-  const handleEdit = (row) => {
+  const handleEditPayment = (row) => {
     const id = row.payment_id ?? row.id;
     if (!id) {
       notify.error("لا يوجد معرف دفعة للتعديل");
       return;
     }
     setActivePaymentId(id);
-    setOpenEdit(true);
+    setOpenPaymentEdit(true);
   };
 
-  const handleDelete = (row) => {
+  const handleDeletePayment = (row) => {
     setPaymentToDelete(row);
-    setOpenDelete(true);
+    setOpenDeletePayment(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDeletePayment = async () => {
     try {
       const idToDelete = paymentToDelete?.payment_id ?? paymentToDelete?.id;
       if (!idToDelete) return notify.error("لا يوجد معرف للدفعة");
@@ -300,7 +464,7 @@ export default function PaymentsPage() {
         clearPending(idToDelete);
       }
 
-      setOpenDelete(false);
+      setOpenDeletePayment(false);
       setPaymentToDelete(null);
     } catch (e) {
       notify.error(e?.data?.message || "فشل حذف الدفعة");
@@ -321,10 +485,9 @@ export default function PaymentsPage() {
         String(res?.message || "").includes("تم إرسال طلب");
 
       if (isPending) {
-        markPending(id, "delete"); // ✅ يبين معلّق بالجدول
-        // ✅ خليه يضل فاتح تفاصيل الطالب إذا بدك، بس أنت سكرتو.. تمام
+        markPending(id, "delete");
       } else {
-        clearPending(id); // ✅ admin حذف فعلي
+        clearPending(id);
       }
 
       setOpenDetails(false);
@@ -335,58 +498,145 @@ export default function PaymentsPage() {
     }
   };
 
+  /* ================= Installment Handlers ================= */
+
+  const handleEditInstallment = (row) => {
+    const id = row?.id ?? row?.installment_id;
+    if (!id) {
+      notify.error("لا يوجد معرف للقسط للتعديل");
+      return;
+    }
+
+    setActiveInstallmentId(id);
+    setOpenInstallmentEdit(true);
+  };
+
+  const handleDeleteInstallment = (row) => {
+    setInstallmentToDelete(row);
+    setOpenDeleteInstallment(true);
+  };
+
+  const confirmDeleteInstallment = async () => {
+    try {
+      const id = installmentToDelete?.id ?? installmentToDelete?.installment_id;
+      if (!id) {
+        notify.error("لا يوجد معرف للقسط");
+        return;
+      }
+
+      const res = await deleteInstallment(id).unwrap();
+      notify.success(res?.message || "تم حذف القسط");
+
+      setOpenDeleteInstallment(false);
+      setInstallmentToDelete(null);
+    } catch (e) {
+      notify.error(e?.data?.message || "فشل حذف القسط");
+    }
+  };
+
+  /* ================= Print ================= */
+
   const handlePrint = () => {
     if (!selectedIds.length) {
       notify.error("يرجى تحديد عنصر واحد على الأقل");
       return;
     }
 
-    const selectedRows = rows.filter((r) => selectedIds.includes(rowId(r)));
+    const selectedRows = rows.filter((r) =>
+      selectedIds.includes(currentRowId(r)),
+    );
 
-    const html = `
-      <html dir="rtl">
-        <head>
-          <style>
-            body{font-family:Arial;padding:20px}
-            table{width:100%;border-collapse:collapse;font-size:12px}
-            th,td{border:1px solid #ccc;padding:6px;text-align:right}
-            th{background:#fbeaf3}
-          </style>
-        </head>
-        <body>
-          <h3>${
-            mode === "latest" ? "دفعات الطلاب" : "الطلاب المتأخرين في الدفع"
-          }</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>الاسم</th>
-                <th>الكنية</th>
-                <th>المبلغ</th>
-                <th>التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${selectedRows
-                .map(
-                  (r, i) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${esc(
-                      mode === "late" ? r.student_name : r.first_name
-                    )}</td>
-                    <td>${esc(mode === "late" ? "—" : r.last_name)}</td>
-                    <td>${esc(moneyLabel(r))}</td>
-                    <td>${esc(r.paid_date ?? r.due_date ?? "—")}</td>
-                  </tr>`
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+    let html = "";
+
+    if (viewType === "payments") {
+      html = `
+        <html dir="rtl">
+          <head>
+            <style>
+              body{font-family:Arial;padding:20px}
+              table{width:100%;border-collapse:collapse;font-size:12px}
+              th,td{border:1px solid #ccc;padding:6px;text-align:right}
+              th{background:#fbeaf3}
+            </style>
+          </head>
+          <body>
+            <h3>${
+              mode === "latest" ? "دفعات الطلاب" : "الطلاب المتأخرين في الدفع"
+            }</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الاسم</th>
+                  <th>الكنية</th>
+                  <th>المبلغ</th>
+                  <th>التاريخ</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${selectedRows
+                  .map(
+                    (r, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>${esc(
+                        mode === "late" ? r.student_name : r.first_name,
+                      )}</td>
+                      <td>${esc(mode === "late" ? "—" : r.last_name)}</td>
+                      <td>${esc(paymentMoneyLabel(r))}</td>
+                      <td>${esc(r.paid_date ?? r.due_date ?? "—")}</td>
+                    </tr>`,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+    } else {
+      html = `
+        <html dir="rtl">
+          <head>
+            <style>
+              body{font-family:Arial;padding:20px}
+              table{width:100%;border-collapse:collapse;font-size:12px}
+              th,td{border:1px solid #ccc;padding:6px;text-align:right}
+              th{background:#fbeaf3}
+            </style>
+          </head>
+          <body>
+            <h3>الأقساط</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>رقم العقد</th>
+                  <th>رقم القسط</th>
+                  <th>المبلغ</th>
+                  <th>تاريخ الاستحقاق</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${selectedRows
+                  .map(
+                    (r, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>${esc(r.enrollment_contract_id ?? "—")}</td>
+                      <td>${esc(r.installment_number ?? "—")}</td>
+                      <td>${esc(installmentMoneyLabel(r))}</td>
+                      <td>${esc(r.due_date ?? "—")}</td>
+                      <td>${esc(installmentStatusLabel(r.status))}</td>
+                    </tr>`,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+    }
 
     const w = window.open("", "", "width=900,height=700");
     if (!w) return;
@@ -395,38 +645,58 @@ export default function PaymentsPage() {
     w.print();
   };
 
+  /* ================= Excel ================= */
+
   const handleExcel = () => {
     if (!selectedIds.length) {
       notify.error("يرجى تحديد عنصر واحد على الأقل");
       return;
     }
 
-    const data = rows
-      .filter((r) => selectedIds.includes(rowId(r)))
-      .map((r) => ({
-        الاسم: mode === "late" ? r.student_name : r.first_name,
-        الكنية: mode === "late" ? "—" : r.last_name,
-        المبلغ: moneyLabel(r),
-        التاريخ: r.paid_date ?? r.due_date,
-      }));
+    const selectedRows = rows.filter((r) =>
+      selectedIds.includes(currentRowId(r)),
+    );
+
+    const data =
+      viewType === "payments"
+        ? selectedRows.map((r) => ({
+            الاسم: mode === "late" ? r.student_name : r.first_name,
+            الكنية: mode === "late" ? "—" : r.last_name,
+            المبلغ: paymentMoneyLabel(r),
+            التاريخ: r.paid_date ?? r.due_date ?? "—",
+          }))
+        : selectedRows.map((r) => ({
+            "رقم العقد": r.enrollment_contract_id ?? "—",
+            "رقم القسط": r.installment_number ?? "—",
+            المبلغ: installmentMoneyLabel(r),
+            "تاريخ الاستحقاق": r.due_date ?? "—",
+            الحالة: installmentStatusLabel(r.status),
+          }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Payments");
+    XLSX.utils.book_append_sheet(
+      wb,
+      ws,
+      viewType === "payments" ? "Payments" : "Installments",
+    );
 
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([buf]), "payments.xlsx");
+    saveAs(
+      new Blob([buf]),
+      viewType === "payments" ? "payments.xlsx" : "installments.xlsx",
+    );
     notify.success("تم تصدير الإكسل");
   };
 
-  const submitAdd = async (payload) => {
+  /* ================= Add ================= */
+
+  const submitAddPayment = async (payload) => {
     try {
       await addPayment(payload).unwrap();
       notify.success("تمت إضافة الدفعة");
       setOpenAdd(false);
     } catch (err) {
-      console.log("ADD PAYMENT ERROR:", err);
-
       const msg =
         err?.data?.message ||
         err?.data?.error ||
@@ -441,7 +711,29 @@ export default function PaymentsPage() {
     }
   };
 
-  const submitEdit = async (payload) => {
+  const submitAddInstallment = async (payload) => {
+    try {
+      await addInstallment(payload).unwrap();
+      notify.success("تمت إضافة القسط");
+      setOpenAdd(false);
+    } catch (err) {
+      const msg =
+        err?.data?.message ||
+        err?.data?.error ||
+        (typeof err?.data === "string" ? err.data : null) ||
+        "فشل إضافة القسط";
+
+      const details = err?.data?.errors
+        ? Object.values(err.data.errors).flat().join(" - ")
+        : null;
+
+      notify.error(details ? `${msg}: ${details}` : msg);
+    }
+  };
+
+  /* ================= Edit ================= */
+
+  const submitEditPayment = async (payload) => {
     try {
       const res = await updatePayment({
         id: activePaymentId,
@@ -450,7 +742,6 @@ export default function PaymentsPage() {
 
       notify.success(res?.message || "تم إرسال الطلب");
 
-      // ✅ إذا مو admin بيرجع pending (حسب كلامك)
       const isPending =
         res?.data?.status === "pending" ||
         String(res?.message || "").includes("ينتظر موافقة");
@@ -458,13 +749,26 @@ export default function PaymentsPage() {
       if (isPending) {
         markPending(activePaymentId, "edit");
       } else {
-        // admin: تعديل فوري -> شيل أي pending قديم
         clearPending(activePaymentId);
       }
 
-      setOpenEdit(false);
+      setOpenPaymentEdit(false);
     } catch (err) {
       notify.error(err?.data?.message || "فشل التحديث");
+    }
+  };
+
+  const submitEditInstallment = async (payload) => {
+    try {
+      const res = await updateInstallment({
+        id: activeInstallmentId,
+        ...payload,
+      }).unwrap();
+
+      notify.success(res?.message || "تم تعديل القسط");
+      setOpenInstallmentEdit(false);
+    } catch (err) {
+      notify.error(err?.data?.message || "فشل تعديل القسط");
     }
   };
 
@@ -472,7 +776,9 @@ export default function PaymentsPage() {
     <div dir="rtl" className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row gap-2 justify-between items-start">
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold">الدفعات</h1>
+          <h1 className="text-lg font-semibold">
+            {viewType === "payments" ? "الدفعات" : "الأقساط"}
+          </h1>
           <Breadcrumb />
         </div>
 
@@ -498,7 +804,7 @@ export default function PaymentsPage() {
               onChange={setSelectedBatchId}
               options={[
                 { value: "", label: "كل الشعب" },
-                ...(batchesRes?.data || []).map((b) => ({
+                ...batches.map((b) => ({
                   value: String(b.id),
                   label: b.name,
                 })),
@@ -519,37 +825,59 @@ export default function PaymentsPage() {
         viewLabel=""
         isAllSelected={isAllSelected}
         onToggleSelectAll={() =>
-          setSelectedIds(isAllSelected ? [] : rows.map(rowId))
+          setSelectedIds(isAllSelected ? [] : rows.map(currentRowId))
         }
-        addLabel="إضافة دفعة"
+        addLabel={viewType === "payments" ? "إضافة دفعة" : "إضافة قسط"}
         onAdd={() => setOpenAdd(true)}
         extraButtons={[
           {
-            label:
-              mode === "latest" ? "دفعات الطلاب المتأخرين" : "دفعات الطلاب",
-            onClick: () => setMode(mode === "latest" ? "late" : "latest"),
+            label: viewType === "payments" ? "عرض الأقساط" : "اعرض الدفعات",
+            onClick: () =>
+              setViewType((prev) =>
+                prev === "payments" ? "installments" : "payments",
+              ),
           },
+          ...(viewType === "payments"
+            ? [
+                {
+                  label:
+                    mode === "latest"
+                      ? "دفعات الطلاب المتأخرين"
+                      : "دفعات الطلاب",
+                  onClick: () => setMode(mode === "latest" ? "late" : "latest"),
+                },
+              ]
+            : []),
         ]}
       />
 
       {loading ? (
         <PaymentsTableSkeleton />
-      ) : (
+      ) : viewType === "payments" ? (
         <PaymentsTable
           mode={mode}
-          rows={rows}
+          rows={paymentRows}
           selectedIds={selectedIds}
           onSelectChange={setSelectedIds}
           onViewDetails={handleViewDetails}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          onEdit={handleEditPayment}
+          onDelete={handleDeletePayment}
           onOpenStudentPaymentsFromLate={(row) => {
             notify.info(`دفعات الطالب: ${row?.student_name ?? "—"}`);
           }}
           pendingMap={pendingMap}
         />
+      ) : (
+        <PaymentInstallmentsTable
+          rows={installmentRows}
+          selectedIds={selectedIds}
+          onSelectChange={setSelectedIds}
+          onEdit={handleEditInstallment}
+          onDelete={handleDeleteInstallment}
+        />
       )}
 
+      {/* تفاصيل دفعة */}
       <PaymentDetailsModal
         open={openDetails}
         onClose={() => setOpenDetails(false)}
@@ -560,32 +888,63 @@ export default function PaymentsPage() {
         pendingMap={pendingMap}
       />
 
+      {/* إضافة دفعة */}
       <PaymentAddModal
-        open={openAdd}
+        open={openAdd && viewType === "payments"}
         onClose={() => setOpenAdd(false)}
-        onSubmit={submitAdd}
+        onSubmit={submitAddPayment}
         students={students}
-        loading={adding}
+        loading={addingPayment}
       />
 
+      {/* تعديل دفعة */}
       <PaymentAddModal
-        open={openEdit}
+        open={openPaymentEdit}
         title="تعديل دفعة"
-        onClose={() => setOpenEdit(false)}
-        onSubmit={submitEdit}
+        onClose={() => setOpenPaymentEdit(false)}
+        onSubmit={submitEditPayment}
         students={students}
         initialData={activePayment}
         showReason
-        loading={updating}
+        loading={updatingPayment}
       />
 
+      {/* إضافة قسط */}
+      <PaymentInstallmentAddModal
+        open={openAdd && viewType === "installments"}
+        onClose={() => setOpenAdd(false)}
+        onSubmit={submitAddInstallment}
+        loading={addingInstallment}
+      />
+
+      {/* تعديل قسط */}
+      <PaymentInstallmentAddModal
+        open={openInstallmentEdit}
+        title="تعديل قسط"
+        onClose={() => setOpenInstallmentEdit(false)}
+        onSubmit={submitEditInstallment}
+        initialData={activeInstallment}
+        loading={updatingInstallment}
+      />
+
+      {/* حذف دفعة */}
       <DeleteConfirmModal
-        isOpen={openDelete}
-        loading={deleting}
+        isOpen={openDeletePayment}
+        loading={deletingPayment}
         title="حذف دفعة"
         description="هل أنت متأكد من الحذف؟"
-        onClose={() => setOpenDelete(false)}
-        onConfirm={confirmDelete}
+        onClose={() => setOpenDeletePayment(false)}
+        onConfirm={confirmDeletePayment}
+      />
+
+      {/* حذف قسط */}
+      <DeleteConfirmModal
+        isOpen={openDeleteInstallment}
+        loading={deletingInstallment}
+        title="حذف قسط"
+        description="هل أنت متأكد من حذف القسط؟"
+        onClose={() => setOpenDeleteInstallment(false)}
+        onConfirm={confirmDeleteInstallment}
       />
     </div>
   );

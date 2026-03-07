@@ -34,8 +34,10 @@ export const contactsApi = createApi({
         method: "POST",
         data,
       }),
-      //invalidatesTags: [{ type: "Contacts", id: "LIST" }],
-      invalidatesTags: [],
+      invalidatesTags: (r) => [
+        { type: "Contacts", id: "LIST" },
+        ...(r?.data?.id ? [{ type: "Contacts", id: r.data.id }] : []),
+      ],
     }),
 
     updateContact: builder.mutation({

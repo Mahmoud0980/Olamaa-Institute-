@@ -35,6 +35,7 @@ import { examsApi } from "./services/examsApi";
 import { logsApi } from "./services/logsApi";
 import { examTypesApi } from "./services/examTypesApi";
 import { examResultEditRequestsApi } from "./services/examResultEditRequestsApi";
+import { paymentInstallmentsApi } from "./services/paymentInstallmentsApi";
 
 export const store = configureStore({
   reducer: {
@@ -71,6 +72,7 @@ export const store = configureStore({
     [examsApi.reducerPath]: examsApi.reducer,
     [examTypesApi.reducerPath]: examTypesApi.reducer,
     [examResultEditRequestsApi.reducerPath]: examResultEditRequestsApi.reducer,
+    [paymentInstallmentsApi.reducerPath]: paymentInstallmentsApi.reducer,
     search: searchReducer,
   },
 
@@ -108,5 +110,6 @@ export const store = configureStore({
       .concat(logsApi.middleware)
       .concat(examsApi.middleware)
       .concat(examResultEditRequestsApi.middleware)
-      .concat(examTypesApi.middleware),
+      .concat(examTypesApi.middleware)
+      .concat(paymentInstallmentsApi.middleware),
 });

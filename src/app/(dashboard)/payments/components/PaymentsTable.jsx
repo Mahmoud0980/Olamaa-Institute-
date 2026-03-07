@@ -10,12 +10,11 @@ const rowId = (row) =>
   String(
     row?.payment_id ??
       row?.id ??
-      row?.installment_id ?? // ✅ مهم للـ late mode
-      `${row?.student_id ?? "s"}-${row?.due_date ?? row?.paid_date ?? "d"}`
+      row?.installment_id ??
+      `${row?.student_id ?? "s"}-${row?.due_date ?? row?.paid_date ?? "d"}`,
   );
 
 const moneyLabel = (row) => {
-  // ✅ late mode
   const amount = row?.amount;
   if (amount !== undefined && amount !== null && String(amount) !== "")
     return `${amount}$`;
@@ -35,7 +34,7 @@ const receiptLabel = (row) =>
   row?.receipt_no ??
   row?.voucher_number ??
   row?.payment_id ??
-  row?.installment_id ?? // ✅ للـ late mode
+  row?.installment_id ??
   "—";
 
 /* ================= Component ================= */
@@ -56,7 +55,6 @@ export default function PaymentsTable({
 }) {
   const safeRows = Array.isArray(rows) ? rows : [];
 
-  /* ================= Pagination ================= */
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
@@ -68,7 +66,6 @@ export default function PaymentsTable({
     if (page > totalPages) setPage(1);
   }, [page, totalPages]);
 
-  /* ================= Selection ================= */
   const toggleSelect = (row) => {
     if (!onSelectChange) return;
 
@@ -80,18 +77,12 @@ export default function PaymentsTable({
     onSelectChange(updated);
   };
 
-  /* ================= ActionsMenu ================= */
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const menuItems = useMemo(() => {
     return (row) => {
       if (mode === "late") {
-        return [
-          {
-            label: "عرض دفعات الطالب",
-            onClick: () => onOpenStudentPaymentsFromLate?.(row),
-          },
-        ];
+        return [];
       }
 
       return [
@@ -99,7 +90,6 @@ export default function PaymentsTable({
           label: "عرض تفاصيل الدفعة",
           onClick: () => onViewDetails?.(row),
         },
-
         {
           label: "تعديل الدفعة",
           onClick: () => onEdit?.(row),
@@ -113,7 +103,6 @@ export default function PaymentsTable({
     };
   }, [mode, onViewDetails, onEdit, onDelete, onOpenStudentPaymentsFromLate]);
 
-  /* ================= Render ================= */
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
       {isLoading ? (
@@ -140,9 +129,12 @@ export default function PaymentsTable({
                     {mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"}
                   </th>
                   <th className="p-3">ملاحظة</th>
-                  <th className="p-3 text-center rounded-l-xl">
-                    خيارات إضافية
-                  </th>
+
+                  {mode !== "late" && (
+                    <th className="p-3 text-center rounded-l-xl">
+                      خيارات إضافية
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -151,6 +143,7 @@ export default function PaymentsTable({
                   const id = rowId(row);
                   const pid = row?.payment_id ?? row?.id ?? row?.installment_id;
                   const pending = pendingMap?.[String(pid)];
+
                   return (
                     <tr
                       key={id}
@@ -174,13 +167,11 @@ export default function PaymentsTable({
 
                           {pending && (
                             <span
-                              className={`px-2 py-0.5 text-xs rounded-full
-          ${
-            pending.type === "delete"
-              ? "bg-red-100 text-red-700"
-              : "bg-orange-100 text-orange-700"
-          }
-        `}
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                pending.type === "delete"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-orange-100 text-orange-700"
+                              }`}
                             >
                               {pending.type === "delete"
                                 ? "طلب حذف معلّق"
@@ -192,36 +183,38 @@ export default function PaymentsTable({
 
                       <td className="p-3 font-medium">
                         {mode === "late"
-                          ? row.student_name ?? "—"
-                          : row.first_name ?? "—"}
+                          ? (row.student_name ?? "—")
+                          : (row.first_name ?? "—")}
                       </td>
 
                       <td className="p-3">
-                        {mode === "late" ? "—" : row.last_name ?? "—"}
+                        {mode === "late" ? "—" : (row.last_name ?? "—")}
                       </td>
 
                       <td className="p-3">{moneyLabel(row)}</td>
 
                       <td className="p-3">
                         {mode === "latest"
-                          ? row.paid_date ?? "—"
-                          : row.due_date ?? "—"}
+                          ? (row.paid_date ?? "—")
+                          : (row.due_date ?? "—")}
                       </td>
 
                       <td className="p-3">
                         {row.note ?? row.description ?? "—"}
                       </td>
 
-                      <td className="p-3 text-center rounded-l-xl">
-                        <div className="relative inline-block">
-                          <ActionsMenu
-                            menuId={`payment-${id}`}
-                            openMenuId={openMenuId}
-                            setOpenMenuId={setOpenMenuId}
-                            items={menuItems(row)}
-                          />
-                        </div>
-                      </td>
+                      {mode !== "late" && (
+                        <td className="p-3 text-center rounded-l-xl">
+                          <div className="relative inline-block">
+                            <ActionsMenu
+                              menuId={`payment-${id}`}
+                              openMenuId={openMenuId}
+                              setOpenMenuId={setOpenMenuId}
+                              items={menuItems(row)}
+                            />
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -252,12 +245,14 @@ export default function PaymentsTable({
                       />
                     </div>
 
-                    <ActionsMenu
-                      menuId={`payment-m-${id}`}
-                      openMenuId={openMenuId}
-                      setOpenMenuId={setOpenMenuId}
-                      items={menuItems(row)}
-                    />
+                    {mode !== "late" && (
+                      <ActionsMenu
+                        menuId={`payment-m-${id}`}
+                        openMenuId={openMenuId}
+                        setOpenMenuId={setOpenMenuId}
+                        items={menuItems(row)}
+                      />
+                    )}
                   </div>
 
                   <Info label="رقم الإيصال" value={receiptLabel(row)} />
@@ -285,7 +280,6 @@ export default function PaymentsTable({
             })}
           </div>
 
-          {/* ================= PAGINATION ================= */}
           <Pagination
             page={page}
             totalPages={totalPages}
