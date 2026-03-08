@@ -222,7 +222,7 @@ export default function DatePickerSmart({
   const selectedISO = value || "";
   const todayISO = toISO(new Date());
 
-  // ✅ المهم: قبل الاختيار -> Active = اليوم
+  // Active = selected date; fallback to today when empty
   const activeISO = selectedISO || todayISO;
 
   const daysGrid = useMemo(() => {
@@ -512,81 +512,44 @@ export default function DatePickerSmart({
 
                     {/* Days */}
                     <div className="space-y-1" dir="ltr">
-                      {weeks.map((week, wIdx) => {
-                        const weekISOs = week
-                          .filter((c) => c?.inMonth && c?.date)
-                          .map((c) => toISO(c.date));
-
-                        // ✅ الهايلايت مربوط بالـ activeISO (اليوم أو المختار)
-                        const weekHasActive =
-                          !!activeISO && weekISOs.includes(activeISO);
-
-                        let start = -1;
-                        let end = -1;
-                        if (weekHasActive) {
-                          for (let i = 0; i < 7; i++) {
-                            if (week[i]?.inMonth && week[i]?.date) {
-                              if (start === -1) start = i;
-                              end = i;
-                            }
-                          }
-                        }
-
-                        return (
-                          <div key={wIdx} className="grid grid-cols-7 gap-0">
-                            {week.map((cell, i) => {
-                              const inMonth = !!cell?.inMonth && !!cell?.date;
-                              if (!inMonth) {
-                                return (
-                                  <div key={`b-${wIdx}-${i}`} className="h-7" />
-                                );
-                              }
-
-                              const iso = toISO(cell.date);
-
-                              // ✅ الدائرة البنفسجية على activeISO (اليوم افتراضياً)
-                              const isActive = iso === activeISO;
-
-                              const inPill = weekHasActive;
-                              const pillRound =
-                                inPill && start !== -1
-                                  ? start === end
-                                    ? "rounded-full"
-                                    : i === start
-                                      ? "rounded-l-full"
-                                      : i === end
-                                        ? "rounded-r-full"
-                                        : ""
-                                  : "";
-
+                      {weeks.map((week, wIdx) => (
+                        <div key={wIdx} className="grid grid-cols-7 gap-0">
+                          {week.map((cell, i) => {
+                            const inMonth = !!cell?.inMonth && !!cell?.date;
+                            if (!inMonth) {
                               return (
-                                <div
-                                  key={`${iso}-${i}`}
-                                  className={[
-                                    "h-7 flex items-center justify-center",
-                                    inPill ? "bg-[#F4D3E3]" : "",
-                                    inPill ? pillRound : "",
-                                  ].join(" ")}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => pickDate(cell.date)}
-                                    className={[
-                                      "w-6 h-6 rounded-full flex items-center justify-center text-[12px] transition",
-                                      isActive
-                                        ? "bg-[#6F013F] text-white"
-                                        : "text-gray-700 hover:bg-white/60",
-                                    ].join(" ")}
-                                    title={iso}
-                                  >
-                                    {cell.date.getDate()}
-                                  </button>
-                                </div>
+                                <div key={`b-${wIdx}-${i}`} className="h-7" />
                               );
-                            })}
-                          </div>
-                        );
-                      })}
+                            }
+
+                            const iso = toISO(cell.date);
+
+                            // Active circle only when a date is selected
+                            const isActive = iso === activeISO;
+
+                            return (
+                              <div
+                                key={`${iso}-${i}`}
+                                className="h-7 flex items-center justify-center"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => pickDate(cell.date)}
+                                  className={[
+                                    "w-6 h-6 rounded-full flex items-center justify-center text-[12px] transition",
+                                    isActive
+                                      ? "bg-[#6F013F] text-white"
+                                      : "text-gray-700 hover:bg-white/60",
+                                  ].join(" ")}
+                                  title={iso}
+                                >
+                                  {cell.date.getDate()}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}
