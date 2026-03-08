@@ -31,6 +31,8 @@ import {
   useDeleteContactMutation,
 } from "@/store/services/contactsApi";
 
+import { useAddEnrollmentContractMutation } from "@/store/services/enrollmentContractsApi";
+
 /* ================= helpers ================= */
 const clean = (v) => {
   const s = String(v ?? "")
@@ -46,6 +48,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const [loadingStep3, setLoadingStep3] = useState(false);
   const [loadingStep4, setLoadingStep4] = useState(false);
   const [loadingStep5, setLoadingStep5] = useState(false);
+  const [loadingStep6, setLoadingStep6] = useState(false);
 
   /* ================= state ================= */
   const [step, setStep] = useState(1);
@@ -53,12 +56,15 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const [familyId, setFamilyId] = useState(student?.family_id ?? null);
   const [guardians, setGuardians] = useState([]);
   const [academicRecordId, setAcademicRecordId] = useState(null);
+  const [academicPayload, setAcademicPayload] = useState(null);
   const [existingContacts, setExistingContacts] = useState([]);
+  const [contactsPayload, setContactsPayload] = useState([]);
   const [enrollmentContractId, setEnrollmentContractId] = useState(null);
 
   const [showFamilyCheck, setShowFamilyCheck] = useState(false);
   const [familyCandidate, setFamilyCandidate] = useState(null);
   const [pendingEnrollment, setPendingEnrollment] = useState(null);
+  const [pendingFinalData, setPendingFinalData] = useState(null);
 
   /* ✅ connection state (اختياري يفيدك للـ UI) */
   const [isOnline, setIsOnline] = useState(true);
@@ -78,6 +84,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const [updateRecord] = useUpdateRecordMutation();
   const [addContact] = useAddContactMutation();
   const [deleteContact] = useDeleteContactMutation();
+  const [addContract] = useAddEnrollmentContractMutation();
   const [lockBackFromStep4, setLockBackFromStep4] = useState(false);
 
   /* ================= Forms ================= */
@@ -140,10 +147,13 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     setGuardians([]);
     setAcademicRecordId(null);
     setExistingContacts([]);
+    setContactsPayload([]);
     setEnrollmentContractId(null);
     setShowFamilyCheck(false);
     setFamilyCandidate(null);
     setPendingEnrollment(null);
+    setPendingFinalData(null);
+    setAcademicPayload(null);
     setLockBackFromStep4(false);
 
     form1.reset();
@@ -279,70 +289,30 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       return;
     }
 
-    // ✅ قبل الـ API: افحص الإنترنت
-    const online = await ensureOnline();
-    if (!online) {
-      notify.error(
-        "لا يوجد  اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.",
-        "لا يوجد إنترنت",
-      );
-      return;
+    // إذا مو تعديل -> احفظ البيانات بالـ state وانتقل للخطوة 4 مباشرة
+    const p = form3.getValues();
+    const lGuardians = [];
+    if (clean(p.father_first_name)) {
+      lGuardians.push({
+        id: "local_father",
+        relationship: "father",
+        first_name: clean(p.father_first_name),
+        last_name: clean(p.father_last_name),
+        full_name: `${clean(p.father_first_name)} ${clean(p.father_last_name)}`.trim(),
+      });
     }
-
-    setLoadingStep3(true);
-    try {
-      const studentData = { ...form1.getValues(), ...form2.getValues() };
-      const p = form3.getValues();
-
-      const payload = {
-        student: {
-          ...studentData,
-          first_name: clean(studentData.first_name),
-          last_name: clean(studentData.last_name),
-        },
-        father: {
-          first_name: clean(p.father_first_name),
-          last_name: clean(p.father_last_name),
-          national_id: clean(p.father_national_id),
-          // phone: clean(p.father_phone),
-        },
-        mother: {
-          first_name: clean(p.mother_first_name),
-          last_name: clean(p.mother_last_name),
-          national_id: clean(p.mother_national_id),
-          // phone: clean(p.mother_phone),
-        },
-      };
-
-      setPendingEnrollment(payload);
-
-      const res = await handleAddEnrollment(payload);
-
-      if (res?.message?.includes("تم العثور على عائلة موجودة")) {
-        setFamilyCandidate(res?.data?.family || null);
-        setShowFamilyCheck(true);
-        return; // رح ينطفي اللودر بالـ finally
-      }
-
-      setStudentId(res.data.id);
-      setFamilyId(res.data.family_id);
-      setGuardians(res.data.guardians || []);
-      setLockBackFromStep4(true);
-      setStep(4);
-    } catch (e) {
-      // ✅ إذا قطع الإنترنت أثناء الطلب أو فشل الشبكة
-      const onlineNow = await ensureOnline();
-      if (!onlineNow) {
-        notify.error(
-          "انقطع الاتصال أثناء الحفظ. تأكد من الإنترنت وحاول مرة ثانية.",
-          "مشكلة اتصال",
-        );
-      } else {
-        notify.error("فشل تسجيل الطالب", "خطأ");
-      }
-    } finally {
-      setLoadingStep3(false);
+    if (clean(p.mother_first_name)) {
+      lGuardians.push({
+        id: "local_mother",
+        relationship: "mother",
+        first_name: clean(p.mother_first_name),
+        last_name: clean(p.mother_last_name),
+        full_name: `${clean(p.mother_first_name)} ${clean(p.mother_last_name)}`.trim(),
+      });
     }
+    setGuardians(lGuardians);
+    setLockBackFromStep4(false);
+    setStep(4);
   };
 
   const confirmAttachFamily = async () => {
@@ -360,6 +330,16 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
 
     setLoadingStep3(true);
     try {
+      if (!isEdit && pendingFinalData) {
+        // We are in deferred save flow inside handleFinalSubmit
+        await handleFinalSubmit(pendingFinalData.contractPayload, {
+          ...pendingEnrollment,
+          __sendFamilyDecision: true,
+          is_existing_family_confirmed: true,
+        });
+        return;
+      }
+      
       const res = await handleAddEnrollment({
         ...pendingEnrollment,
         __sendFamilyDecision: true,
@@ -370,7 +350,10 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       setFamilyId(res.data.family_id);
       setGuardians(res.data.guardians || []);
       setLockBackFromStep4(true);
-      setStep(4);
+      
+      if (!isEdit && !pendingFinalData) {
+        setStep(4);
+      }
     } catch (e) {
       const onlineNow = await ensureOnline();
       if (!onlineNow) {
@@ -401,6 +384,16 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
 
     setLoadingStep3(true);
     try {
+      if (!isEdit && pendingFinalData) {
+        // We are in deferred save flow inside handleFinalSubmit
+        await handleFinalSubmit(pendingFinalData.contractPayload, {
+          ...pendingEnrollment,
+          __sendFamilyDecision: true,
+          is_existing_family_confirmed: false,
+        });
+        return;
+      }
+
       const res = await handleAddEnrollment({
         ...pendingEnrollment,
         __sendFamilyDecision: true,
@@ -411,7 +404,10 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       setFamilyId(res.data.family_id);
       setGuardians(res.data.guardians || []);
       setLockBackFromStep4(true);
-      setStep(4);
+      
+      if (!isEdit && !pendingFinalData) {
+        setStep(4);
+      }
     } catch (e) {
       const onlineNow = await ensureOnline();
       if (!onlineNow) {
@@ -446,6 +442,12 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
         ...form4.getValues(),
       };
 
+      if (!isEdit) {
+        setAcademicPayload(form4.getValues());
+        setStep(5);
+        return;
+      }
+
       if (academicRecordId) {
         await updateRecord({ id: academicRecordId, ...payload }).unwrap();
       } else {
@@ -460,18 +462,169 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     }
   };
 
-  const handleSaveContacts = async (contactsPayload) => {
+  const handleSaveContacts = async (newContactsPayload) => {
+    if (!isEdit) {
+      setContactsPayload(newContactsPayload);
+      setStep(6);
+      return;
+    }
+
     setLoadingStep5(true);
     try {
       await Promise.all(
         existingContacts.map((c) => deleteContact(c.id).unwrap()),
       );
-      await Promise.all(contactsPayload.map((it) => addContact(it).unwrap()));
+      await Promise.all(newContactsPayload.map((it) => addContact(it).unwrap()));
       setStep(6);
     } catch (e) {
       notify.error("فشل حفظ جهات التواصل", "خطأ");
     } finally {
       setLoadingStep5(false);
+    }
+  };
+
+  const handleFinalSubmit = async (contractPayload, retryEnrollmentPayload = null) => {
+    // ✅ قبل الـ API: افحص الإنترنت
+    const online = await ensureOnline();
+    if (!online) {
+      notify.error("لا يوجد اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.", "لا يوجد إنترنت");
+      return;
+    }
+
+    setLoadingStep6(true);
+    try {
+      let createdStudentId = studentId;
+      let createdFamilyId = familyId;
+      let createdGuardians = guardians;
+
+      // 1. Add Student & Family
+      if (!createdStudentId) {
+        const studentData = { ...form1.getValues(), ...form2.getValues() };
+        const p = form3.getValues();
+
+        const enrollmentPayload = retryEnrollmentPayload || {
+          student: {
+            ...studentData,
+            first_name: clean(studentData.first_name),
+            last_name: clean(studentData.last_name),
+          },
+          father: {
+            first_name: clean(p.father_first_name),
+            last_name: clean(p.father_last_name),
+            national_id: clean(p.father_national_id),
+          },
+          mother: {
+            first_name: clean(p.mother_first_name),
+            last_name: clean(p.mother_last_name),
+            national_id: clean(p.mother_national_id),
+          },
+        };
+
+        setPendingEnrollment(enrollmentPayload);
+
+        const res = await handleAddEnrollment(enrollmentPayload);
+
+        // إذا في تعارض بالعائلة، نوقف التسجيل ونعرض المودال
+        if (res?.message?.includes("تم العثور على عائلة موجودة")) {
+          setFamilyCandidate(res?.data?.family || null);
+          setShowFamilyCheck(true);
+          setPendingFinalData({ contractPayload }); // حفظ بيانات العقد لنكملها لاحقا
+          return; // إيقاف هنا
+        }
+
+        createdStudentId = res.data.id;
+        createdFamilyId = res.data.family_id;
+        createdGuardians = res.data.guardians || [];
+
+        setStudentId(createdStudentId);
+        setFamilyId(createdFamilyId);
+        setGuardians(createdGuardians);
+      }
+
+      // 2. Add Academic Record
+      if (academicPayload && !academicRecordId) {
+        const arPayload = { ...academicPayload, student_id: createdStudentId };
+        const recRes = await addRecord(arPayload).unwrap();
+        if (recRes?.data?.id) {
+          setAcademicRecordId(recRes.data.id);
+        }
+      }
+
+      // 3. Add Contacts
+      if (contactsPayload && contactsPayload.length > 0) {
+        const preparedContacts = contactsPayload.map((c) => {
+          let g_id = c.guardian_id;
+          if (c.owner_type === "father" || c.owner_type === "mother") {
+            if (g_id === "local_father") {
+              g_id = createdGuardians.find((g) => g.relationship === "father")?.id || null;
+            } else if (g_id === "local_mother") {
+              g_id = createdGuardians.find((g) => g.relationship === "mother")?.id || null;
+            } else if (g_id !== null && g_id !== undefined && g_id !== "") {
+              g_id = Number(g_id) || null;
+            }
+          } else {
+            g_id = undefined;
+          }
+
+          return {
+            ...c,
+            student_id: c.owner_type === "student" ? createdStudentId : undefined,
+            family_id: (c.owner_type === "family" || ["sibling", "relative", "other"].includes(c.owner_type)) ? createdFamilyId : undefined,
+            guardian_id: g_id,
+          };
+        });
+
+        // Contact list might be tricky to prevent duplicates if no ID is stored, 
+        // but typically Contacts API returns what was added. Alternatively, just 
+        // clear contactsPayload on success to prevent re-adding.
+        const addResults = await Promise.all(preparedContacts.map((it) => addContact(it).unwrap()));
+        
+        // Since contacts are successfully saved, clear the payload so retries don't duplicate them
+        setContactsPayload([]);
+      }
+
+      // 4. Add Enrollment Contract
+      if (contractPayload) {
+        const finalContractPayload = {
+          ...contractPayload,
+          student_id: createdStudentId,
+        };
+
+        if (finalContractPayload.first_payment) {
+          finalContractPayload.first_payment.student_id = createdStudentId;
+        }
+
+        const contractRes = await addContract(finalContractPayload).unwrap();
+        setEnrollmentContractId(contractRes?.data?.id);
+      }
+
+      notify.success("تم تسجيل الطالب بنجاح");
+      setPendingFinalData(null);
+      setStep(7);
+      
+      // Reset after success if needed, Step 7 handles reset usually
+    } catch (err) {
+      const onlineNow = await ensureOnline();
+      if (!onlineNow) {
+        notify.error("انقطع الاتصال أثناء التسجيل. تأكد من الإنترنت وحاول مرة ثانية.", "مشكلة اتصال");
+      } else {
+        console.error("Save Error:", err?.data || err);
+
+        const errors = err?.data?.errors;
+        if (errors) {
+          const firstErrorKey = Object.keys(errors)[0];
+          const firstErrorMessage = errors[firstErrorKey]?.[0];
+          if (firstErrorMessage) {
+            notify.error(firstErrorMessage);
+            return;
+          }
+        }
+        notify.error(err?.data?.message || "حدث خطأ أثناء حفظ أحد البيانات. يرجى المراجعة.");
+      }
+    } finally {
+      if (!showFamilyCheck) {
+        setLoadingStep6(false);
+      }
     }
   };
 
@@ -574,6 +727,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
                   familyId={familyId}
                   guardians={guardians}
                   existingContacts={existingContacts}
+                  initialItems={contactsPayload}
                   onSaveAll={handleSaveContacts}
                   onBack={() => setStep(4)}
                   onSkip={() => setStep(6)}
@@ -584,12 +738,21 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
               {step === 6 && (
                 <Step6EnrollmentContract
                   studentId={studentId}
+                  deferSave={!isEdit}
+                  onFinalSubmit={handleFinalSubmit}
                   onBack={() => setStep(5)}
                   onNext={(id) => {
                     setEnrollmentContractId(id);
                     setStep(7);
                   }}
-                  onSkip={() => setStep(7)}
+                  onSkip={async () => {
+                    if (!isEdit) {
+                       await handleFinalSubmit(null);
+                    } else {
+                       setStep(7);
+                    }
+                  }}
+                  loading={loadingStep6}
                 />
               )}
 

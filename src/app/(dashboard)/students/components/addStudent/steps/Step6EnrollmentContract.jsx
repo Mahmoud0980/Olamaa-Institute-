@@ -882,9 +882,12 @@ function addMonthsSafe(dateStr, months) {
 export default function Step6EnrollmentContract({
   studentId,
   instituteBranchId,
+  deferSave = false,
+  onFinalSubmit,
   onNext,
   onBack,
   onSkip,
+  loading = false,
 }) {
   const [currency, setCurrency] = useState("usd");
   const [mode, setMode] = useState("automatic");
@@ -931,6 +934,8 @@ export default function Step6EnrollmentContract({
 
   const [addContract, { isLoading: saving }] =
     useAddEnrollmentContractMutation();
+
+  const isActuallySaving = saving || loading;
 
   const handleChange = (name, value) => {
     setForm((f) => ({ ...f, [name]: value }));
@@ -1035,7 +1040,7 @@ export default function Step6EnrollmentContract({
   }, [mode, form.installments_count, form.installments_start_date]);
 
   const validateCommon = () => {
-    if (!studentId) {
+    if (!studentId && !deferSave) {
       notify.error("الطالب غير محدد");
       return false;
     }
@@ -1197,7 +1202,7 @@ export default function Step6EnrollmentContract({
       : 0;
 
     return {
-      student_id: Number(studentId),
+      student_id: studentId ? Number(studentId) : null,
       institute_branch_id: Number(instituteBranchId),
       currency: contractCurrency,
 
@@ -1261,7 +1266,7 @@ export default function Step6EnrollmentContract({
 
       payload.first_payment = {
         currency: fp.currency,
-        student_id: Number(studentId),
+        student_id: studentId ? Number(studentId) : null,
         amount_usd:
           amount_usd !== null ? Number(Number(amount_usd).toFixed(2)) : null,
         amount_syp: fp.currency === "SYP" ? Number(amount_syp) : null,
@@ -1314,7 +1319,7 @@ export default function Step6EnrollmentContract({
 
       payload.first_payment = {
         currency: fp.currency,
-        student_id: Number(studentId),
+        student_id: studentId ? Number(studentId) : null,
         amount_usd:
           amount_usd !== null ? Number(Number(amount_usd).toFixed(2)) : null,
         amount_syp: fp.currency === "SYP" ? Number(amount_syp) : null,
@@ -1334,6 +1339,9 @@ export default function Step6EnrollmentContract({
     if (!validateCommon()) return;
 
     const payload = buildPayloadForPreview();
+    if (!payload.student_id && deferSave) {
+        payload.student_id = 1; // Fake ID just for preview logic at the server side since we don't have one yet.
+    }
 
     try {
       const res = await previewInstallments(payload).unwrap();
@@ -1354,6 +1362,9 @@ export default function Step6EnrollmentContract({
       // automatic: إذا ما في أقساط -> preview ثم save مباشرة
       if (mode === "automatic" && installments.length === 0) {
         const previewPayload = buildPayloadForPreview();
+        if (!previewPayload.student_id && deferSave) {
+            previewPayload.student_id = 1; // Fake ID just for preview logic
+        }
 
         const res = await previewInstallments(previewPayload).unwrap();
         const list = res?.data?.installments || [];
@@ -1366,6 +1377,10 @@ export default function Step6EnrollmentContract({
         setInstallments(list);
 
         const savePayload = buildPayloadForSaveUsing(list);
+        if (deferSave) {
+          onFinalSubmit?.(savePayload);
+          return;
+        }
         await addContract(savePayload).unwrap();
 
         notify.success("تم حفظ عقد التسجيل");
@@ -1378,6 +1393,12 @@ export default function Step6EnrollmentContract({
 
       // automatic وفي أقساط جاهزة
       const payload = buildPayloadForSave();
+      
+      if (deferSave) {
+        onFinalSubmit?.(payload);
+        return;
+      }
+      
       await addContract(payload).unwrap();
 
       notify.success("تم حفظ عقد التسجيل");
@@ -1827,7 +1848,7 @@ export default function Step6EnrollmentContract({
             type="button"
             onClick={onSkip}
             className="text-xs text-gray-500 hover:text-[#6F013F] transition"
-            disabled={saving || previewLoading}
+            disabled={isActuallySaving || previewLoading}
           >
             تخطي هذه الخطوة
           </button>
@@ -1837,7 +1858,7 @@ export default function Step6EnrollmentContract({
             total={6}
             onBack={onBack}
             onNext={handleSubmit}
-            loading={saving || previewLoading}
+            loading={isActuallySaving || previewLoading}
           />
         </div>
       </div>

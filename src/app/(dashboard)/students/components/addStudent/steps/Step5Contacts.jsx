@@ -50,6 +50,7 @@ export default function Step5Contacts({
   familyId,
   guardians = [],
   existingContacts = [],
+  initialItems = [],
   onSaveAll,
   onBack,
   onSkip,
@@ -69,7 +70,7 @@ export default function Step5Contacts({
     notes: "",
   });
 
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(initialItems || []);
 
   /* derived options */
   const hasSmsContact = useMemo(
@@ -210,7 +211,10 @@ export default function Step5Contacts({
       payload.owner_type = draft.owner_type;
 
       if (draft.owner_type === "father" || draft.owner_type === "mother") {
-        payload.guardian_id = Number(draft.guardian_id);
+        payload.guardian_id =
+          String(draft.guardian_id).startsWith("local_")
+            ? draft.guardian_id
+            : Number(draft.guardian_id);
       } else if (draft.owner_type === "student") {
         payload.student_id = studentId;
       } else {
