@@ -66,9 +66,6 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const [pendingEnrollment, setPendingEnrollment] = useState(null);
   const [pendingFinalData, setPendingFinalData] = useState(null);
 
-  /* ✅ connection state (اختياري يفيدك للـ UI) */
-  const [isOnline, setIsOnline] = useState(true);
-
   /* ================= APIs ================= */
   const { handleAddEnrollment } = useAddEnrollment();
 
@@ -97,47 +94,6 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
     const any = Object.values(errorsObj || {}).find((e) => e?.message);
     return any?.message || "تحقق من البيانات";
   };
-
-  /* ================= ✅ Internet check ================= */
-  const ensureOnline = useCallback(async () => {
-    // 1) فحص سريع من المتصفح
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      return false;
-    }
-
-    // 2) فحص فعلي خفيف (اختياري لكنه أدق)
-    // ملاحظة: لو عندك Endpoint health check بسيرفرك استبدله هون.
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 3500);
-
-      // نضرب طلب صغير (HEAD) على نفس الدومين
-      // إذا السيرفر Down رح يفشل، وهيك بتعتبره "ما في اتصال مفيد للتسجيل"
-      await fetch("/favicon.ico", {
-        method: "HEAD",
-        cache: "no-store",
-        signal: ctrl.signal,
-      });
-
-      clearTimeout(t);
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
-
-  // تحديث isOnline تلقائيًا (للـ UI/تعطيل زر مثلًا)
-  useEffect(() => {
-    const update = () =>
-      setIsOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    update();
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
 
   /* ================= Reset ================= */
   const resetAll = () => {
@@ -318,16 +274,6 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
   const confirmAttachFamily = async () => {
     setShowFamilyCheck(false);
 
-    // ✅ قبل الـ API: افحص الإنترنت
-    const online = await ensureOnline();
-    if (!online) {
-      notify.error(
-        "لا يوجد  اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.",
-        "لا يوجد إنترنت",
-      );
-      return;
-    }
-
     setLoadingStep3(true);
     try {
       if (!isEdit && pendingFinalData) {
@@ -355,15 +301,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
         setStep(4);
       }
     } catch (e) {
-      const onlineNow = await ensureOnline();
-      if (!onlineNow) {
-        notify.error(
-          "انقطع الاتصال أثناء الربط. تأكد من الإنترنت وحاول مرة ثانية.",
-          "مشكلة اتصال",
-        );
-      } else {
-        notify.error("فشل ربط العائلة", "خطأ");
-      }
+      notify.error("فشل ربط العائلة", "خطأ");
     } finally {
       setLoadingStep3(false);
     }
@@ -371,16 +309,6 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
 
   const confirmNewFamily = async () => {
     setShowFamilyCheck(false);
-
-    // ✅ قبل الـ API: افحص الإنترنت
-    const online = await ensureOnline();
-    if (!online) {
-      notify.error(
-        "لا يوجد اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.",
-        "لا يوجد إنترنت",
-      );
-      return;
-    }
 
     setLoadingStep3(true);
     try {
@@ -409,15 +337,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
         setStep(4);
       }
     } catch (e) {
-      const onlineNow = await ensureOnline();
-      if (!onlineNow) {
-        notify.error(
-          "انقطع الاتصال أثناء الإنشاء. تأكد من الإنترنت وحاول مرة ثانية.",
-          "مشكلة اتصال",
-        );
-      } else {
-        notify.error("فشل إنشاء عائلة جديدة", "خطأ");
-      }
+      notify.error("فشل إنشاء عائلة جديدة", "خطأ");
     } finally {
       setLoadingStep3(false);
     }
@@ -482,15 +402,7 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       setLoadingStep5(false);
     }
   };
-
   const handleFinalSubmit = async (contractPayload, retryEnrollmentPayload = null) => {
-    // ✅ قبل الـ API: افحص الإنترنت
-    const online = await ensureOnline();
-    if (!online) {
-      notify.error("لا يوجد اتصال إنترنت. رجاءً تأكد من الشبكة وحاول مرة ثانية.", "لا يوجد إنترنت");
-      return;
-    }
-
     setLoadingStep6(true);
     try {
       let createdStudentId = studentId;
@@ -604,13 +516,9 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
       
       // Reset after success if needed, Step 7 handles reset usually
     } catch (err) {
-      const onlineNow = await ensureOnline();
-      if (!onlineNow) {
-        notify.error("انقطع الاتصال أثناء التسجيل. تأكد من الإنترنت وحاول مرة ثانية.", "مشكلة اتصال");
-      } else {
-        console.error("Save Error:", err?.data || err);
+      console.error("Save Error:", err?.data || err);
 
-        const errors = err?.data?.errors;
+      const errors = err?.data?.errors;
         if (errors) {
           const firstErrorKey = Object.keys(errors)[0];
           const firstErrorMessage = errors[firstErrorKey]?.[0];
@@ -620,7 +528,6 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
           }
         }
         notify.error(err?.data?.message || "حدث خطأ أثناء حفظ أحد البيانات. يرجى المراجعة.");
-      }
     } finally {
       if (!showFamilyCheck) {
         setLoadingStep6(false);
@@ -650,9 +557,6 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded }) {
                 <h2 className="text-[#6F013F] font-semibold">
                   {isEdit ? "تعديل طالب" : "إضافة طالب"}
                 </h2>
-                <span className="text-xs text-gray-500">
-                  {isOnline ? "متصل" : "غير متصل"}
-                </span>
               </div>
 
               <button

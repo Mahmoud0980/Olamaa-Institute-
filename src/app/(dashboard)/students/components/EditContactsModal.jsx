@@ -9,6 +9,7 @@ import InputField from "@/components/common/InputField";
 import PhoneInputSplit from "@/components/common/PhoneInputSplit";
 import GradientButton from "@/components/common/GradientButton";
 import Checkbox from "@/components/common/Checkbox";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 import {
   useAddContactMutation,
@@ -154,6 +155,9 @@ const emptyDraft = () => ({
   supports_call: false,
   supports_whatsapp: false,
   supports_sms: false,
+  is_sms_stopped: false,
+  stop_sms_from: "",
+  stop_sms_to: "",
   notes: "",
 });
 
@@ -236,6 +240,9 @@ const normalizeExistingContact = (contact, ctx) => {
     supports_whatsapp:
       type === "landline" ? false : toBool(contact?.supports_whatsapp),
     supports_sms: type === "landline" ? false : toBool(contact?.supports_sms),
+    is_sms_stopped: !!(contact?.stop_sms_from || contact?.stop_sms_to),
+    stop_sms_from: clean(contact?.stop_sms_from) || "",
+    stop_sms_to: clean(contact?.stop_sms_to) || "",
     notes: clean(contact?.notes),
     guardian_id: contact?.guardian_id ?? null,
     student_id: contact?.student_id ?? ctx.studentId ?? null,
@@ -309,6 +316,14 @@ const buildPayload = (row, ctx) => {
     payload.supports_call = !!row.supports_call;
     payload.supports_whatsapp = !!row.supports_whatsapp;
     payload.supports_sms = !!row.supports_sms;
+
+    if (payload.supports_sms && row.is_sms_stopped) {
+      payload.stop_sms_from = clean(row.stop_sms_from) || null;
+      payload.stop_sms_to = clean(row.stop_sms_to) || null;
+    } else {
+      payload.stop_sms_from = null;
+      payload.stop_sms_to = null;
+    }
 
     if (ownerType === "father" || ownerType === "mother") {
       const guardianId = resolveGuardianIdByOwnerType(
@@ -466,6 +481,9 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
       supports_call: !!it.supports_call,
       supports_whatsapp: !!it.supports_whatsapp,
       supports_sms: !!it.supports_sms,
+      is_sms_stopped: !!(it.stop_sms_from || it.stop_sms_to),
+      stop_sms_from: it.stop_sms_from || "",
+      stop_sms_to: it.stop_sms_to || "",
       notes: it.notes ?? "",
     });
   };
@@ -599,6 +617,9 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                   supports_call: false,
                   supports_whatsapp: false,
                   supports_sms: false,
+                  is_sms_stopped: false,
+                  stop_sms_from: "",
+                  stop_sms_to: "",
                   notes: d.notes || "",
                 }))
               }
@@ -723,10 +744,48 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                       setDraft((d) => ({
                         ...d,
                         supports_sms: e.target.checked,
+                        is_sms_stopped: e.target.checked ? d.is_sms_stopped : false,
+                        stop_sms_from: e.target.checked ? d.stop_sms_from : "",
+                        stop_sms_to: e.target.checked ? d.stop_sms_to : "",
                       }))
                     }
                   />
                 </div>
+              </div>
+            ) : null}
+
+            {draft.type === "phone" && draft.supports_sms ? (
+              <div className="border border-gray-100 bg-gray-50/50 p-3 rounded-lg space-y-3">
+                <Checkbox
+                  label="إيقاف الرسائل مؤقتاً"
+                  checked={draft.is_sms_stopped}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      is_sms_stopped: e.target.checked,
+                      stop_sms_from: e.target.checked ? d.stop_sms_from : "",
+                      stop_sms_to: e.target.checked ? d.stop_sms_to : "",
+                    }))
+                  }
+                />
+                {draft.is_sms_stopped && (
+                  <div className="flex gap-4">
+                    <div className="w-1/2">
+                      <DatePickerSmart
+                        label="من تاريخ"
+                        value={draft.stop_sms_from || ""}
+                        onChange={(val) => setDraft((d) => ({ ...d, stop_sms_from: val }))}
+                      />
+                    </div>
+                    <div className="w-1/2">
+                      <DatePickerSmart
+                        label="حتى تاريخ"
+                        value={draft.stop_sms_to || ""}
+                        onChange={(val) => setDraft((d) => ({ ...d, stop_sms_to: val }))}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
 

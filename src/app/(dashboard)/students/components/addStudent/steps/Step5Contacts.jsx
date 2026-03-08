@@ -11,6 +11,7 @@ import GradientButton from "@/components/common/GradientButton";
 import Checkbox from "@/components/common/Checkbox";
 
 import { notify } from "@/lib/helpers/toastify";
+import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 /* constants */
 const TYPE_OPTIONS = [
@@ -67,6 +68,9 @@ export default function Step5Contacts({
     supports_call: false,
     supports_whatsapp: false,
     supports_sms: false,
+    is_sms_stopped: false,
+    stop_sms_from: "",
+    stop_sms_to: "",
     notes: "",
   });
 
@@ -162,6 +166,8 @@ export default function Step5Contacts({
       supports_call: false,
       supports_whatsapp: false,
       supports_sms: false,
+      stop_sms_from: "",
+      stop_sms_to: "",
     }));
   };
 
@@ -227,6 +233,14 @@ export default function Step5Contacts({
       payload.supports_call = !!draft.supports_call;
       payload.supports_whatsapp = !!draft.supports_whatsapp;
       payload.supports_sms = !!draft.supports_sms;
+
+      if (payload.supports_sms && draft.is_sms_stopped) {
+        payload.stop_sms_from = clean(draft.stop_sms_from) || null;
+        payload.stop_sms_to = clean(draft.stop_sms_to) || null;
+      } else {
+        payload.stop_sms_from = null;
+        payload.stop_sms_to = null;
+      }
     } else if (draft.type === "landline") {
       if (clean(draft.country_code))
         payload.country_code = clean(draft.country_code);
@@ -244,6 +258,9 @@ export default function Step5Contacts({
       supports_call: false,
       supports_whatsapp: false,
       supports_sms: false,
+      is_sms_stopped: false,
+      stop_sms_from: "",
+      stop_sms_to: "",
       notes: "",
     }));
   };
@@ -433,10 +450,51 @@ export default function Step5Contacts({
                   disabled={hasSmsContact}
                   checked={draft.supports_sms}
                   onChange={(e) =>
-                    setDraft((d) => ({ ...d, supports_sms: e.target.checked }))
+                    setDraft((d) => ({
+                      ...d,
+                      supports_sms: e.target.checked,
+                      is_sms_stopped: e.target.checked ? d.is_sms_stopped : false,
+                      stop_sms_from: e.target.checked ? d.stop_sms_from : "",
+                      stop_sms_to: e.target.checked ? d.stop_sms_to : "",
+                    }))
                   }
                 />
               </div>
+            </div>
+          )}
+
+          {draft.type === "phone" && draft.supports_sms && (
+            <div className="border border-gray-100 bg-gray-50/50 p-3 rounded-lg space-y-3">
+              <Checkbox
+                label="إيقاف الرسائل مؤقتاً"
+                checked={draft.is_sms_stopped}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    is_sms_stopped: e.target.checked,
+                    stop_sms_from: e.target.checked ? d.stop_sms_from : "",
+                    stop_sms_to: e.target.checked ? d.stop_sms_to : "",
+                  }))
+                }
+              />
+              {draft.is_sms_stopped && (
+                <div className="flex gap-4">
+                  <div className="w-1/2">
+                    <DatePickerSmart
+                      label="من تاريخ"
+                      value={draft.stop_sms_from || ""}
+                      onChange={(val) => setDraft((d) => ({ ...d, stop_sms_from: val }))}
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <DatePickerSmart
+                      label="حتى تاريخ"
+                      value={draft.stop_sms_to || ""}
+                      onChange={(val) => setDraft((d) => ({ ...d, stop_sms_to: val }))}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
