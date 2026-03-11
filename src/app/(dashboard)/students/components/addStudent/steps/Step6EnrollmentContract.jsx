@@ -40,16 +40,11 @@
 // }
 
 // export default function Step6EnrollmentContract({
-//  studentId,
+//   studentId,
 //   instituteBranchId,
-//   installments = [],
-//   setInstallments,
-//   deferSave = false,
-//   onFinalSubmit,
-//   onBack,
 //   onNext,
+//   onBack,
 //   onSkip,
-//   loading = false,
 // }) {
 //   const [currency, setCurrency] = useState("usd");
 //   const [mode, setMode] = useState("automatic");
@@ -85,19 +80,16 @@
 //       exchange_rate_at_payment: "",
 //       paid_date: "",
 //       description: "دفعة أولى عند التسجيل",
-//       institute_branch_id: "",
 //     },
 //   }));
 
-  
+//   const [installments, setInstallments] = useState([]);
 
 //   const [previewInstallments, { isLoading: previewLoading }] =
 //     usePreviewInstallmentsMutation();
 
 //   const [addContract, { isLoading: saving }] =
 //     useAddEnrollmentContractMutation();
-
-//   const isActuallySaving = saving || loading;
 
 //   const handleChange = (name, value) => {
 //     setForm((f) => ({ ...f, [name]: value }));
@@ -113,24 +105,20 @@
 //   const computed = useMemo(() => {
 //     const discRaw =
 //       form.discount_percentage === "" ? 0 : Number(form.discount_percentage);
-
 //     const discount = Number.isFinite(discRaw)
 //       ? Math.min(100, Math.max(0, discRaw))
 //       : 0;
 
 //     const rate = Number(form.exchange_rate_at_enrollment) || 0;
 
-//     const totalUsdRaw =
+//     const totalUsd =
 //       currency === "usd"
 //         ? Number(form.total_amount_usd) || 0
 //         : rate > 0
 //           ? (Number(form.final_amount_syp) || 0) / rate
 //           : 0;
 
-//     const totalUsd = Number(totalUsdRaw.toFixed(2));
-
-//     const finalUsdRaw = totalUsd - totalUsd * (discount / 100);
-//     const finalUsd = Number(finalUsdRaw.toFixed(2));
+//     const finalUsd = totalUsd - totalUsd * (discount / 100);
 
 //     const finalSyp =
 //       currency === "syp" && rate > 0 ? Math.round(finalUsd * rate) : 0;
@@ -196,7 +184,7 @@
 //   }, [mode, form.installments_count, form.installments_start_date]);
 
 //   const validateCommon = () => {
-//     if (!studentId && !deferSave) {
+//     if (!studentId) {
 //       notify.error("الطالب غير محدد");
 //       return false;
 //     }
@@ -237,8 +225,8 @@
 
 //     if (form.discount_percentage !== "") {
 //       const disc = Number(form.discount_percentage);
-//       if (!Number.isFinite(disc) || disc < 1 || disc > 100) {
-//         notify.error("الحسم يجب أن يكون بين 1 و 100");
+//       if (!Number.isFinite(disc) || disc < 0 || disc > 100) {
+//         notify.error("الحسم يجب أن يكون بين 0 و 100");
 //         return false;
 //       }
 //       if (!form.discount_reason?.trim()) {
@@ -288,9 +276,6 @@
 //     return true;
 //   };
 
-//   const onlyNumberString = (s) => String(s ?? "").replace(/[^\d.]/g, "");
-//   const clampNumber = (n, min, max) => Math.min(max, Math.max(min, n));
-
 //   const validateManualInstallments = () => {
 //     const count = Number(form.installments_count) || 0;
 
@@ -322,7 +307,7 @@
 //       sum += amount;
 //     }
 
-//     const finalUsd = Number(Number(computed.finalUsd || 0).toFixed(2));
+//     const finalUsd = Number(computed.finalUsd.toFixed(2));
 //     const sumRounded = Number(sum.toFixed(2));
 
 //     if (sumRounded < finalUsd) {
@@ -359,7 +344,7 @@
 //       : 0;
 
 //     return {
-//       student_id: studentId ? Number(studentId) : null,
+//       student_id: Number(studentId),
 //       institute_branch_id: Number(instituteBranchId),
 //       currency: contractCurrency,
 
@@ -397,65 +382,9 @@
 //     }));
 
 //     payload.installments = normalizedInstallments;
-
 //     payload.installments_count =
 //       mode === "automatic"
-//         ? Number(normalizedInstallments.length || 0)
-//         : Number(form.installments_count || 0);
-
-//     payload.__needsAutoPreview =
-//       mode === "automatic" && normalizedInstallments.length === 0;
-
-//     if (form.first_payment_enabled) {
-//       const fp = form.first_payment;
-
-//       let amount_usd = null;
-//       let amount_syp = null;
-//       let exchange_rate_at_payment = null;
-
-//       if (fp.currency === "USD") {
-//         amount_usd = Number(fp.amount_usd || 0);
-//       } else {
-//         exchange_rate_at_payment = Number(fp.exchange_rate_at_payment || 0);
-//         amount_syp = Number(fp.amount_syp || 0);
-//         amount_usd =
-//           exchange_rate_at_payment > 0
-//             ? amount_syp / exchange_rate_at_payment
-//             : 0;
-//       }
-
-//       payload.first_payment = {
-//         currency: fp.currency,
-//         student_id: studentId ? Number(studentId) : null,
-//         amount_usd:
-//           amount_usd !== null ? Number(Number(amount_usd).toFixed(2)) : null,
-//         amount_syp: fp.currency === "SYP" ? Number(amount_syp) : null,
-//         exchange_rate_at_payment:
-//           fp.currency === "SYP" ? Number(exchange_rate_at_payment) : null,
-//         receipt_number: fp.receipt_number,
-//         paid_date: fp.paid_date,
-//         description: fp.description || "دفعة أولى عند التسجيل",
-//         institute_branch_id: Number(fp.institute_branch_id),
-//       };
-//     }
-
-//     return payload;
-//   };
-
-//   const buildPayloadForSaveUsing = (list) => {
-//     const payload = buildPayloadBase();
-
-//     const normalizedInstallments = (list || []).map((i) => ({
-//       installment_number: Number(i.installment_number),
-//       due_date: i.due_date,
-//       planned_amount_usd: Number(i.planned_amount_usd),
-//     }));
-
-//     payload.installments = normalizedInstallments;
-
-//     payload.installments_count =
-//       mode === "automatic"
-//         ? Number(normalizedInstallments.length || 0)
+//         ? Number(installments.length || 0)
 //         : Number(form.installments_count || 0);
 
 //     if (form.first_payment_enabled) {
@@ -478,7 +407,7 @@
 
 //       payload.first_payment = {
 //         currency: fp.currency,
-//         student_id: studentId ? Number(studentId) : null,
+//         student_id: Number(studentId),
 //         amount_usd:
 //           amount_usd !== null ? Number(Number(amount_usd).toFixed(2)) : null,
 //         amount_syp: fp.currency === "SYP" ? Number(amount_syp) : null,
@@ -497,11 +426,6 @@
 //   const handlePreview = async () => {
 //     if (!validateCommon()) return;
 
-//     if (deferSave && !studentId) {
-//       notify.error("يتم توليد الأقساط تلقائياً بعد إنشاء الطالب");
-//       return;
-//     }
-
 //     const payload = buildPayloadForPreview();
 
 //     try {
@@ -518,53 +442,17 @@
 //   const handleSubmit = async () => {
 //     if (!validateCommon()) return;
 
+//     if (mode === "automatic" && installments.length === 0) {
+//       notify.error("يجب معاينة الأقساط قبل الحفظ");
+//       return;
+//     }
+
+//     if (mode === "manual" && !validateManualInstallments()) return;
+
+//     const payload = buildPayloadForSave();
+
 //     try {
-//       if (mode === "manual") {
-//         if (!validateManualInstallments()) return;
-
-//         const payload = buildPayloadForSave();
-
-//         if (deferSave) {
-//           onFinalSubmit?.(payload);
-//           return;
-//         }
-
-//         await addContract(payload).unwrap();
-//         notify.success("تم حفظ عقد التسجيل");
-//         onNext?.();
-//         return;
-//       }
-
-//       if (deferSave) {
-//         const payload = buildPayloadForSave();
-//         onFinalSubmit?.(payload);
-//         return;
-//       }
-
-//       if (installments.length === 0) {
-//         const previewPayload = buildPayloadForPreview();
-
-//         const res = await previewInstallments(previewPayload).unwrap();
-//         const list = res?.data?.installments || [];
-
-//         if (!Array.isArray(list) || list.length === 0) {
-//           notify.error("تعذر توليد الأقساط تلقائياً");
-//           return;
-//         }
-
-//         setInstallments(list);
-
-//         const savePayload = buildPayloadForSaveUsing(list);
-//         await addContract(savePayload).unwrap();
-
-//         notify.success("تم حفظ عقد التسجيل");
-//         onNext?.();
-//         return;
-//       }
-
-//       const payload = buildPayloadForSave();
 //       await addContract(payload).unwrap();
-
 //       notify.success("تم حفظ عقد التسجيل");
 //       onNext?.();
 //     } catch (err) {
@@ -596,6 +484,7 @@
 
 //   return (
 //     <div className="flex flex-col h-full">
+//       {/* ===== Header ثابت (اختياري) ===== */}
 //       <div className="shrink-0 bg-white/90 backdrop-blur border-b border-gray-100 px-1 pb-3 pt-1">
 //         <div className="flex items-center justify-between">
 //           <h3 className="text-[#6F013F] font-semibold text-sm">
@@ -605,6 +494,7 @@
 //         </div>
 //       </div>
 
+//       {/* ===== Body (سكرول هنا فقط) ===== */}
 //       <div className="flex-1 min-h-0 overflow-y-auto px-1 py-4">
 //         <div className="space-y-4">
 //           <SearchableSelect
@@ -617,22 +507,12 @@
 
 //           <InputField
 //             label="الحسم (%)"
-//             type="text"
-//             inputMode="numeric"
+//             type="number"
+//             placeholder="مثال: 10"
 //             value={form.discount_percentage}
-//             onChange={(e) => {
-//               const v = String(e.target.value ?? "")
-//                 .replace(/\D/g, "")
-//                 .slice(0, 3);
-//               handleChange("discount_percentage", v);
-//             }}
-//             onBlur={() => {
-//               if (form.discount_percentage === "") return;
-//               const n = Number(form.discount_percentage);
-//               if (!Number.isFinite(n)) return;
-//               const clamped = clampNumber(n, 1, 100);
-//               handleChange("discount_percentage", String(clamped));
-//             }}
+//             onChange={(e) =>
+//               handleChange("discount_percentage", e.target.value)
+//             }
 //           />
 
 //           {form.discount_percentage !== "" &&
@@ -647,6 +527,7 @@
 //               />
 //             )}
 
+//           {/* ✅ agreed_at */}
 //           <DatePickerSmart
 //             label="تاريخ العقد / الاتفاق"
 //             value={form.agreed_at}
@@ -658,56 +539,29 @@
 //           {currency === "usd" && (
 //             <InputField
 //               label="المبلغ بالدولار"
-//               type="text"
-//               inputMode="decimal"
+//               type="number"
 //               value={form.total_amount_usd}
-//               onChange={(e) => {
-//                 const v = onlyNumberString(e.target.value);
-//                 handleChange("total_amount_usd", v);
-//               }}
-//               onBlur={() => {
-//                 const n = Number(form.total_amount_usd);
-//                 if (!Number.isFinite(n)) return;
-//                 handleChange("total_amount_usd", String(Number(n.toFixed(2))));
-//               }}
+//               onChange={(e) => handleChange("total_amount_usd", e.target.value)}
 //             />
 //           )}
 
 //           {currency === "syp" && (
 //             <>
 //               <InputField
-//                 label="المبلغ بالليرة السورية"
-//                 type="text"
-//                 inputMode="numeric"
+//                 label="المبلغ بالليرة السورية (قبل الحسم)"
+//                 type="number"
 //                 value={form.final_amount_syp}
-//                 onChange={(e) => {
-//                   const v = String(e.target.value ?? "").replace(/\D/g, "");
-//                   handleChange("final_amount_syp", v);
-//                 }}
-//                 onBlur={() => {
-//                   const n = Number(form.final_amount_syp);
-//                   if (!Number.isFinite(n)) return;
-//                   handleChange("final_amount_syp", String(Math.round(n)));
-//                 }}
+//                 onChange={(e) =>
+//                   handleChange("final_amount_syp", e.target.value)
+//                 }
 //               />
-
 //               <InputField
 //                 label="سعر الصرف"
-//                 type="text"
-//                 inputMode="decimal"
+//                 type="number"
 //                 value={form.exchange_rate_at_enrollment}
-//                 onChange={(e) => {
-//                   const v = onlyNumberString(e.target.value);
-//                   handleChange("exchange_rate_at_enrollment", v);
-//                 }}
-//                 onBlur={() => {
-//                   const n = Number(form.exchange_rate_at_enrollment);
-//                   if (!Number.isFinite(n)) return;
-//                   handleChange(
-//                     "exchange_rate_at_enrollment",
-//                     String(Number(n.toFixed(2))),
-//                   );
-//                 }}
+//                 onChange={(e) =>
+//                   handleChange("exchange_rate_at_enrollment", e.target.value)
+//                 }
 //               />
 //             </>
 //           )}
@@ -729,6 +583,7 @@
 //             allowClear
 //           />
 
+//           {/* ✅ installments_start_date */}
 //           <DatePickerSmart
 //             label="تاريخ بدء الأقساط"
 //             value={form.installments_start_date}
@@ -755,12 +610,13 @@
 //               type="button"
 //               onClick={handlePreview}
 //               className="w-full bg-gray-100 rounded-xl py-2 text-sm hover:bg-gray-200 transition"
-//               disabled={previewLoading || saving}
+//               disabled={previewLoading}
 //             >
 //               معاينة الأقساط
 //             </button>
 //           )}
 
+//           {/* automatic list */}
 //           {mode === "automatic" && installments.length > 0 && (
 //             <div className="border border-gray-200 rounded-xl p-3 bg-white space-y-2">
 //               {installments.map((i) => (
@@ -801,6 +657,7 @@
 //             </div>
 //           )}
 
+//           {/* manual list */}
 //           {mode === "manual" && installments.length > 0 && (
 //             <div className="space-y-2">
 //               <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 px-1">
@@ -819,6 +676,7 @@
 //                       #{inst.installment_number}
 //                     </div>
 
+//                     {/* ✅ due_date */}
 //                     <DatePickerSmart
 //                       value={inst.due_date || ""}
 //                       onChange={(iso) =>
@@ -851,6 +709,7 @@
 //             </div>
 //           )}
 
+//           {/* first payment */}
 //           <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 space-y-3">
 //             <div className="flex items-center justify-between">
 //               <div className="text-sm font-medium text-gray-700">
@@ -898,6 +757,7 @@
 //                   allowClear={false}
 //                 />
 
+//                 {/* ✅ paid_date */}
 //                 <DatePickerSmart
 //                   label="تاريخ الدفع"
 //                   value={form.first_payment.paid_date}
@@ -954,13 +814,14 @@
 //         </div>
 //       </div>
 
+//       {/* ===== Footer ثابت ===== */}
 //       <div className="shrink-0 bg-white/90 backdrop-blur border-t border-gray-100 px-1 pt-3 pb-2">
 //         <div className="flex items-center justify-between gap-3">
 //           <button
 //             type="button"
 //             onClick={onSkip}
 //             className="text-xs text-gray-500 hover:text-[#6F013F] transition"
-//             disabled={isActuallySaving || previewLoading}
+//             disabled={saving || previewLoading}
 //           >
 //             تخطي هذه الخطوة
 //           </button>
@@ -970,7 +831,7 @@
 //             total={6}
 //             onBack={onBack}
 //             onNext={handleSubmit}
-//             loading={isActuallySaving || previewLoading}
+//             loading={saving || previewLoading}
 //           />
 //         </div>
 //       </div>
@@ -1021,15 +882,9 @@ function addMonthsSafe(dateStr, months) {
 export default function Step6EnrollmentContract({
   studentId,
   instituteBranchId,
-  installments = [],
-  setInstallments,
-  deferSave = false,
-  onFinalSubmit,
-  onPreviewDeferred,
   onNext,
   onBack,
   onSkip,
-  loading = false,
 }) {
   const [currency, setCurrency] = useState("usd");
   const [mode, setMode] = useState("automatic");
@@ -1069,13 +924,13 @@ export default function Step6EnrollmentContract({
     },
   }));
 
+  const [installments, setInstallments] = useState([]);
+
   const [previewInstallments, { isLoading: previewLoading }] =
     usePreviewInstallmentsMutation();
 
   const [addContract, { isLoading: saving }] =
     useAddEnrollmentContractMutation();
-
-  const isActuallySaving = saving || loading;
 
   const handleChange = (name, value) => {
     setForm((f) => ({ ...f, [name]: value }));
@@ -1088,6 +943,7 @@ export default function Step6EnrollmentContract({
     }));
   };
 
+  // ✅ حسابات ثابتة لتجنب float rounding اللي بيعمل 1200 -> 1199
   const computed = useMemo(() => {
     const discRaw =
       form.discount_percentage === "" ? 0 : Number(form.discount_percentage);
@@ -1105,11 +961,13 @@ export default function Step6EnrollmentContract({
           ? (Number(form.final_amount_syp) || 0) / rate
           : 0;
 
+    // ✅ تثبيت USD على 2 decimals
     const totalUsd = Number(totalUsdRaw.toFixed(2));
 
     const finalUsdRaw = totalUsd - totalUsd * (discount / 100);
     const finalUsd = Number(finalUsdRaw.toFixed(2));
 
+    // ✅ SYP رقم صحيح بعد تثبيت finalUsd
     const finalSyp =
       currency === "syp" && rate > 0 ? Math.round(finalUsd * rate) : 0;
 
@@ -1122,10 +980,11 @@ export default function Step6EnrollmentContract({
     form.discount_percentage,
   ]);
 
+  // reset installments when key inputs change (automatic)
   useEffect(() => {
     if (mode !== "automatic") return;
     if (installments.length === 0) return;
-    setInstallments?.([]);
+    setInstallments([]);
   }, [
     mode,
     currency,
@@ -1135,31 +994,28 @@ export default function Step6EnrollmentContract({
     form.discount_percentage,
     form.installments_start_date,
     form.agreed_at,
-    setInstallments,
   ]);
 
+  // reset when mode changes
   useEffect(() => {
-    setInstallments?.([]);
-  }, [mode, setInstallments]);
+    setInstallments([]);
+  }, [mode]);
 
+  // build manual installments fields
   useEffect(() => {
     if (mode !== "manual") return;
 
     const count = Number(form.installments_count) || 0;
 
     if (count <= 0) {
-      setInstallments?.([]);
+      setInstallments([]);
       return;
     }
 
-    setInstallments?.((prev) => {
-      const safePrev = Array.isArray(prev) ? prev : [];
-
+    setInstallments((prev) => {
       const next = Array.from({ length: count }, (_, idx) => {
         const n = idx + 1;
-        const existing = safePrev.find(
-          (p) => Number(p.installment_number) === n,
-        );
+        const existing = prev.find((p) => Number(p.installment_number) === n);
 
         const autoDate =
           form.installments_start_date &&
@@ -1176,23 +1032,13 @@ export default function Step6EnrollmentContract({
 
       return next;
     });
-  }, [
-    mode,
-    form.installments_count,
-    form.installments_start_date,
-    setInstallments,
-  ]);
+  }, [mode, form.installments_count, form.installments_start_date]);
 
   const validateCommon = () => {
-    if (!studentId && !deferSave) {
+    if (!studentId) {
       notify.error("الطالب غير محدد");
       return false;
     }
-
-    // if (!instituteBranchId) {
-    //   notify.error("فرع المعهد غير محدد");
-    //   return false;
-    // }
 
     if (!form.agreed_at) {
       notify.error("حدد تاريخ العقد / الاتفاق");
@@ -1228,6 +1074,7 @@ export default function Step6EnrollmentContract({
       }
     }
 
+    // ✅ الحسم فقط 1..100 إذا مكتوب
     if (form.discount_percentage !== "") {
       const disc = Number(form.discount_percentage);
       if (!Number.isFinite(disc) || disc < 1 || disc > 100) {
@@ -1280,10 +1127,8 @@ export default function Step6EnrollmentContract({
 
     return true;
   };
-
   const onlyNumberString = (s) => String(s ?? "").replace(/[^\d.]/g, "");
   const clampNumber = (n, min, max) => Math.min(max, Math.max(min, n));
-
   const validateManualInstallments = () => {
     const count = Number(form.installments_count) || 0;
 
@@ -1352,7 +1197,7 @@ export default function Step6EnrollmentContract({
       : 0;
 
     return {
-      student_id: studentId ? Number(studentId) : null,
+      student_id: Number(studentId),
       institute_branch_id: Number(instituteBranchId),
       currency: contractCurrency,
 
@@ -1375,20 +1220,15 @@ export default function Step6EnrollmentContract({
 
   const buildPayloadForPreview = () => {
     const payload = buildPayloadBase();
-
-    if (mode === "manual") {
-      payload.installments_count = Number(form.installments_count) || 0;
-    } else {
-      payload.installments_count = Number(form.installments_count) || 1;
-    }
-
+    payload.installments_count =
+      mode === "manual" ? Number(form.installments_count) || 0 : 1;
     return payload;
   };
 
   const buildPayloadForSave = () => {
     const payload = buildPayloadBase();
 
-    const normalizedInstallments = (installments || []).map((i) => ({
+    const normalizedInstallments = installments.map((i) => ({
       installment_number: Number(i.installment_number),
       due_date: i.due_date,
       planned_amount_usd: Number(i.planned_amount_usd),
@@ -1400,9 +1240,6 @@ export default function Step6EnrollmentContract({
       mode === "automatic"
         ? Number(normalizedInstallments.length || 0)
         : Number(form.installments_count || 0);
-
-    payload.__needsAutoPreview =
-      mode === "automatic" && normalizedInstallments.length === 0;
 
     if (form.first_payment_enabled) {
       const fp = form.first_payment;
@@ -1424,7 +1261,7 @@ export default function Step6EnrollmentContract({
 
       payload.first_payment = {
         currency: fp.currency,
-        student_id: studentId ? Number(studentId) : null,
+        student_id: Number(studentId),
         amount_usd:
           amount_usd !== null ? Number(Number(amount_usd).toFixed(2)) : null,
         amount_syp: fp.currency === "SYP" ? Number(amount_syp) : null,
@@ -1440,6 +1277,7 @@ export default function Step6EnrollmentContract({
     return payload;
   };
 
+  // ✅ نسخة للحفظ باستخدام أقساط رجعت من preview مباشرة (بدون انتظار setState)
   const buildPayloadForSaveUsing = (list) => {
     const payload = buildPayloadBase();
 
@@ -1450,6 +1288,7 @@ export default function Step6EnrollmentContract({
     }));
 
     payload.installments = normalizedInstallments;
+
     payload.installments_count =
       mode === "automatic"
         ? Number(normalizedInstallments.length || 0)
@@ -1475,7 +1314,7 @@ export default function Step6EnrollmentContract({
 
       payload.first_payment = {
         currency: fp.currency,
-        student_id: studentId ? Number(studentId) : null,
+        student_id: Number(studentId),
         amount_usd:
           amount_usd !== null ? Number(Number(amount_usd).toFixed(2)) : null,
         amount_syp: fp.currency === "SYP" ? Number(amount_syp) : null,
@@ -1494,71 +1333,28 @@ export default function Step6EnrollmentContract({
   const handlePreview = async () => {
     if (!validateCommon()) return;
 
+    const payload = buildPayloadForPreview();
+
     try {
-      const payload = buildPayloadForPreview();
-
-      if (deferSave && !studentId) {
-        onPreviewDeferred?.(payload);
-        return;
-      }
-
       const res = await previewInstallments(payload).unwrap();
       const list = res?.data?.installments || [];
-
-      if (!Array.isArray(list) || list.length === 0) {
-        notify.error("تعذر توليد الأقساط تلقائياً");
-        return;
-      }
-
-      setInstallments?.(list);
+      setInstallments(list);
       notify.success(res?.data?.message || "تمت معاينة الأقساط");
     } catch (err) {
       console.error("Preview Error:", err?.data || err);
-
-      const errors = err?.data?.errors;
-      if (errors) {
-        const firstErrorKey = Object.keys(errors)[0];
-        const firstErrorMessage = errors[firstErrorKey]?.[0];
-        if (firstErrorMessage) {
-          notify.error(firstErrorMessage);
-          return;
-        }
-      }
-
       notify.error(err?.data?.message || "فشل في معاينة الأقساط");
     }
   };
 
+  // ✅ إنهاء: preview تلقائي بالخلفية إذا automatic ولم يتم preview
   const handleSubmit = async () => {
     if (!validateCommon()) return;
 
     try {
-      if (mode === "manual") {
-        if (!validateManualInstallments()) return;
-
-        const payload = buildPayloadForSave();
-
-        if (deferSave) {
-          onFinalSubmit?.(payload);
-          return;
-        }
-
-        await addContract(payload).unwrap();
-        notify.success("تم حفظ عقد التسجيل");
-        onNext?.();
-        return;
-      }
-
-      if (deferSave) {
-        const payload = buildPayloadForSave();
-        payload.installments = [];
-        payload.installments_count = 1;
-        onFinalSubmit?.(payload);
-        return;
-      }
-
-      if (installments.length === 0) {
+      // automatic: إذا ما في أقساط -> preview ثم save مباشرة
+      if (mode === "automatic" && installments.length === 0) {
         const previewPayload = buildPayloadForPreview();
+
         const res = await previewInstallments(previewPayload).unwrap();
         const list = res?.data?.installments || [];
 
@@ -1567,7 +1363,7 @@ export default function Step6EnrollmentContract({
           return;
         }
 
-        setInstallments?.(list);
+        setInstallments(list);
 
         const savePayload = buildPayloadForSaveUsing(list);
         await addContract(savePayload).unwrap();
@@ -1577,7 +1373,11 @@ export default function Step6EnrollmentContract({
         return;
       }
 
-      const payload = buildPayloadForSaveUsing(installments);
+      // manual
+      if (mode === "manual" && !validateManualInstallments()) return;
+
+      // automatic وفي أقساط جاهزة
+      const payload = buildPayloadForSave();
       await addContract(payload).unwrap();
 
       notify.success("تم حفظ عقد التسجيل");
@@ -1600,8 +1400,8 @@ export default function Step6EnrollmentContract({
   };
 
   const handleInstallmentChange = (installment_number, field, value) => {
-    setInstallments?.((prev) =>
-      (prev || []).map((inst) =>
+    setInstallments((prev) =>
+      prev.map((inst) =>
         Number(inst.installment_number) === Number(installment_number)
           ? { ...inst, [field]: value }
           : inst,
@@ -1611,6 +1411,7 @@ export default function Step6EnrollmentContract({
 
   return (
     <div className="flex flex-col h-full">
+      {/* ===== Header ثابت ===== */}
       <div className="shrink-0 bg-white/90 backdrop-blur border-b border-gray-100 px-1 pb-3 pt-1">
         <div className="flex items-center justify-between">
           <h3 className="text-[#6F013F] font-semibold text-sm">
@@ -1620,6 +1421,7 @@ export default function Step6EnrollmentContract({
         </div>
       </div>
 
+      {/* ===== Body (سكرول هنا فقط) ===== */}
       <div className="flex-1 min-h-0 overflow-y-auto px-1 py-4">
         <div className="space-y-4">
           <SearchableSelect
@@ -1630,6 +1432,28 @@ export default function Step6EnrollmentContract({
             allowClear
           />
 
+          {/* ✅ الحسم clamp 1..100 */}
+          {/* <InputField
+            label="الحسم (%)"
+            type="number"
+            placeholder="مثال: 10"
+            value={form.discount_percentage}
+            onChange={(e) => {
+              const raw = e.target.value;
+
+              if (raw === "") {
+                handleChange("discount_percentage", "");
+                return;
+              }
+
+              let n = Number(raw);
+              if (!Number.isFinite(n)) return;
+
+              // فقط 1..100
+              n = Math.max(1, Math.min(100, n));
+              handleChange("discount_percentage", String(n));
+            }}
+          /> */}
           <InputField
             label="الحسم (%)"
             type="text"
@@ -1671,16 +1495,24 @@ export default function Step6EnrollmentContract({
           />
 
           {currency === "usd" && (
+            // <InputField
+            //   label="المبلغ بالدولار"
+            //   type="number"
+            //   value={form.total_amount_usd}
+            //   onChange={(e) => handleChange("total_amount_usd", e.target.value)}
+            // />
             <InputField
               label="المبلغ بالدولار"
               type="text"
               inputMode="decimal"
               value={form.total_amount_usd}
               onChange={(e) => {
+                // ✅ لا تحوّل لـ Number هون
                 const v = onlyNumberString(e.target.value);
                 handleChange("total_amount_usd", v);
               }}
               onBlur={() => {
+                // ✅ هون بس منثبت/نرتب الرقم
                 const n = Number(form.total_amount_usd);
                 if (!Number.isFinite(n)) return;
                 handleChange("total_amount_usd", String(Number(n.toFixed(2))));
@@ -1690,6 +1522,14 @@ export default function Step6EnrollmentContract({
 
           {currency === "syp" && (
             <>
+              {/* <InputField
+                label="المبلغ بالليرة السورية (قبل الحسم)"
+                type="number"
+                value={form.final_amount_syp}
+                onChange={(e) =>
+                  handleChange("final_amount_syp", e.target.value)
+                }
+              /> */}
               <InputField
                 label="المبلغ بالليرة السورية"
                 type="text"
@@ -1705,7 +1545,14 @@ export default function Step6EnrollmentContract({
                   handleChange("final_amount_syp", String(Math.round(n)));
                 }}
               />
-
+              {/* <InputField
+                label="سعر الصرف"
+                type="number"
+                value={form.exchange_rate_at_enrollment}
+                onChange={(e) =>
+                  handleChange("exchange_rate_at_enrollment", e.target.value)
+                }
+              /> */}
               <InputField
                 label="سعر الصرف"
                 type="text"
@@ -1765,17 +1612,19 @@ export default function Step6EnrollmentContract({
             />
           )}
 
+          {/* زر معاينة (لسا موجود) */}
           {mode === "automatic" && (
             <button
               type="button"
               onClick={handlePreview}
               className="w-full bg-gray-100 rounded-xl py-2 text-sm hover:bg-gray-200 transition"
-              disabled={previewLoading || saving || loading}
+              disabled={previewLoading || saving}
             >
               معاينة الأقساط
             </button>
           )}
 
+          {/* automatic list */}
           {mode === "automatic" && installments.length > 0 && (
             <div className="border border-gray-200 rounded-xl p-3 bg-white space-y-2">
               {installments.map((i) => (
@@ -1816,6 +1665,7 @@ export default function Step6EnrollmentContract({
             </div>
           )}
 
+          {/* manual list */}
           {mode === "manual" && installments.length > 0 && (
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 px-1">
@@ -1866,6 +1716,7 @@ export default function Step6EnrollmentContract({
             </div>
           )}
 
+          {/* first payment */}
           <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-gray-700">
@@ -1969,13 +1820,14 @@ export default function Step6EnrollmentContract({
         </div>
       </div>
 
+      {/* ===== Footer ثابت ===== */}
       <div className="shrink-0 bg-white/90 backdrop-blur border-t border-gray-100 px-1 pt-3 pb-2">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onSkip}
             className="text-xs text-gray-500 hover:text-[#6F013F] transition"
-            disabled={isActuallySaving || previewLoading}
+            disabled={saving || previewLoading}
           >
             تخطي هذه الخطوة
           </button>
@@ -1985,7 +1837,7 @@ export default function Step6EnrollmentContract({
             total={6}
             onBack={onBack}
             onNext={handleSubmit}
-            loading={isActuallySaving || previewLoading}
+            loading={saving || previewLoading}
           />
         </div>
       </div>

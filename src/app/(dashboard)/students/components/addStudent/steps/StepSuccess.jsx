@@ -4,7 +4,7 @@ import Image from "next/image";
 import { notify } from "@/lib/helpers/toastify";
 import { useDownloadStudentReportMutation } from "@/store/services/studentsApi";
 
-export default function StepSuccess({ studentId, onClose, onReset }) {
+export default function StepSuccess({ studentId, student, onAssignToBatch, onClose, onReset }) {
   const [downloadReport, { isLoading }] = useDownloadStudentReportMutation();
 
   const handleDownload = async () => {
@@ -53,23 +53,32 @@ export default function StepSuccess({ studentId, onClose, onReset }) {
         تم حفظ جميع بيانات الطالب وولي الأمر بنجاح.
       </p>
 
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex flex-col items-center justify-center gap-3 w-full max-w-xs mx-auto">
         <button
           onClick={() => {
             onReset();
             onClose();
           }}
-          className="px-4 py-1.5 text-sm rounded-md text-white bg-gradient-to-l from-[#D40078] to-[#6D003E] hover:opacity-95 transition"
+          className="w-full px-4 py-2 text-sm rounded-md text-white bg-gradient-to-l from-[#D40078] to-[#6D003E] hover:opacity-95 transition font-medium"
         >
           العودة إلى القائمة
         </button>
 
+        {onAssignToBatch && (
+          <button
+            onClick={() => onAssignToBatch(student)}
+            className="w-full px-4 py-2 text-sm border border-[#D40078] text-[#D40078] rounded-md hover:bg-pink-50 transition font-medium"
+          >
+            إضافة الطالب لشعبة (توزيع)
+          </button>
+        )}
+
         <button
           onClick={handleDownload}
           disabled={isLoading}
-          className="px-4 py-1.5 text-sm border border-[#D40078] text-[#6F013F] rounded-md hover:bg-pink-50 transition disabled:opacity-60"
+          className="w-full px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 transition disabled:opacity-60"
         >
-          {isLoading ? "جاري التحميل..." : "طباعة التقرير"}
+          {isLoading ? "جاري التحميل..." : "تحميل تقرير الطالب (Docx)"}
         </button>
       </div>
     </div>

@@ -9,7 +9,6 @@ import InputField from "@/components/common/InputField";
 import PhoneInputSplit from "@/components/common/PhoneInputSplit";
 import GradientButton from "@/components/common/GradientButton";
 import Checkbox from "@/components/common/Checkbox";
-import DatePickerSmart from "@/components/common/DatePickerSmart";
 
 import {
   useAddContactMutation,
@@ -155,9 +154,6 @@ const emptyDraft = () => ({
   supports_call: false,
   supports_whatsapp: false,
   supports_sms: false,
-  is_sms_stopped: false,
-  stop_sms_from: "",
-  stop_sms_to: "",
   notes: "",
 });
 
@@ -240,9 +236,6 @@ const normalizeExistingContact = (contact, ctx) => {
     supports_whatsapp:
       type === "landline" ? false : toBool(contact?.supports_whatsapp),
     supports_sms: type === "landline" ? false : toBool(contact?.supports_sms),
-    is_sms_stopped: !!(contact?.stop_sms_from || contact?.stop_sms_to),
-    stop_sms_from: clean(contact?.stop_sms_from) || "",
-    stop_sms_to: clean(contact?.stop_sms_to) || "",
     notes: clean(contact?.notes),
     guardian_id: contact?.guardian_id ?? null,
     student_id: contact?.student_id ?? ctx.studentId ?? null,
@@ -316,14 +309,6 @@ const buildPayload = (row, ctx) => {
     payload.supports_call = !!row.supports_call;
     payload.supports_whatsapp = !!row.supports_whatsapp;
     payload.supports_sms = !!row.supports_sms;
-
-    if (payload.supports_sms && row.is_sms_stopped) {
-      payload.stop_sms_from = clean(row.stop_sms_from) || null;
-      payload.stop_sms_to = clean(row.stop_sms_to) || null;
-    } else {
-      payload.stop_sms_from = null;
-      payload.stop_sms_to = null;
-    }
 
     if (ownerType === "father" || ownerType === "mother") {
       const guardianId = resolveGuardianIdByOwnerType(
@@ -447,12 +432,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
 
   /* check SMS constraint */
   const hasSmsContact = useMemo(() => {
-    return items.some(
-      (x) =>
-        x.type === "phone" &&
-        x.supports_sms &&
-        localRowId(x) !== localRowId(draft),
-    );
+    return items.some((x) => x.type === "phone" && x.supports_sms && localRowId(x) !== localRowId(draft));
   }, [items, draft]);
 
   const ownerOptions = useMemo(
@@ -481,9 +461,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
       supports_call: !!it.supports_call,
       supports_whatsapp: !!it.supports_whatsapp,
       supports_sms: !!it.supports_sms,
-      is_sms_stopped: !!(it.stop_sms_from || it.stop_sms_to),
-      stop_sms_from: it.stop_sms_from || "",
-      stop_sms_to: it.stop_sms_to || "",
       notes: it.notes ?? "",
     });
   };
@@ -617,9 +594,6 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                   supports_call: false,
                   supports_whatsapp: false,
                   supports_sms: false,
-                  is_sms_stopped: false,
-                  stop_sms_from: "",
-                  stop_sms_to: "",
                   notes: d.notes || "",
                 }))
               }
@@ -631,7 +605,8 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
             {draft.type ? (
               draft.type === "landline" ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  الهاتف الأرضي يُربط بالعائلة تلقائياً
+                  الهاتف الأرضي يُربط بالعائلة تلقائياً، والـ Backend سيجعل
+                  الاتصال مفعلاً ويمنع جعله رقماً أساسياً.
                 </div>
               ) : (
                 <SearchableSelect
@@ -684,9 +659,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                   <SearchableSelect
                     label="رمز المنطقة"
                     value={draft.country_code}
-                    onChange={(v) =>
-                      setDraft((d) => ({ ...d, country_code: v }))
-                    }
+                    onChange={(v) => setDraft((d) => ({ ...d, country_code: v }))}
                     options={SYRIA_CITY_CODES}
                     placeholder="مثل 011"
                     allowClear
@@ -697,9 +670,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                     label="رقم الهاتف الأرضي"
                     placeholder="2134567"
                     value={draft.phone_number}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, phone_number: e.target.value }))
-                    }
+                    onChange={(e) => setDraft((d) => ({ ...d, phone_number: e.target.value }))}
                   />
                 </div>
               </div>
@@ -732,11 +703,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                     }
                   />
                   <Checkbox
-                    label={
-                      hasSmsContact
-                        ? "الرسائل النصية (مضاف رقم مسبقاً)"
-                        : "رسائل نصية (SMS)"
-                    }
+                    label={hasSmsContact ? "الرسائل النصية (مضاف رقم مسبقاً)" : "رسائل نصية (SMS)"}
                     labelClassName={`text-xs ${hasSmsContact ? "text-gray-400" : "text-gray-700"}`}
                     disabled={hasSmsContact}
                     checked={draft.supports_sms}
@@ -744,48 +711,10 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                       setDraft((d) => ({
                         ...d,
                         supports_sms: e.target.checked,
-                        is_sms_stopped: e.target.checked ? d.is_sms_stopped : false,
-                        stop_sms_from: e.target.checked ? d.stop_sms_from : "",
-                        stop_sms_to: e.target.checked ? d.stop_sms_to : "",
                       }))
                     }
                   />
                 </div>
-              </div>
-            ) : null}
-
-            {draft.type === "phone" && draft.supports_sms ? (
-              <div className="border border-gray-100 bg-gray-50/50 p-3 rounded-lg space-y-3">
-                <Checkbox
-                  label="إيقاف الرسائل مؤقتاً"
-                  checked={draft.is_sms_stopped}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      is_sms_stopped: e.target.checked,
-                      stop_sms_from: e.target.checked ? d.stop_sms_from : "",
-                      stop_sms_to: e.target.checked ? d.stop_sms_to : "",
-                    }))
-                  }
-                />
-                {draft.is_sms_stopped && (
-                  <div className="flex gap-4">
-                    <div className="w-1/2">
-                      <DatePickerSmart
-                        label="من تاريخ"
-                        value={draft.stop_sms_from || ""}
-                        onChange={(val) => setDraft((d) => ({ ...d, stop_sms_from: val }))}
-                      />
-                    </div>
-                    <div className="w-1/2">
-                      <DatePickerSmart
-                        label="حتى تاريخ"
-                        value={draft.stop_sms_to || ""}
-                        onChange={(val) => setDraft((d) => ({ ...d, stop_sms_to: val }))}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             ) : null}
 
@@ -840,28 +769,21 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                     </p>
 
                     <p className="text-xs text-gray-600 flex items-center gap-2">
-                      <span>
-                        النوع: {it.type === "landline" ? "أرضي" : "محمول"}
-                      </span>
+                      <span>النوع: {it.type === "landline" ? "أرضي" : "محمول"}</span>
                       {it.type === "phone" && (
                         <span className="flex gap-1">
-                          [{it.supports_call ? "اتصال" : ""}
-                          {it.supports_call &&
-                          (it.supports_whatsapp || it.supports_sms)
-                            ? " | "
-                            : ""}
+                          [
+                          {it.supports_call ? "اتصال" : ""}
+                          {it.supports_call && (it.supports_whatsapp || it.supports_sms) ? " | " : ""}
                           {it.supports_whatsapp ? "واتساب" : ""}
                           {it.supports_whatsapp && it.supports_sms ? " | " : ""}
-                          {it.supports_sms ? "رسائل" : ""}]
+                          {it.supports_sms ? "رسائل" : ""}
+                          ]
                         </span>
                       )}
                     </p>
 
-                    <p
-                      className="text-xs text-gray-600"
-                      dir="ltr"
-                      style={{ textAlign: "right" }}
-                    >
+                    <p className="text-xs text-gray-600" dir="ltr" style={{ textAlign: "right" }}>
                       {it.country_code ? `${it.country_code} ` : ""}
                       {it.phone_number}
                     </p>

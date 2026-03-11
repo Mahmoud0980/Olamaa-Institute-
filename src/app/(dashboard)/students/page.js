@@ -357,20 +357,20 @@ export default function StudentsPage() {
             </thead>
             <tbody>
               ${rows
-                .map(
-                  (s, i) => `
+        .map(
+          (s, i) => `
                 <tr>
                   <td>${i + 1}</td>
                   <td>${esc(
-                    s.full_name ?? `${s.first_name} ${s.last_name}`,
-                  )}</td>
+            s.full_name ?? `${s.first_name} ${s.last_name}`,
+          )}</td>
                   <td>${esc(s.gender)}</td>
                   <td>${esc(s.institute_branch?.name)}</td>
                   <td>${esc(s.batch?.name)}</td>
                   <td>${esc(s.date_of_birth)}</td>
                 </tr>`,
-                )
-                .join("")}
+        )
+        .join("")}
             </tbody>
           </table>
         </body>
@@ -545,9 +545,8 @@ export default function StudentsPage() {
         isOpen={openDelete}
         loading={deleting}
         title="حذف طالب"
-        description={`هل أنت متأكد من حذف ${
-          studentToDelete?.first_name ?? ""
-        } ${studentToDelete?.last_name ?? ""}؟`}
+        description={`هل أنت متأكد من حذف ${studentToDelete?.first_name ?? ""
+          } ${studentToDelete?.last_name ?? ""}؟`}
         onClose={() => setOpenDelete(false)}
         onConfirm={confirmDelete}
       />
@@ -564,6 +563,15 @@ export default function StudentsPage() {
           await refetchStudents();
           setIsAddOpen(false);
           router.replace(pathname); // يشيل ?add=1 بعد الإضافة
+        }}
+        onAssignToBatch={async (studentData) => {
+          setIsAddOpen(false);
+          router.replace(pathname);
+          await refetchStudents();
+          // نفتح مودال الإضافة للشعبة مباشرة
+          setOpenAddToBatch(true);
+          // نحتاج نضمن أن الطالب محمل
+          await ensureStudentDetails(studentData);
         }}
       />
       <AddStudentToBatchModal

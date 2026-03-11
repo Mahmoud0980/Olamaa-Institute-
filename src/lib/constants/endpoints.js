@@ -10,6 +10,7 @@ const ENDPOINTS = {
   STUDENT_STATUSES: "/student-statuses",
   ACADEMIC_RECORDS: "/academic-records",
   CONTACTS: "/contact-details",
+  STUDENT_SUMMARY: "/contact-details/student",
   EMPLOYEES: "/employees",
   SUBJECTS: "/subjects",
   TEACHERS: "/teachers",
@@ -18,6 +19,7 @@ const ENDPOINTS = {
   ATTENDANCE: "/attendance",
   SCHOOLS: "/schools",
   GUARDIANS: "/guardians",
+  FAMILIES: "/families",
 
   PAYMENTS: "/payments",
   PAYMENTS_LATEST_PER_STUDENT: "/payments/latest-per-student",

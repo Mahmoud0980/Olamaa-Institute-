@@ -19,7 +19,7 @@
 //           ...(headers || {}),
 //         },
 //       });
-//       return { data: result.data };
+//       console.log('API OK URL:', url, result.data); return { data: result.data };
 //     } catch (err) {
 //       return {
 //         error: {
@@ -47,44 +47,44 @@ import axios from "@/lib/config/axiosConfig";
 
 export const axiosBaseQuery =
   ({ baseUrl } = { baseUrl: "" }) =>
-  async ({ url, method, data, body, params, headers }) => {
-    try {
-      const payload = data ?? body;
+    async ({ url, method, data, body, params, headers }) => {
+      try {
+        const payload = data ?? body;
 
-      // ✅ جهّز الهيدرز
-      const finalHeaders = { ...(headers || {}) };
+        // ✅ جهّز الهيدرز
+        const finalHeaders = { ...(headers || {}) };
 
-      // ✅ إذا FormData: لا ترسل Content-Type إطلاقًا
-      // (حتى لو axiosConfig حاطه افتراضي)
-      const isFormData =
-        typeof FormData !== "undefined" && payload instanceof FormData;
+        // ✅ إذا FormData: لا ترسل Content-Type إطلاقًا
+        // (حتى لو axiosConfig حاطه افتراضي)
+        const isFormData =
+          typeof FormData !== "undefined" && payload instanceof FormData;
 
-      if (isFormData) {
-        // حذف من الهيدرز القادمة من endpoint
-        delete finalHeaders["Content-Type"];
-        delete finalHeaders["content-type"];
+        if (isFormData) {
+          // حذف من الهيدرز القادمة من endpoint
+          delete finalHeaders["Content-Type"];
+          delete finalHeaders["content-type"];
+        }
+
+        const result = await axios({
+          url: baseUrl + url,
+          method,
+          data: payload,
+          params,
+          headers: finalHeaders,
+          // ✅ مهم: لا تخلّي axios يحاول يحوّل البيانات إذا كانت فروم داتا فقط
+          ...(isFormData && { transformRequest: [(d) => d] }),
+        });
+
+        return { data: result.data };
+      } catch (err) {
+        return {
+          error: {
+            status: err.response?.status,
+            data: err.response?.data || err.message,
+          },
+        };
       }
-
-      const result = await axios({
-        url: baseUrl + url,
-        method,
-        data: payload,
-        params,
-        headers: finalHeaders,
-        // ✅ مهم: لا تخلّي axios يحاول يحوّل البيانات
-        transformRequest: isFormData ? [(d) => d] : undefined,
-      });
-
-      return { data: result.data };
-    } catch (err) {
-      return {
-        error: {
-          status: err.response?.status,
-          data: err.response?.data || err.message,
-        },
-      };
-    }
-  };
+    };
 
 export const baseApiConfig = {
   baseQuery: axiosBaseQuery({ baseUrl: "" }),

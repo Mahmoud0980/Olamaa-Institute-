@@ -19,6 +19,7 @@ export default function Step4Record({
   onBack,
   onSkip,
   loading = false,
+  backDisabled = false,
 }) {
   return (
     <div className="flex flex-col h-full">
@@ -86,9 +87,6 @@ export default function Step4Record({
             type="text"
             placeholder="YYYY"
             register={register("year", {
-              onChange: (e) => {
-                e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
-              },
               setValueAs: (v) =>
                 String(v ?? "")
                   .replace(/\D/g, "")
@@ -153,6 +151,7 @@ export default function Step4Record({
             onNext={onNext}
             onBack={onBack}
             loading={loading}
+            backDisabled={backDisabled}
           />
         </div>
       </div>

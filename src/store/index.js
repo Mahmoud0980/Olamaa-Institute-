@@ -28,6 +28,7 @@ import { attendanceApi } from "./services/attendanceApi";
 import { schoolsApi } from "./services/schoolsApi";
 import { paymentsApi } from "./services/paymentsApi";
 import { guardiansApi } from "./services/guardiansApi";
+import { familiesApi } from "./services/familiesApi";
 import { enrollmentContractsApi } from "./services/enrollmentContractsApi";
 import { batchStudentsApi } from "./services/batchStudentsApi";
 import { paymentEditRequestsApi } from "./services/paymentEditRequestsApi";
@@ -65,6 +66,7 @@ export const store = configureStore({
     [schoolsApi.reducerPath]: schoolsApi.reducer,
     [paymentsApi.reducerPath]: paymentsApi.reducer,
     [guardiansApi.reducerPath]: guardiansApi.reducer,
+    [familiesApi.reducerPath]: familiesApi.reducer,
     [enrollmentContractsApi.reducerPath]: enrollmentContractsApi.reducer,
     [batchStudentsApi.reducerPath]: batchStudentsApi.reducer,
     [paymentEditRequestsApi.reducerPath]: paymentEditRequestsApi.reducer,
@@ -104,6 +106,7 @@ export const store = configureStore({
       .concat(schoolsApi.middleware)
       .concat(paymentsApi.middleware)
       .concat(guardiansApi.middleware)
+      .concat(familiesApi.middleware)
       .concat(enrollmentContractsApi.middleware)
       .concat(batchStudentsApi.middleware)
       .concat(paymentEditRequestsApi.middleware)

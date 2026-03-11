@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import InputField from "@/components/common/InputField";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
@@ -10,6 +12,11 @@ import { useGetCitiesQuery } from "@/store/services/citiesApi";
 import { useGetStudentStatusesQuery } from "@/store/services/studentStatusesApi";
 import { useGetBusesQuery } from "@/store/services/busesApi";
 import { useGetKnowWaysQuery } from "@/store/services/knowWaysApi";
+import {
+  useGetSchoolsQuery,
+  useAddSchoolMutation
+} from "@/store/services/schoolsApi";
+import toast from "react-hot-toast";
 
 /* helpers */
 const fileRequired = (files) => {
@@ -24,6 +31,7 @@ export default function Step2StudentExtra({
   register,
   errors,
   watch,
+  setValue,
   onNext,
   onBack,
 }) {
@@ -32,6 +40,9 @@ export default function Step2StudentExtra({
   const { data: statusesRes } = useGetStudentStatusesQuery();
   const { data: busesRes } = useGetBusesQuery();
   const { data: knowWaysRes } = useGetKnowWaysQuery();
+  const { data: schoolsRes } = useGetSchoolsQuery();
+  const [addSchool] = useAddSchoolMutation();
+  const [typedSchool, setTypedSchool] = useState("");
 
   const enrollmentDate = watch("enrollment_date");
 
@@ -39,6 +50,40 @@ export default function Step2StudentExtra({
   const statuses = statusesRes?.data || [];
   const buses = busesRes?.data || [];
   const knowWays = knowWaysRes?.data || [];
+  const schools = schoolsRes?.data || [];
+
+  const handleAddNewSchool = async (name, onChange) => {
+    try {
+      const res = await addSchool({ name }).unwrap();
+      const newSchool = res?.data;
+      if (newSchool) {
+        onChange(String(newSchool.id));
+        toast.success(`تمت إضافة مدرسة "${name}" بنجاح`);
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || "فشل في إضافة المدرسة");
+    }
+  };
+
+  const handleInternalNext = async () => {
+    const currentId = watch("school_id");
+    // إذا لم يتم اختيار مدرسة، وكان هناك نص مكتوب
+    if (!currentId && typedSchool.trim()) {
+      // هل يطابق مدرسة موجودة أصلاً ولكن لم يضغط عليها؟
+      const exists = schools.find(
+        (s) => s.name?.toLowerCase().trim() === typedSchool.toLowerCase().trim()
+      );
+      if (exists) {
+        setValue("school_id", String(exists.id));
+      } else {
+        // إضافة مدرسة جديدة تلقائياً
+        await handleAddNewSchool(typedSchool.trim(), (id) =>
+          setValue("school_id", id)
+        );
+      }
+    }
+    onNext();
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -132,23 +177,25 @@ export default function Step2StudentExtra({
             )}
           />
 
-          {/* previous_school_name */}
+          {/* school_id (المدرسة الحالية/السابقة) */}
           <Controller
             control={control}
-            name="previous_school_name"
+            name="school_id"
             render={({ field }) => (
               <SearchableSelect
-                label="المدرسة السابقة"
+                label="المدرسة"
                 value={field.value ? String(field.value) : null}
                 onChange={(v) => {
                   const val = typeof v === "object" ? v?.value : v;
                   field.onChange(val ? String(val) : null);
                 }}
-                options={[
-                  { value: "حكومي", label: "حكومي" },
-                  { value: "خاص", label: "خاص" },
-                ]}
-                placeholder="اختر المدرسة"
+                onAddNew={(val) => handleAddNewSchool(val, field.onChange)}
+                onQueryChange={(q) => setTypedSchool(q)}
+                options={schools.map((s) => ({
+                  value: String(s.id),
+                  label: s.name,
+                }))}
+                placeholder="اختر المدرسة أو اكتب اسم مدرسة جديدة"
                 allowClear
               />
             )}
@@ -279,7 +326,7 @@ export default function Step2StudentExtra({
                 type="file"
                 accept="image/*"
                 className="text-sm"
-                // {...register("profile_photo", { validate: fileRequired })}
+              // {...register("profile_photo", { validate: fileRequired })}
               />
               {!!errors?.profile_photo?.message && (
                 <p className="text-[12px] text-red-600">
@@ -294,7 +341,7 @@ export default function Step2StudentExtra({
                 type="file"
                 accept="image/*,application/pdf"
                 className="text-sm"
-                // {...register("id_card_photo", { validate: fileRequired })}
+              // {...register("id_card_photo", { validate: fileRequired })}
               />
               {!!errors?.id_card_photo?.message && (
                 <p className="text-[12px] text-red-600">
@@ -308,7 +355,12 @@ export default function Step2StudentExtra({
 
       {/* ===== Footer ثابت (الأزرار) ===== */}
       <div className="shrink-0 bg-white/90 backdrop-blur border-t border-gray-100 px-1 pt-3 pb-2">
-        <StepButtonsSmart step={2} total={6} onNext={onNext} onBack={onBack} />
+        <StepButtonsSmart
+          step={2}
+          total={6}
+          onNext={handleInternalNext}
+          onBack={onBack}
+        />
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export default function StepButtonsSmart({
   onNext,
   onBack,
   submitLabel,
+  backDisabled = false,
 }) {
   const isSingleStep = total === 1;
   const isLastStep = step === total;
@@ -30,13 +31,12 @@ export default function StepButtonsSmart({
       {total > 1 ? (
         <button
           onClick={onBack}
-          disabled={step === 1}
+          disabled={step === 1 || backDisabled}
           className={`
             flex items-center gap-2 px-5 py-1 rounded-md border text-sm transition
-            ${
-              step === 1
-                ? "cursor-not-allowed text-gray-400 border-gray-200 bg-gray-50"
-                : "text-[#6F013F] border-[#F3C3D9] bg-[#FDF2F8] hover:bg-[#F9E1EE]"
+            ${step === 1 || backDisabled
+              ? "cursor-not-allowed text-gray-400 border-gray-200 bg-gray-50"
+              : "text-[#6F013F] border-[#F3C3D9] bg-[#FDF2F8] hover:bg-[#F9E1EE]"
             }
           `}
         >

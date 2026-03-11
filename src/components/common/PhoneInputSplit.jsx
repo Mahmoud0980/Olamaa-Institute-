@@ -26,7 +26,7 @@ export default function PhoneInputSplit({
       try {
         const c = phoneUtil.getCountryCodeForRegion(iso);
         calling = c ? `+${c}` : "";
-      } catch {}
+      } catch { }
       return { iso, calling };
     });
   }, []);
@@ -49,7 +49,7 @@ export default function PhoneInputSplit({
     try {
       const c = phoneUtil.getCountryCodeForRegion(iso);
       calling = c ? `+${c}` : "";
-    } catch {}
+    } catch { }
 
     onChange?.({
       country_code: calling,
@@ -61,17 +61,11 @@ export default function PhoneInputSplit({
   const handleNumberChange = (e) => {
     let val = e.target.value.replace(/\D/g, "");
 
-    // ✅ السماح فقط بأرقام تبدأ بـ 9 أو 09 بشكل تدريجي
-    if (val.length >= 1) {
-      if (val[0] !== "0" && val[0] !== "9") {
-        return;
-      }
-    }
-
-    if (val.length >= 2) {
-      if (val[0] === "0" && val[1] !== "9") {
-        return;
-      }
+    // ✅ مسموح فقط بداية 9 أو 09
+    if (val.length === 1) {
+      if (!(val === "9" || val === "0")) return;
+    } else if (val.length >= 2) {
+      if (!(val.startsWith("9") || val.startsWith("09"))) return;
     }
 
     if (val.length > maxLen) val = val.slice(0, maxLen);
@@ -112,6 +106,12 @@ export default function PhoneInputSplit({
           className="flex-1 border border-gray-200 rounded-l-lg p-2 text-sm text-right"
         />
       </div>
+
+      {selectedCountry === "SY" && (
+        <p className="text-[10px] text-gray-400 mt-1">
+          يجب أن يبدو الرقم هكذا: 09xxxxxxxx أو 9xxxxxxxx
+        </p>
+      )}
 
       {error && <p className="text-red-500 text-xs">{error}</p>}
     </div>

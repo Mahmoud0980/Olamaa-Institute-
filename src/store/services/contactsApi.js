@@ -17,15 +17,23 @@ export const contactsApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Contacts", id })),
-              { type: "Contacts", id: "LIST" },
-            ]
+            ...r.data.map(({ id }) => ({ type: "Contacts", id })),
+            { type: "Contacts", id: "LIST" },
+          ]
           : [{ type: "Contacts", id: "LIST" }],
     }),
 
     getContact: builder.query({
       query: (id) => ({ url: `${ENDPOINTS.CONTACTS}/${id}`, method: "GET" }),
       providesTags: (r, e, id) => [{ type: "Contacts", id }],
+    }),
+
+    getStudentContactsSummary: builder.query({
+      query: (student_id) => ({
+        url: `${ENDPOINTS.STUDENT_SUMMARY}/${student_id}`,
+        method: "GET",
+      }),
+      providesTags: (r, e, id) => [{ type: "Contacts", id: `STUDENT_SUMMARY_${id}` }],
     }),
 
     addContact: builder.mutation({
@@ -68,6 +76,7 @@ export const contactsApi = createApi({
 export const {
   useGetContactsQuery,
   useGetContactQuery,
+  useGetStudentContactsSummaryQuery,
   useAddContactMutation,
   useUpdateContactMutation,
   useDeleteContactMutation,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { X } from "lucide-react";
 
 import InputField from "@/components/common/InputField";
@@ -51,7 +51,6 @@ export default function Step5Contacts({
   familyId,
   guardians = [],
   existingContacts = [],
-  initialItems = [],
   onSaveAll,
   onBack,
   onSkip,
@@ -74,7 +73,13 @@ export default function Step5Contacts({
     notes: "",
   });
 
-  const [items, setItems] = useState(initialItems || []);
+  const [items, setItems] = useState(existingContacts || []);
+
+  useEffect(() => {
+    if (items.length === 0 && existingContacts?.length > 0) {
+      setItems(existingContacts);
+    }
+  }, [existingContacts]);
 
   /* derived options */
   const hasSmsContact = useMemo(
@@ -166,6 +171,7 @@ export default function Step5Contacts({
       supports_call: false,
       supports_whatsapp: false,
       supports_sms: false,
+      is_sms_stopped: false,
       stop_sms_from: "",
       stop_sms_to: "",
     }));
@@ -190,6 +196,10 @@ export default function Step5Contacts({
         !draft.supports_sms
       )
         return false;
+
+      if (draft.supports_sms && draft.is_sms_stopped) {
+        if (!draft.stop_sms_from || !draft.stop_sms_to) return false;
+      }
     }
 
     if (clean(draft.notes).length > 200) return false;
@@ -217,10 +227,7 @@ export default function Step5Contacts({
       payload.owner_type = draft.owner_type;
 
       if (draft.owner_type === "father" || draft.owner_type === "mother") {
-        payload.guardian_id =
-          String(draft.guardian_id).startsWith("local_")
-            ? draft.guardian_id
-            : Number(draft.guardian_id);
+        payload.guardian_id = Number(draft.guardian_id);
       } else if (draft.owner_type === "student") {
         payload.student_id = studentId;
       } else {
@@ -233,8 +240,9 @@ export default function Step5Contacts({
       payload.supports_call = !!draft.supports_call;
       payload.supports_whatsapp = !!draft.supports_whatsapp;
       payload.supports_sms = !!draft.supports_sms;
+      payload.is_sms_stopped = !!(payload.supports_sms && draft.is_sms_stopped);
 
-      if (payload.supports_sms && draft.is_sms_stopped) {
+      if (payload.is_sms_stopped) {
         payload.stop_sms_from = clean(draft.stop_sms_from) || null;
         payload.stop_sms_to = clean(draft.stop_sms_to) || null;
       } else {
@@ -460,39 +468,48 @@ export default function Step5Contacts({
                   }
                 />
               </div>
-            </div>
-          )}
 
-          {draft.type === "phone" && draft.supports_sms && (
-            <div className="border border-gray-100 bg-gray-50/50 p-3 rounded-lg space-y-3">
-              <Checkbox
-                label="إيقاف الرسائل مؤقتاً"
-                checked={draft.is_sms_stopped}
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    is_sms_stopped: e.target.checked,
-                    stop_sms_from: e.target.checked ? d.stop_sms_from : "",
-                    stop_sms_to: e.target.checked ? d.stop_sms_to : "",
-                  }))
-                }
-              />
-              {draft.is_sms_stopped && (
-                <div className="flex gap-4">
-                  <div className="w-1/2">
-                    <DatePickerSmart
-                      label="من تاريخ"
-                      value={draft.stop_sms_from || ""}
-                      onChange={(val) => setDraft((d) => ({ ...d, stop_sms_from: val }))}
-                    />
-                  </div>
-                  <div className="w-1/2">
-                    <DatePickerSmart
-                      label="حتى تاريخ"
-                      value={draft.stop_sms_to || ""}
-                      onChange={(val) => setDraft((d) => ({ ...d, stop_sms_to: val }))}
-                    />
-                  </div>
+              {/* ✅ خيار إيقاف الرسائل مؤقتاً */}
+              {draft.supports_sms && (
+                <div className="mr-2 mt-2 p-3 border border-dashed border-gray-200 rounded-lg bg-white space-y-3">
+                  <Checkbox
+                    label="تفعيل فترة إيقاف للرسائل النصية"
+                    labelClassName="text-xs text-gray-700 font-medium"
+                    checked={draft.is_sms_stopped}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        is_sms_stopped: e.target.checked,
+                        stop_sms_from: e.target.checked ? d.stop_sms_from : "",
+                        stop_sms_to: e.target.checked ? d.stop_sms_to : "",
+                      }))
+                    }
+                  />
+
+                  {draft.is_sms_stopped && (
+                    <div className="flex gap-3 animate-in fade-in duration-200">
+                      <div className="flex-1">
+                        <DatePickerSmart
+                          label="من تاريخ"
+                          value={draft.stop_sms_from}
+                          onChange={(v) =>
+                            setDraft((d) => ({ ...d, stop_sms_from: v }))
+                          }
+                          placeholder="بداية الإيقاف"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <DatePickerSmart
+                          label="إلى تاريخ"
+                          value={draft.stop_sms_to}
+                          onChange={(v) =>
+                            setDraft((d) => ({ ...d, stop_sms_to: v }))
+                          }
+                          placeholder="نهاية الإيقاف"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -548,7 +565,7 @@ export default function Step5Contacts({
                       <span className="flex gap-1">
                         [{it.supports_call ? "اتصال" : ""}
                         {it.supports_call &&
-                        (it.supports_whatsapp || it.supports_sms)
+                          (it.supports_whatsapp || it.supports_sms)
                           ? " | "
                           : ""}
                         {it.supports_whatsapp ? "واتساب" : ""}

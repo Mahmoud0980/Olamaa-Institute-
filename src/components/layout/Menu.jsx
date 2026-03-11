@@ -88,7 +88,7 @@ export default function Menu() {
           Accept: "application/json",
         },
       });
-    } catch {}
+    } catch { }
 
     localStorage.removeItem("auth");
     localStorage.removeItem("currentUser");
@@ -160,6 +160,15 @@ export default function Menu() {
           roles: ["admin", "employee"],
         },
         { name: "إضافة طالب", href: "/students?add=1", roles: ["admin"] },
+      ],
+    },
+    {
+      title: "العائلات وأولياء الأمور",
+      icon: "/icons/UsersThree.svg",
+      roles: ["admin"],
+      sub: [
+        { name: "قائمة العائلات", href: "/families", roles: ["admin"] },
+        { name: "أولياء الأمور", href: "/guardians", roles: ["admin"] },
       ],
     },
     {
@@ -255,9 +264,8 @@ export default function Menu() {
                     </div>
 
                     <ChevronDown
-                      className={`w-4 h-4 transition ${
-                        isOpen ? "rotate-180" : ""
-                      }`}
+                      className={`w-4 h-4 transition ${isOpen ? "rotate-180" : ""
+                        }`}
                     />
                   </button>
                 ) : (
@@ -280,9 +288,8 @@ export default function Menu() {
 
                 {menu.sub && (
                   <div
-                    className={`overflow-hidden transition-all duration-300 ${
-                      isOpen ? "max-h-screen mt-1" : "max-h-0"
-                    }`}
+                    className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-screen mt-1" : "max-h-0"
+                      }`}
                   >
                     <ul className="space-y-1">
                       {menu.sub
