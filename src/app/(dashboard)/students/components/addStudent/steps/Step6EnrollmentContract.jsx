@@ -375,10 +375,10 @@ export default function Step6EnrollmentContract({
         Number(form.discount_percentage) > 0) ||
       (form.discount_amount !== "" && Number(form.discount_amount) > 0);
 
-    if (hasDiscount && !form.discount_reason?.trim()) {
-      notify.error("سبب الحسم مطلوب عند إدخال حسم");
-      return false;
-    }
+    // if (hasDiscount && !form.discount_reason?.trim()) {
+    //   notify.error("سبب الحسم مطلوب عند إدخال حسم");
+    //   return false;
+    // }
 
     if (form.first_payment_enabled) {
       const fp = form.first_payment;
