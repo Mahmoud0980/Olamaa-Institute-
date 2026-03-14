@@ -37,6 +37,13 @@ const receiptLabel = (row) =>
   row?.installment_id ??
   "—";
 
+const fullNameLabel = (row, mode) => {
+  if (mode === "late") return row?.student_name ?? "—";
+
+  const full = `${row?.first_name ?? ""} ${row?.last_name ?? ""}`.trim();
+  return full || row?.student_name || "—";
+};
+
 /* ================= Component ================= */
 
 export default function PaymentsTable({
@@ -120,8 +127,16 @@ export default function PaymentsTable({
                 <tr className="bg-pink-50 text-gray-700">
                   <th className="p-3 text-center rounded-r-xl">#</th>
                   <th className="p-3">رقم الإيصال</th>
-                  <th className="p-3">الاسم</th>
-                  <th className="p-3">الكنية</th>
+
+                  {mode === "late" ? (
+                    <th className="p-3">الاسم الكامل</th>
+                  ) : (
+                    <>
+                      <th className="p-3">الاسم</th>
+                      <th className="p-3">الكنية</th>
+                    </>
+                  )}
+
                   <th className="p-3">
                     {mode === "latest" ? "الدفعة" : "القسط/المبلغ"}
                   </th>
@@ -181,15 +196,18 @@ export default function PaymentsTable({
                         </div>
                       </td>
 
-                      <td className="p-3 font-medium">
-                        {mode === "late"
-                          ? (row.student_name ?? "—")
-                          : (row.first_name ?? "—")}
-                      </td>
-
-                      <td className="p-3">
-                        {mode === "late" ? "—" : (row.last_name ?? "—")}
-                      </td>
+                      {mode === "late" ? (
+                        <td className="p-3 font-medium">
+                          {fullNameLabel(row, mode)}
+                        </td>
+                      ) : (
+                        <>
+                          <td className="p-3 font-medium">
+                            {row.first_name ?? "—"}
+                          </td>
+                          <td className="p-3">{row.last_name ?? "—"}</td>
+                        </>
+                      )}
 
                       <td className="p-3">{moneyLabel(row)}</td>
 
@@ -226,6 +244,9 @@ export default function PaymentsTable({
           <div className="md:hidden space-y-4 mt-4">
             {paginated.map((row, index) => {
               const id = rowId(row);
+              const pid = row?.payment_id ?? row?.id ?? row?.installment_id;
+              const pending = pendingMap?.[String(pid)];
+
               return (
                 <div
                   key={id}
@@ -256,14 +277,35 @@ export default function PaymentsTable({
                   </div>
 
                   <Info label="رقم الإيصال" value={receiptLabel(row)} />
-                  <Info
-                    label="الاسم"
-                    value={mode === "late" ? row.student_name : row.first_name}
-                  />
-                  <Info
-                    label="الكنية"
-                    value={mode === "late" ? "—" : row.last_name}
-                  />
+
+                  {pending && (
+                    <div className="mb-2">
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          pending.type === "delete"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-orange-100 text-orange-700"
+                        }`}
+                      >
+                        {pending.type === "delete"
+                          ? "طلب حذف معلّق"
+                          : "طلب تعديل معلّق"}
+                      </span>
+                    </div>
+                  )}
+
+                  {mode === "late" ? (
+                    <Info
+                      label="الاسم الكامل"
+                      value={fullNameLabel(row, mode)}
+                    />
+                  ) : (
+                    <>
+                      <Info label="الاسم" value={row.first_name ?? "—"} />
+                      <Info label="الكنية" value={row.last_name ?? "—"} />
+                    </>
+                  )}
+
                   <Info
                     label={mode === "latest" ? "الدفعة" : "القسط/المبلغ"}
                     value={moneyLabel(row)}
@@ -295,9 +337,9 @@ export default function PaymentsTable({
 
 function Info({ label, value }) {
   return (
-    <div className="flex justify-between mb-2">
+    <div className="flex justify-between mb-2 gap-3">
       <span className="text-gray-500">{label}:</span>
-      <span className="font-medium">{value ?? "—"}</span>
+      <span className="font-medium text-left">{value ?? "—"}</span>
     </div>
   );
 }

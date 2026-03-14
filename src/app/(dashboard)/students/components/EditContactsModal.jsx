@@ -124,17 +124,17 @@ const getOwnerOptions = ({ type, father, mother, studentId, familyId }) => {
   return [
     father
       ? {
-          key: "father",
-          value: "father",
-          label: getGuardianDisplayName(father),
-        }
+        key: "father",
+        value: "father",
+        label: getGuardianDisplayName(father),
+      }
       : null,
     mother
       ? {
-          key: "mother",
-          value: "mother",
-          label: getGuardianDisplayName(mother),
-        }
+        key: "mother",
+        value: "mother",
+        label: getGuardianDisplayName(mother),
+      }
       : null,
     studentId ? { key: "student", value: "student", label: "الطالب" } : null,
     familyId ? { key: "sibling", value: "sibling", label: "أخ / أخت" } : null,
@@ -195,8 +195,8 @@ const normalizeExistingContact = (contact, ctx) => {
 
   const split = splitFromFull(
     contact?.full_phone_number ||
-      `${clean(contact?.country_code)}${clean(contact?.phone_number)}` ||
-      contact?.value,
+    `${clean(contact?.country_code)}${clean(contact?.phone_number)}` ||
+    contact?.value,
   );
 
   let ownerType = clean(contact?.owner_type);
@@ -630,7 +630,7 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
 
             {(draft.type === "phone" &&
               FAMILY_BASED_OWNER_TYPES.has(draft.owner_type)) ||
-            draft.type === "landline" ? (
+              draft.type === "landline" ? (
               <InputField
                 label="اسم توضيحي (اختياري)"
                 placeholder={
@@ -764,8 +764,13 @@ export default function EditContactsModal({ open, onClose, student, onSaved }) {
                   className="border border-gray-200 rounded-2xl p-3 flex items-start justify-between gap-3"
                 >
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-800">
-                      {ownerDisplay(it, ctx)}
+                    <p className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                      <span>{ownerDisplay(it, ctx)}</span>
+                      {(it.is_primary || it.supports_sms) && (
+                        <span className="bg-green-50 text-green-600 text-[10px] px-2 py-0.5 rounded-full border border-green-100 font-medium">
+                          أساسي
+                        </span>
+                      )}
                     </p>
 
                     <p className="text-xs text-gray-600 flex items-center gap-2">

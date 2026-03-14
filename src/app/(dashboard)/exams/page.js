@@ -39,7 +39,63 @@ import ExamResultAddModal from "./components/ExamResultAddModal";
 import TableSkeleton from "@/components/common/TableSkeleton";
 
 /* ================= Helpers ================= */
+function toId(v) {
+  if (v === null || v === undefined || v === "") return "";
+  return String(v);
+}
 
+function matchesBatch(row, batchId) {
+  if (!batchId) return true;
+
+  const wanted = String(batchId);
+
+  // مباشر
+  if (toId(row?.batch_id) === wanted) return true;
+  if (toId(row?.institute_batch_id) === wanted) return true;
+  if (toId(row?.academic_batch_id) === wanted) return true;
+  if (toId(row?.batch?.id) === wanted) return true;
+
+  // إذا كانت الشعبة ضمن مصفوفة
+  if (Array.isArray(row?.batches)) {
+    if (row.batches.some((b) => toId(b?.id) === wanted)) return true;
+  }
+
+  if (Array.isArray(row?.batch_ids)) {
+    if (row.batch_ids.map(String).includes(wanted)) return true;
+  }
+
+  return false;
+}
+
+function matchesStudent(row, studentId) {
+  if (!studentId) return true;
+
+  const wanted = String(studentId);
+
+  // مباشر
+  if (toId(row?.student_id) === wanted) return true;
+  if (toId(row?.student?.id) === wanted) return true;
+
+  // إذا المذاكرة فيها نتائج أو طلاب
+  if (Array.isArray(row?.students)) {
+    if (row.students.some((s) => toId(s?.id) === wanted)) return true;
+  }
+
+  if (Array.isArray(row?.student_ids)) {
+    if (row.student_ids.map(String).includes(wanted)) return true;
+  }
+
+  if (Array.isArray(row?.results)) {
+    if (row.results.some((r) => toId(r?.student_id) === wanted)) return true;
+  }
+
+  if (Array.isArray(row?.exam_results)) {
+    if (row.exam_results.some((r) => toId(r?.student_id) === wanted))
+      return true;
+  }
+
+  return false;
+}
 function normalizeArray(res) {
   if (Array.isArray(res?.data)) return res.data;
   if (Array.isArray(res)) return res;
@@ -187,11 +243,23 @@ export default function ExamsPage() {
     });
   }, [mode, resultsRes, studentsMap]);
   const filteredRows = useMemo(() => {
-    if (!search?.trim()) return rows;
+    let data = [...rows];
+
+    // ✅ فلترة الطالب/الشعبة محليًا لجدول المذكرات
+    if (mode === "exams") {
+      data = data.filter((r) => {
+        const okStudent = matchesStudent(r, selectedStudentId);
+        const okBatch = matchesBatch(r, selectedBatchId);
+        return okStudent && okBatch;
+      });
+    }
+
+    // ✅ فلترة البحث النصي
+    if (!search?.trim()) return data;
 
     const q = search.toLowerCase();
 
-    return rows.filter((r) => {
+    return data.filter((r) => {
       if (mode === "exams") {
         return (
           String(r?.name ?? "")
@@ -206,7 +274,6 @@ export default function ExamsPage() {
         );
       }
 
-      // results
       return (
         String(r?.student_name ?? "")
           .toLowerCase()
@@ -222,10 +289,11 @@ export default function ExamsPage() {
           .includes(q)
       );
     });
-  }, [rows, search, mode]);
+  }, [rows, search, mode, selectedStudentId, selectedBatchId]);
   // selection (optional)
   const [selectedIds, setSelectedIds] = useState([]);
-  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
+  const isAllSelected =
+    filteredRows.length > 0 && selectedIds.length === filteredRows.length;
   function esc(s) {
     return String(s ?? "")
       .replaceAll("&", "&amp;")
@@ -261,7 +329,9 @@ export default function ExamsPage() {
       return;
     }
 
-    const selectedRows = rows.filter((r) => selectedIds.includes(rowKey(r)));
+    const selectedRows = filteredRows.filter((r) =>
+      selectedIds.includes(rowKey(r)),
+    );
 
     let headers = "";
     let bodyRows = "";
@@ -357,7 +427,9 @@ export default function ExamsPage() {
       return;
     }
 
-    const selectedRows = rows.filter((r) => selectedIds.includes(rowKey(r)));
+    const selectedRows = filteredRows.filter((r) =>
+      selectedIds.includes(rowKey(r)),
+    );
 
     let data = [];
 
@@ -401,9 +473,10 @@ export default function ExamsPage() {
     try {
       const res = await addExamResult(payload).unwrap();
       notify.success(res?.message || "تمت إضافة العلامة");
-      setOpenAddResult(false);
+      return res;
     } catch (err) {
       notify.error(firstErr(err) || err?.data?.message || "فشل إضافة العلامة");
+      throw err;
     }
   };
 
@@ -530,13 +603,12 @@ export default function ExamsPage() {
       if (isPendingResponse(res)) markResultPending(activeResultId, "edit");
       else clearResultPending(activeResultId);
 
-      setOpenEditResult(false);
-      setActiveResultId(null);
+      return res;
     } catch (err) {
       notify.error(firstErr(err) || err?.data?.message || "فشل تعديل العلامة");
+      throw err;
     }
   };
-
   const handleDeleteResult = (row) => {
     const id = getResultId(row);
     if (!id) return notify.error("لا يوجد معرف للعلامة");
@@ -626,7 +698,7 @@ export default function ExamsPage() {
         showSelectAll
         isAllSelected={isAllSelected}
         onToggleSelectAll={() =>
-          setSelectedIds(isAllSelected ? [] : rows.map(rowKey))
+          setSelectedIds(isAllSelected ? [] : filteredRows.map(rowKey))
         }
         viewLabel={mode === "exams" ? "عرض العلامات" : "عرض المذكرات"}
         onView={toggleMode}

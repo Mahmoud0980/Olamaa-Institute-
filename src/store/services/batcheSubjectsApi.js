@@ -19,6 +19,20 @@ export const batcheSubjectsApi = createApi({
         { type: "BatchSubjects", id: `BATCH-${batchId}` },
       ],
     }),
+
+    // ========================
+    // GET SUBJECTS BY BRANCH
+    // ========================
+    getBranchSubjects: builder.query({
+      query: (branchId) => ({
+        url: `/batcheSubjects/branches/${branchId}/subjects`,
+        method: "GET",
+      }),
+      providesTags: (r, e, branchId) => [
+        { type: "BatchSubjects", id: `BRANCH-${branchId}` },
+      ],
+    }),
+
     getBatchSubjectsSummary: builder.query({
       query: () => ({
         url: `/batcheSubjects/summary`,
@@ -26,6 +40,7 @@ export const batcheSubjectsApi = createApi({
       }),
       providesTags: [{ type: "BatchSubjects", id: "SUMMARY" }],
     }),
+
     // ========================
     // ASSIGN INSTRUCTOR SUBJECT TO BATCH
     // ========================
@@ -76,6 +91,7 @@ export const batcheSubjectsApi = createApi({
       }),
       invalidatesTags: [{ type: "BatchSubjects", id: "LIST" }],
     }),
+
     deleteTeacherSubjectByIds: builder.mutation({
       query: ({ instructor_id, subject_id }) => ({
         url: `/subjects/delete-teacher-subject-by-ids`,
@@ -90,6 +106,9 @@ export const batcheSubjectsApi = createApi({
 export const {
   useGetBatchSubjectsSummaryQuery,
   useGetBatchSubjectsQuery,
+  useLazyGetBatchSubjectsQuery,
+  useGetBranchSubjectsQuery,
+  useLazyGetBranchSubjectsQuery,
   useAssignInstructorSubjectToBatchMutation,
   useRemoveInstructorSubjectFromBatchMutation,
   useUpdateBatchSubjectMutation,

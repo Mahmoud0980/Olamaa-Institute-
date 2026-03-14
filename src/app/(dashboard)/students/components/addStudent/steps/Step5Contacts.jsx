@@ -553,8 +553,13 @@ export default function Step5Contacts({
                 className="border border-gray-200 rounded-xl p-3 flex items-start justify-between gap-3"
               >
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-800">
-                    {getOwnerLabel(it)}
+                  <p className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                    <span>{getOwnerLabel(it)}</span>
+                    {(it.is_primary || it.supports_sms) && (
+                      <span className="bg-green-50 text-green-600 text-[10px] px-2 py-0.5 rounded-full border border-green-100 font-medium">
+                        أساسي
+                      </span>
+                    )}
                   </p>
 
                   <p className="text-xs text-gray-600 flex items-center gap-2">

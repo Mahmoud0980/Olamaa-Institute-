@@ -513,25 +513,6 @@ export default function DatePickerSmart({
                     {/* Days */}
                     <div className="space-y-1" dir="ltr">
                       {weeks.map((week, wIdx) => {
-                        const weekISOs = week
-                          .filter((c) => c?.inMonth && c?.date)
-                          .map((c) => toISO(c.date));
-
-                        // ✅ الهايلايت مربوط بالـ activeISO (اليوم أو المختار)
-                        const weekHasActive =
-                          !!activeISO && weekISOs.includes(activeISO);
-
-                        let start = -1;
-                        let end = -1;
-                        if (weekHasActive) {
-                          for (let i = 0; i < 7; i++) {
-                            if (week[i]?.inMonth && week[i]?.date) {
-                              if (start === -1) start = i;
-                              end = i;
-                            }
-                          }
-                        }
-
                         return (
                           <div key={wIdx} className="grid grid-cols-7 gap-0">
                             {week.map((cell, i) => {
@@ -544,29 +525,13 @@ export default function DatePickerSmart({
 
                               const iso = toISO(cell.date);
 
-                              // ✅ الدائرة البنفسجية على activeISO (اليوم افتراضياً)
+                              // ✅ الدائرة البنفسجية على activeISO (اليوم الافتراضيأو المحدد)
                               const isActive = iso === activeISO;
-
-                              const inPill = weekHasActive;
-                              const pillRound =
-                                inPill && start !== -1
-                                  ? start === end
-                                    ? "rounded-full"
-                                    : i === start
-                                      ? "rounded-l-full"
-                                      : i === end
-                                        ? "rounded-r-full"
-                                        : ""
-                                  : "";
 
                               return (
                                 <div
                                   key={`${iso}-${i}`}
-                                  className={[
-                                    "h-7 flex items-center justify-center",
-                                    inPill ? "bg-[#F4D3E3]" : "",
-                                    inPill ? pillRound : "",
-                                  ].join(" ")}
+                                  className="h-7 flex items-center justify-center p-0 m-0"
                                 >
                                   <button
                                     type="button"
@@ -574,8 +539,8 @@ export default function DatePickerSmart({
                                     className={[
                                       "w-6 h-6 rounded-full flex items-center justify-center text-[12px] transition",
                                       isActive
-                                        ? "bg-[#6F013F] text-white"
-                                        : "text-gray-700 hover:bg-white/60",
+                                        ? "bg-[#6F013F] text-white shadow-sm"
+                                        : "text-gray-700 hover:bg-gray-100",
                                     ].join(" ")}
                                     title={iso}
                                   >

@@ -22,6 +22,7 @@ import ExportChoiceModal from "@/components/common/ExportChoiceModal";
 // RTK
 import { useGetAttendanceLogQuery } from "@/store/services/studentAttendanceApi";
 import { useGetStudentPaymentsSummaryQuery } from "@/store/services/studentPaymentsApi";
+import ExamResultsTab from "./components/tabs/ExamResultsTab";
 
 /* ================= Helpers ================= */
 
@@ -137,7 +138,10 @@ export default function StudentShortdataPage({ idFromUrl }) {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportType, setExportType] = useState("excel"); // "excel" | "print"
   const [exportLoading, setExportLoading] = useState(false);
-
+  const [examResultsRange, setExamResultsRange] = useState({
+    start: null,
+    end: null,
+  });
   const attendanceView = useMemo(() => {
     return filterAttendanceByRange(attendanceRecords, attendanceRange);
   }, [attendanceRecords, attendanceRange]);
@@ -166,8 +170,17 @@ export default function StudentShortdataPage({ idFromUrl }) {
 
   // ✅ تحديث range حسب التبويب الحالي
   const handleRangeChange = ({ tab, range }) => {
-    if (tab === "payments") setPaymentsRange(range);
-    else setAttendanceRange(range);
+    if (tab === "payments") {
+      setPaymentsRange(range);
+      return;
+    }
+
+    if (tab === "examResults") {
+      setExamResultsRange(range);
+      return;
+    }
+
+    setAttendanceRange(range);
   };
 
   /* ================= Excel ================= */
@@ -660,6 +673,7 @@ export default function StudentShortdataPage({ idFromUrl }) {
             activeTab={activeTab}
             attendanceRange={attendanceRange}
             paymentsRange={paymentsRange}
+            examResultsRange={examResultsRange}
             onRangeChange={handleRangeChange}
             onEditAttendance={handleEditAttendanceClick}
           />
@@ -675,20 +689,28 @@ export default function StudentShortdataPage({ idFromUrl }) {
               >
                 معلومات شخصية
               </TabButton>
+
               <TabButton
                 active={activeTab === "attendance"}
                 onClick={() => setActiveTab("attendance")}
               >
                 الغياب والحضور
               </TabButton>
+
               <TabButton
                 active={activeTab === "payments"}
                 onClick={() => setActiveTab("payments")}
               >
                 الدفعات
               </TabButton>
-            </div>
 
+              <TabButton
+                active={activeTab === "examResults"}
+                onClick={() => setActiveTab("examResults")}
+              >
+                النتائج الامتحانية
+              </TabButton>
+            </div>
             <div className="flex gap-2 self-end md:self-auto">
               <ExcelButton onClick={() => openExportModal("excel")} />
               <PrintButton onClick={() => openExportModal("print")} />
@@ -712,6 +734,12 @@ export default function StudentShortdataPage({ idFromUrl }) {
 
           {activeTab === "payments" && (
             <PaymentsTab student={student} paymentsRange={paymentsRange} />
+          )}
+          {activeTab === "examResults" && (
+            <ExamResultsTab
+              student={student}
+              examResultsRange={examResultsRange}
+            />
           )}
         </div>
       </div>

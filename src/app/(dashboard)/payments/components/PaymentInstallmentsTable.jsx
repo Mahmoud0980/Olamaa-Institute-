@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Pagination from "@/components/common/Pagination";
-import ActionsMenu from "@/components/common/ActionsMenu";
 
 /* ================= Helpers ================= */
 
@@ -10,7 +9,7 @@ const rowId = (row) =>
   String(
     row?.id ??
       row?.installment_id ??
-      `${row?.enrollment_contract_id ?? "c"}-${row?.installment_number ?? "n"}-${
+      `${row?.student_id ?? "s"}-${row?.installment_number ?? "n"}-${
         row?.due_date ?? "d"
       }`,
   );
@@ -49,6 +48,8 @@ const statusClass = (status) => {
   return "bg-yellow-100 text-yellow-700";
 };
 
+const studentNameLabel = (row) => row?.student_name ?? "—";
+
 /* ================= Component ================= */
 
 export default function PaymentInstallmentsTable({
@@ -56,8 +57,6 @@ export default function PaymentInstallmentsTable({
   isLoading = false,
   selectedIds = [],
   onSelectChange,
-  onEdit,
-  onDelete,
 }) {
   const safeRows = Array.isArray(rows) ? rows : [];
 
@@ -68,6 +67,7 @@ export default function PaymentInstallmentsTable({
   const paginated = safeRows.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => setPage(1), [safeRows.length]);
+
   useEffect(() => {
     if (page > totalPages) setPage(1);
   }, [page, totalPages]);
@@ -83,22 +83,6 @@ export default function PaymentInstallmentsTable({
     onSelectChange(updated);
   };
 
-  const [openMenuId, setOpenMenuId] = useState(null);
-
-  const menuItems = useMemo(() => {
-    return (row) => [
-      {
-        label: "تعديل القسط",
-        onClick: () => onEdit?.(row),
-      },
-      {
-        label: "حذف",
-        danger: true,
-        onClick: () => onDelete?.(row),
-      },
-    ];
-  }, [onEdit, onDelete]);
-
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
       {isLoading ? (
@@ -107,21 +91,17 @@ export default function PaymentInstallmentsTable({
         <div className="py-10 text-center text-gray-400">لا يوجد أقساط.</div>
       ) : (
         <>
-          {/* DESKTOP */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
               <thead>
                 <tr className="bg-pink-50 text-gray-700">
                   <th className="p-3 text-center rounded-r-xl">#</th>
-                  <th className="p-3">رقم العقد</th>
+                  <th className="p-3">اسم الطالب</th>
                   <th className="p-3">رقم القسط</th>
                   <th className="p-3">المبلغ</th>
                   <th className="p-3">تاريخ الاستحقاق</th>
                   <th className="p-3">سعر الصرف</th>
-                  <th className="p-3">الحالة</th>
-                  <th className="p-3 text-center rounded-l-xl">
-                    خيارات إضافية
-                  </th>
+                  <th className="p-3 rounded-l-xl">الحالة</th>
                 </tr>
               </thead>
 
@@ -147,7 +127,7 @@ export default function PaymentInstallmentsTable({
                       </td>
 
                       <td className="p-3 font-medium">
-                        {row?.enrollment_contract_id ?? "—"}
+                        {studentNameLabel(row)}
                       </td>
 
                       <td className="p-3">{row?.installment_number ?? "—"}</td>
@@ -160,7 +140,7 @@ export default function PaymentInstallmentsTable({
                         {row?.exchange_rate_at_due_date ?? "—"}
                       </td>
 
-                      <td className="p-3">
+                      <td className="p-3 rounded-l-xl">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${statusClass(
                             row?.status,
@@ -169,17 +149,6 @@ export default function PaymentInstallmentsTable({
                           {statusLabel(row?.status)}
                         </span>
                       </td>
-
-                      <td className="p-3 text-center rounded-l-xl">
-                        <div className="relative inline-block">
-                          <ActionsMenu
-                            menuId={`installment-${id}`}
-                            openMenuId={openMenuId}
-                            setOpenMenuId={setOpenMenuId}
-                            items={menuItems(row)}
-                          />
-                        </div>
-                      </td>
                     </tr>
                   );
                 })}
@@ -187,7 +156,6 @@ export default function PaymentInstallmentsTable({
             </table>
           </div>
 
-          {/* MOBILE */}
           <div className="md:hidden space-y-4 mt-4">
             {paginated.map((row, index) => {
               const id = rowId(row);
@@ -210,19 +178,9 @@ export default function PaymentInstallmentsTable({
                         onChange={() => toggleSelect(row)}
                       />
                     </div>
-
-                    <ActionsMenu
-                      menuId={`installment-m-${id}`}
-                      openMenuId={openMenuId}
-                      setOpenMenuId={setOpenMenuId}
-                      items={menuItems(row)}
-                    />
                   </div>
 
-                  <Info
-                    label="رقم العقد"
-                    value={row?.enrollment_contract_id ?? "—"}
-                  />
+                  <Info label="اسم الطالب" value={studentNameLabel(row)} />
                   <Info
                     label="رقم القسط"
                     value={row?.installment_number ?? "—"}

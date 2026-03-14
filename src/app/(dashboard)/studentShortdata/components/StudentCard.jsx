@@ -52,6 +52,7 @@ export default function StudentCard({
   activeTab,
   attendanceRange,
   paymentsRange,
+  examResultsRange,
   onRangeChange,
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -79,7 +80,11 @@ export default function StudentCard({
   ];
 
   const activeRange =
-    activeTab === "payments" ? paymentsRange : attendanceRange;
+    activeTab === "payments"
+      ? paymentsRange
+      : activeTab === "examResults"
+        ? examResultsRange
+        : attendanceRange;
 
   const lastClickRef = useRef({ time: 0, ymd: "" });
   const DOUBLE_CLICK_MS = 450;

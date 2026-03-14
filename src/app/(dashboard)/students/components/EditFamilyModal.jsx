@@ -63,16 +63,8 @@ export default function EditFamilyModal({ open, onClose, student, onSaved }) {
 
   /* ================= steps ================= */
   const handleNext = async () => {
-    const fieldsStep1 = [
-      "father_first_name",
-      "father_last_name",
-      "father_national_id",
-    ];
-    const fieldsStep2 = [
-      "mother_first_name",
-      "mother_last_name",
-      "mother_national_id",
-    ];
+    const fieldsStep1 = ["father_first_name", "father_last_name"];
+    const fieldsStep2 = ["mother_first_name", "mother_last_name"];
 
     const fields = step === 1 ? fieldsStep1 : fieldsStep2;
     const ok = await trigger(fields);
@@ -207,7 +199,6 @@ export default function EditFamilyModal({ open, onClose, student, onSaved }) {
                 label="الرقم الوطني"
                 placeholder="10 أرقام فقط"
                 register={register("father_national_id", {
-                  required: "الرقم الوطني للأب مطلوب",
                   pattern: {
                     value: /^[0-9]{10}$/,
                     message: "الرقم الوطني للأب يجب أن يكون 10 أرقام",
@@ -245,12 +236,10 @@ export default function EditFamilyModal({ open, onClose, student, onSaved }) {
                   minLength: { value: 2, message: "كنية الأم قصيرة جدًا" },
                 })}
               />
-
               <InputField
                 label="الرقم الوطني"
                 placeholder="10 أرقام فقط"
                 register={register("mother_national_id", {
-                  required: "الرقم الوطني للأم مطلوب",
                   pattern: {
                     value: /^[0-9]{10}$/,
                     message: "الرقم الوطني للأم يجب أن يكون 10 أرقام",

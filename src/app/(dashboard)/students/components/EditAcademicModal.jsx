@@ -35,10 +35,9 @@ export default function EditAcademicRecordModal({
   const [updateRecord, { isLoading }] = useUpdateRecordMutation();
 
   const form = useForm({ mode: "onTouched" });
-  const { control, register, reset, trigger, getValues, formState } = form;
+  const { control, register, reset, getValues, formState } = form;
   const { errors } = formState;
 
-  /* ✅ هون السر */
   useEffect(() => {
     if (!record) return;
 
@@ -53,17 +52,17 @@ export default function EditAcademicRecordModal({
   if (!open) return null;
 
   const handleSave = async () => {
-    const ok = await trigger(["record_type", "total_score", "year"]);
-    if (!ok) return;
-
     try {
       const v = getValues();
 
       await updateRecord({
         id: recordId,
-        record_type: v.record_type,
-        total_score: v.total_score,
-        year: v.year,
+        record_type: v.record_type || null,
+        total_score:
+          v.total_score === "" || Number.isNaN(v.total_score)
+            ? null
+            : v.total_score,
+        year: v.year === "" || Number.isNaN(v.year) ? null : v.year,
         description: v.description || null,
       }).unwrap();
 
@@ -79,7 +78,6 @@ export default function EditAcademicRecordModal({
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex justify-start">
       <div className="w-[520px] bg-white h-full p-6 overflow-y-auto">
-        {/* Header */}
         <div className="flex justify-between mb-4">
           <h2 className="text-[#6F013F] font-semibold">
             تعديل السجل الأكاديمي
@@ -93,15 +91,12 @@ export default function EditAcademicRecordModal({
           <div className="py-10 text-center text-gray-400">جارٍ التحميل...</div>
         ) : (
           <div className="space-y-4">
-            {/* record_type */}
             <Controller
               control={control}
               name="record_type"
-              rules={{ required: "نوع السجل مطلوب" }}
               render={({ field }) => (
                 <SearchableSelect
                   label="نوع السجل الأكاديمي"
-                  required
                   value={field.value || ""}
                   onChange={field.onChange}
                   options={RECORD_TYPES}
@@ -117,9 +112,7 @@ export default function EditAcademicRecordModal({
             <InputField
               label="المجموع"
               type="number"
-              required
               register={register("total_score", {
-                required: "المجموع مطلوب",
                 valueAsNumber: true,
               })}
               error={errors.total_score?.message}
@@ -128,9 +121,7 @@ export default function EditAcademicRecordModal({
             <InputField
               label="السنة"
               type="number"
-              required
               register={register("year", {
-                required: "السنة مطلوبة",
                 valueAsNumber: true,
                 min: { value: 1900, message: "السنة غير صحيحة" },
                 max: {

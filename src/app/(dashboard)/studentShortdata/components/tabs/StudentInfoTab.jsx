@@ -5,12 +5,12 @@ function getPrimaryPhone(student) {
   const details = guardians.flatMap((g) => g.contact_details || []);
 
   const primaryPhone = details.find(
-    (c) => c.type === "phone" && c.is_primary && c.full_phone_number
+    (c) => c.type === "phone" && c.is_primary && c.full_phone_number,
   );
   if (primaryPhone) return primaryPhone.full_phone_number;
 
   const anyPrimary = details.find(
-    (c) => c.is_primary && (c.full_phone_number || c.value)
+    (c) => c.is_primary && (c.full_phone_number || c.value),
   );
 
   return anyPrimary?.full_phone_number || anyPrimary?.value || "—";
@@ -20,11 +20,11 @@ export default function StudentInfoTab({ student }) {
   const guardians = student?.family?.guardians || [];
 
   const father = guardians.find(
-    (g) => g.relationship?.toLowerCase() === "father"
+    (g) => g.relationship?.toLowerCase() === "father",
   );
 
   const mother = guardians.find(
-    (g) => g.relationship?.toLowerCase() === "mother"
+    (g) => g.relationship?.toLowerCase() === "mother",
   );
 
   const items = [
@@ -45,7 +45,10 @@ export default function StudentInfoTab({ student }) {
             <span className="text-sm text-gray-500 whitespace-nowrap">
               {item.label}
             </span>
-            <span className="text-sm font-semibold text-gray-800 truncate">
+            <span
+              className="text-sm font-semibold text-gray-800 truncate"
+              dir="ltr"
+            >
               {item.value}
             </span>
           </div>

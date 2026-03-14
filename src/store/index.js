@@ -37,6 +37,9 @@ import { logsApi } from "./services/logsApi";
 import { examTypesApi } from "./services/examTypesApi";
 import { examResultEditRequestsApi } from "./services/examResultEditRequestsApi";
 import { paymentInstallmentsApi } from "./services/paymentInstallmentsApi";
+import { messageTemplatesApi } from "./services/messageTemplatesApi";
+import { messagesApi } from "./services/messagesApi";
+
 
 export const store = configureStore({
   reducer: {
@@ -75,7 +78,10 @@ export const store = configureStore({
     [examTypesApi.reducerPath]: examTypesApi.reducer,
     [examResultEditRequestsApi.reducerPath]: examResultEditRequestsApi.reducer,
     [paymentInstallmentsApi.reducerPath]: paymentInstallmentsApi.reducer,
+    [messageTemplatesApi.reducerPath]: messageTemplatesApi.reducer,
+    [messagesApi.reducerPath]: messagesApi.reducer,
     search: searchReducer,
+
   },
 
   middleware: (getDefaultMiddleware) =>
@@ -114,5 +120,7 @@ export const store = configureStore({
       .concat(examsApi.middleware)
       .concat(examResultEditRequestsApi.middleware)
       .concat(examTypesApi.middleware)
-      .concat(paymentInstallmentsApi.middleware),
+      .concat(paymentInstallmentsApi.middleware)
+      .concat(messageTemplatesApi.middleware)
+      .concat(messagesApi.middleware),
 });

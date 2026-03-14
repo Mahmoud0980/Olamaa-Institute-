@@ -42,7 +42,13 @@ import {
 } from "@/store/services/paymentInstallmentsApi";
 
 /* ================= Helpers ================= */
+const studentNameLabel = (row) => row?.student_name ?? "—";
+const paymentStudentFullName = (row, mode) => {
+  if (mode === "late") return row?.student_name ?? "—";
 
+  const full = `${row?.first_name ?? ""} ${row?.last_name ?? ""}`.trim();
+  return full || row?.student_name || "—";
+};
 function esc(s) {
   return String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -267,42 +273,73 @@ export default function PaymentsPage() {
 
   /* ================= Installments Rows ================= */
 
+  const installmentStudentName = (r) => {
+    return (
+      r?.student_name ||
+      r?.student?.full_name ||
+      `${r?.student?.first_name ?? ""} ${r?.student?.last_name ?? ""}`.trim() ||
+      "—"
+    );
+  };
+
   const installmentRows = useMemo(() => {
     const q = search.toLowerCase().trim();
     const base = normalizeArray(installmentsRes);
 
-    return base.filter((r) => {
-      const matchSearch =
-        !q ||
-        String(r?.enrollment_contract_id ?? "")
+    return base
+      .map((r) => {
+        const student = students.find(
+          (s) => String(s.id) === String(r.student_id),
+        );
+
+        return {
+          ...r,
+          student_name:
+            student?.full_name ||
+            `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim() ||
+            "—",
+          batch_id: r?.batch_id ?? student?.batch_id,
+          institute_branch_id:
+            r?.institute_branch_id ?? student?.institute_branch_id,
+        };
+      })
+      .filter((r) => {
+        const studentName = String(r.student_name ?? "")
           .toLowerCase()
-          .includes(q) ||
-        String(r?.installment_number ?? "")
-          .toLowerCase()
-          .includes(q) ||
-        String(r?.status ?? "")
-          .toLowerCase()
-          .includes(q);
+          .trim();
 
-      const matchStudent =
-        !selectedStudentId ||
-        String(r?.student_id ?? r?.student?.id ?? "") ===
-          String(selectedStudentId);
+        const matchSearch =
+          !q ||
+          studentName.includes(q) ||
+          String(r?.installment_number ?? "")
+            .toLowerCase()
+            .includes(q) ||
+          String(r?.status ?? "")
+            .toLowerCase()
+            .includes(q);
 
-      const matchBatch =
-        !selectedBatchId ||
-        String(r?.batch_id ?? r?.student?.batch_id ?? "") ===
-          String(selectedBatchId);
+        const matchStudent =
+          !selectedStudentId ||
+          String(r?.student_id) === String(selectedStudentId);
 
-      const matchBranch =
-        !branchId ||
-        String(
-          r?.institute_branch_id ?? r?.student?.institute_branch_id ?? "",
-        ) === String(branchId);
+        const matchBatch =
+          !selectedBatchId ||
+          String(r?.batch_id ?? "") === String(selectedBatchId);
 
-      return matchSearch && matchStudent && matchBatch && matchBranch;
-    });
-  }, [installmentsRes, search, selectedStudentId, selectedBatchId, branchId]);
+        const matchBranch =
+          !branchId ||
+          String(r?.institute_branch_id ?? "") === String(branchId);
+
+        return matchSearch && matchStudent && matchBatch && matchBranch;
+      });
+  }, [
+    installmentsRes,
+    students,
+    search,
+    selectedStudentId,
+    selectedBatchId,
+    branchId,
+  ]);
 
   const rows = viewType === "payments" ? paymentRows : installmentRows;
   const currentRowId =
@@ -550,92 +587,94 @@ export default function PaymentsPage() {
 
     if (viewType === "payments") {
       html = `
-        <html dir="rtl">
-          <head>
-            <style>
-              body{font-family:Arial;padding:20px}
-              table{width:100%;border-collapse:collapse;font-size:12px}
-              th,td{border:1px solid #ccc;padding:6px;text-align:right}
-              th{background:#fbeaf3}
-            </style>
-          </head>
-          <body>
-            <h3>${
-              mode === "latest" ? "دفعات الطلاب" : "الطلاب المتأخرين في الدفع"
-            }</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>الاسم</th>
-                  <th>الكنية</th>
-                  <th>المبلغ</th>
-                  <th>التاريخ</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${selectedRows
-                  .map(
-                    (r, i) => `
-                    <tr>
-                      <td>${i + 1}</td>
-                      <td>${esc(
-                        mode === "late" ? r.student_name : r.first_name,
-                      )}</td>
-                      <td>${esc(mode === "late" ? "—" : r.last_name)}</td>
-                      <td>${esc(paymentMoneyLabel(r))}</td>
-                      <td>${esc(r.paid_date ?? r.due_date ?? "—")}</td>
-                    </tr>`,
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `;
+    <html dir="rtl">
+      <head>
+        <style>
+          body{font-family:Arial;padding:20px}
+          table{width:100%;border-collapse:collapse;font-size:12px}
+          th,td{border:1px solid #ccc;padding:6px;text-align:right}
+          th{background:#fbeaf3}
+        </style>
+      </head>
+      <body>
+        <h3>${
+          mode === "latest" ? "دفعات الطلاب" : "الطلاب المتأخرين في الدفع"
+        }</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الاسم الكامل</th>
+              <th>رقم الإيصال</th>
+              <th>المبلغ</th>
+              <th>${mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedRows
+              .map((r, i) => {
+                const receiptNumber =
+                  r.receipt_number ?? r.receipt_no ?? r.payment_id ?? "—";
+
+                return `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td>${esc(paymentStudentFullName(r, mode))}</td>
+                    <td>${esc(receiptNumber)}</td>
+                    <td>${esc(paymentMoneyLabel(r))}</td>
+                    <td>${esc(r.paid_date ?? r.due_date ?? "—")}</td>
+                  </tr>
+                `;
+              })
+              .join("")}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
     } else {
       html = `
-        <html dir="rtl">
-          <head>
-            <style>
-              body{font-family:Arial;padding:20px}
-              table{width:100%;border-collapse:collapse;font-size:12px}
-              th,td{border:1px solid #ccc;padding:6px;text-align:right}
-              th{background:#fbeaf3}
-            </style>
-          </head>
-          <body>
-            <h3>الأقساط</h3>
-            <table>
-              <thead>
+  <html dir="rtl">
+    <head>
+      <style>
+        body{font-family:Arial;padding:20px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #ccc;padding:6px;text-align:right}
+        th{background:#fbeaf3}
+      </style>
+    </head>
+    <body>
+      <h3>الأقساط</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>اسم الطالب</th>
+            <th>رقم القسط</th>
+            <th>المبلغ</th>
+            <th>تاريخ الاستحقاق</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${selectedRows
+            .map(
+              (r, i) => `
                 <tr>
-                  <th>#</th>
-                  <th>رقم العقد</th>
-                  <th>رقم القسط</th>
-                  <th>المبلغ</th>
-                  <th>تاريخ الاستحقاق</th>
-                  <th>الحالة</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${selectedRows
-                  .map(
-                    (r, i) => `
-                    <tr>
-                      <td>${i + 1}</td>
-                      <td>${esc(r.enrollment_contract_id ?? "—")}</td>
-                      <td>${esc(r.installment_number ?? "—")}</td>
-                      <td>${esc(installmentMoneyLabel(r))}</td>
-                      <td>${esc(r.due_date ?? "—")}</td>
-                      <td>${esc(installmentStatusLabel(r.status))}</td>
-                    </tr>`,
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `;
+                  <td>${i + 1}</td>
+                  <td>${esc(installmentStudentName(r))}</td>
+                  <td>${esc(r.installment_number ?? "—")}</td>
+                  <td>${esc(installmentMoneyLabel(r))}</td>
+                  <td>${esc(r.due_date ?? "—")}</td>
+                  <td>${esc(installmentStatusLabel(r.status))}</td>
+                </tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </body>
+  </html>
+`;
     }
 
     const w = window.open("", "", "width=900,height=700");
@@ -660,13 +699,15 @@ export default function PaymentsPage() {
     const data =
       viewType === "payments"
         ? selectedRows.map((r) => ({
-            الاسم: mode === "late" ? r.student_name : r.first_name,
-            الكنية: mode === "late" ? "—" : r.last_name,
+            "الاسم الكامل": paymentStudentFullName(r, mode),
+            "رقم الإيصال":
+              r.receipt_number ?? r.receipt_no ?? r.payment_id ?? "—",
             المبلغ: paymentMoneyLabel(r),
-            التاريخ: r.paid_date ?? r.due_date ?? "—",
+            [mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"]:
+              r.paid_date ?? r.due_date ?? "—",
           }))
         : selectedRows.map((r) => ({
-            "رقم العقد": r.enrollment_contract_id ?? "—",
+            "اسم الطالب": installmentStudentName(r),
             "رقم القسط": r.installment_number ?? "—",
             المبلغ: installmentMoneyLabel(r),
             "تاريخ الاستحقاق": r.due_date ?? "—",
@@ -691,23 +732,33 @@ export default function PaymentsPage() {
 
   /* ================= Add ================= */
 
+  // const submitAddPayment = async (payload) => {
+  //   try {
+  //     const res = await addPayment(payload).unwrap();
+  //     notify.success(res?.message || "تمت إضافة الدفعة");
+  //     return res?.data || res;
+  //   } catch (error) {
+  //     return NextResponse.json(
+  //       {
+  //         status: false,
+  //         message: error?.message || "حدث خطأ أثناء إرسال الرسالة",
+  //         error_name: error?.name || null,
+  //         error_cause: error?.cause?.message || null,
+  //         error_stack:
+  //           process.env.NODE_ENV === "development" ? error?.stack : null,
+  //       },
+  //       { status: 500 },
+  //     );
+  //   }
+  // };
   const submitAddPayment = async (payload) => {
     try {
-      await addPayment(payload).unwrap();
-      notify.success("تمت إضافة الدفعة");
-      setOpenAdd(false);
+      const res = await addPayment(payload).unwrap();
+      notify.success(res?.message || "تمت إضافة الدفعة");
+      return res?.data || res;
     } catch (err) {
-      const msg =
-        err?.data?.message ||
-        err?.data?.error ||
-        (typeof err?.data === "string" ? err.data : null) ||
-        "فشل الإضافة";
-
-      const details = err?.data?.errors
-        ? Object.values(err.data.errors).flat().join(" - ")
-        : null;
-
-      notify.error(details ? `${msg}: ${details}` : msg);
+      notify.error(err?.data?.message || "فشل إضافة الدفعة");
+      throw err;
     }
   };
 
@@ -744,7 +795,8 @@ export default function PaymentsPage() {
 
       const isPending =
         res?.data?.status === "pending" ||
-        String(res?.message || "").includes("ينتظر موافقة");
+        String(res?.message || "").includes("ينتظر موافقة") ||
+        String(res?.message || "").includes("تم إرسال طلب");
 
       if (isPending) {
         markPending(activePaymentId, "edit");
@@ -752,9 +804,10 @@ export default function PaymentsPage() {
         clearPending(activePaymentId);
       }
 
-      setOpenPaymentEdit(false);
+      return res?.data || res;
     } catch (err) {
       notify.error(err?.data?.message || "فشل التحديث");
+      throw err;
     }
   };
 
@@ -827,8 +880,8 @@ export default function PaymentsPage() {
         onToggleSelectAll={() =>
           setSelectedIds(isAllSelected ? [] : rows.map(currentRowId))
         }
-        addLabel={viewType === "payments" ? "إضافة دفعة" : "إضافة قسط"}
-        onAdd={() => setOpenAdd(true)}
+        addLabel={viewType === "payments" ? "إضافة دفعة" : ""}
+        onAdd={viewType === "payments" ? () => setOpenAdd(true) : ""}
         extraButtons={[
           {
             label: viewType === "payments" ? "عرض الأقساط" : "اعرض الدفعات",
@@ -910,22 +963,22 @@ export default function PaymentsPage() {
       />
 
       {/* إضافة قسط */}
-      <PaymentInstallmentAddModal
+      {/* <PaymentInstallmentAddModal
         open={openAdd && viewType === "installments"}
         onClose={() => setOpenAdd(false)}
         onSubmit={submitAddInstallment}
         loading={addingInstallment}
-      />
+      /> */}
 
       {/* تعديل قسط */}
-      <PaymentInstallmentAddModal
+      {/* <PaymentInstallmentAddModal
         open={openInstallmentEdit}
         title="تعديل قسط"
         onClose={() => setOpenInstallmentEdit(false)}
         onSubmit={submitEditInstallment}
         initialData={activeInstallment}
         loading={updatingInstallment}
-      />
+      /> */}
 
       {/* حذف دفعة */}
       <DeleteConfirmModal
@@ -938,14 +991,14 @@ export default function PaymentsPage() {
       />
 
       {/* حذف قسط */}
-      <DeleteConfirmModal
+      {/* <DeleteConfirmModal
         isOpen={openDeleteInstallment}
         loading={deletingInstallment}
         title="حذف قسط"
         description="هل أنت متأكد من حذف القسط؟"
         onClose={() => setOpenDeleteInstallment(false)}
         onConfirm={confirmDeleteInstallment}
-      />
+      /> */}
     </div>
   );
 }

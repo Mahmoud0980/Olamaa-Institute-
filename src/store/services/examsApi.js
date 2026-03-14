@@ -21,7 +21,6 @@ export const examsApi = createApi({
       providesTags: [{ type: "Exams", id: "LIST" }],
     }),
 
-    // ✅ NEW: جلب امتحان واحد للتعديل
     getExamById: builder.query({
       query: (id) => ({
         url: `/exams/${id}`,
@@ -30,7 +29,6 @@ export const examsApi = createApi({
       providesTags: (r, e, id) => [{ type: "Exams", id }],
     }),
 
-    // ✅ NEW: إضافة امتحان
     addExam: builder.mutation({
       query: (data) => ({
         url: "/exams",
@@ -40,11 +38,10 @@ export const examsApi = createApi({
       invalidatesTags: [{ type: "Exams", id: "LIST" }],
     }),
 
-    // ✅ NEW: تعديل امتحان
     updateExam: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/exams/${id}`,
-        method: "PUT", // إذا الباك عنده PATCH بدل PUT غيّرها
+        method: "PUT",
         data,
       }),
       invalidatesTags: (r, e, { id }) => [
@@ -53,7 +50,6 @@ export const examsApi = createApi({
       ],
     }),
 
-    // ✅ NEW: حذف امتحان
     deleteExam: builder.mutation({
       query: (id) => ({
         url: `/exams/${id}`,
@@ -78,6 +74,19 @@ export const examsApi = createApi({
       providesTags: [{ type: "ExamResults", id: "LIST" }],
     }),
 
+    // ✅ NEW: نتائج طالب حسب student_id
+    getFilteredExamResults: builder.query({
+      query: (params = {}) => ({
+        url: "/exam-results/filter",
+        method: "GET",
+        params,
+      }),
+      providesTags: (result, error, params) => [
+        { type: "ExamResults", id: "LIST" },
+        { type: "ExamResults", id: `STUDENT_${params?.student_id || "ALL"}` },
+      ],
+    }),
+
     addExamResult: builder.mutation({
       query: (data) => ({
         url: "/exam-results",
@@ -86,6 +95,7 @@ export const examsApi = createApi({
       }),
       invalidatesTags: [{ type: "ExamResults", id: "LIST" }],
     }),
+
     getExamResultById: builder.query({
       query: (id) => ({
         url: `/exam-results/${id}`,
@@ -93,6 +103,7 @@ export const examsApi = createApi({
       }),
       providesTags: (r, e, id) => [{ type: "ExamResults", id }],
     }),
+
     deleteExamResult: builder.mutation({
       query: (id) => ({
         url: `/exam-results/${id}`,
@@ -103,7 +114,7 @@ export const examsApi = createApi({
         { type: "ExamResults", id },
       ],
     }),
-    // ✅ NEW: تعديل علامة
+
     updateExamResult: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/exam-results/${id}`,
@@ -131,5 +142,6 @@ export const {
   useDeleteExamResultMutation,
 
   useGetStudentExamResultsQuery,
+  useGetFilteredExamResultsQuery, // ✅ NEW
   useAddExamResultMutation,
 } = examsApi;

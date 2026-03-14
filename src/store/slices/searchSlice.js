@@ -19,6 +19,7 @@ const searchSlice = createSlice({
       attendance: "",
       payments: "",
       exams: "",
+      messageTemplates: "",
     },
   },
   reducers: {

@@ -230,7 +230,7 @@ function NotificationsDropdown({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
+  const hideSearch = pathname === "/" || /^\/students\/[^/]+$/.test(pathname);
   return (
     <>
       {/* overlay لإغلاق عند الضغط خارج */}
@@ -596,7 +596,8 @@ export default function Navbar() {
   useEffect(() => {
     setOpenNotifications(false);
   }, [pathname]);
-
+  const disableSearch =
+    pathname === "/" || /^\/studentShortdata\/[^/]+$/.test(pathname);
   return (
     <>
       <div className="flex items-center justify-end lg:justify-between px-6 py-4 bg-white">
@@ -613,6 +614,7 @@ export default function Navbar() {
             type="text"
             placeholder="البحث عن ..."
             value={search ?? ""}
+            disabled={disableSearch}
             onChange={(e) =>
               dispatch(
                 setSearchValue({
@@ -621,7 +623,9 @@ export default function Navbar() {
                 }),
               )
             }
-            className="w-full h-full bg-transparent outline-none text-[16px] text-gray-700"
+            className={`w-full h-full bg-transparent outline-none text-[16px]
+    ${disableSearch ? "text-gray-400 cursor-not-allowed" : "text-gray-700"}
+  `}
           />
         </div>
 

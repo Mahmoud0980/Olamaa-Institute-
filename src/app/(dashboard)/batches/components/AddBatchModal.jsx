@@ -8,6 +8,7 @@ import Stepper from "@/components/common/Stepper";
 import FormInput from "@/components/common/InputField";
 import StepButtonsSmart from "@/components/common/StepButtonsSmart";
 import SearchableSelect from "@/components/common/SearchableSelect";
+import BulkStudentAssignStep from "./BulkStudentAssignStep";
 
 // ===== APIs =====
 import {
@@ -35,8 +36,12 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
 
   const [loading, setLoading] = useState(false);
 
-  const step = 1;
-  const total = 1;
+  // ===== مودال إضافة = خطوتين / تعديل = خطوة واحدة =====
+  const isEdit = !!batch;
+  const total = isEdit ? 1 : 2;
+  const [step, setStep] = useState(1);
+  const [newBatchId, setNewBatchId] = useState(null);
+  const [newBatchName, setNewBatchName] = useState("");
 
   // ===== Form =====
   const initialForm = {
@@ -101,9 +106,14 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
     [],
   );
 
-  // ===== Fill form on edit =====
+  // ===== Fill form on edit / reset on open =====
   useEffect(() => {
     if (!isOpen) return;
+
+    // Reset step on open
+    setStep(1);
+    setNewBatchId(null);
+    setNewBatchName("");
 
     if (batch) {
       setForm({
@@ -123,9 +133,9 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
     }
   }, [isOpen, batch]);
 
-  // ===== Submit (بدون فرض required على الواجهة) =====
-  const handleSubmit = async () => {
-    // (اختياري) تحقق منطقي للتواريخ إذا الاثنين ممتلئين
+  // ===== Submit Step 1 =====
+  const handleSubmitStep1 = async () => {
+    // تحقق منطقي للتواريخ
     if (form.start_date && form.end_date) {
       const start = new Date(form.start_date);
       const end = new Date(form.end_date);
@@ -153,20 +163,37 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
         is_completed: form.is_completed === "true",
       };
 
-      // تنظيف: احذف القيم null (إذا API ما بيقبل null)
+      // تنظيف: احذف القيم null
       Object.keys(payload).forEach(
         (k) => payload[k] == null && delete payload[k],
       );
 
-      if (batch) {
+      if (isEdit) {
         await updateBatch({ id: batch.id, ...payload }).unwrap();
         notify.success("تم تعديل الشعبة بنجاح");
+        onClose?.();
       } else {
-        await addBatch(payload).unwrap();
-        notify.success("تم إضافة الشعبة بنجاح");
-      }
+        // إضافة — حفظ الشعبة ثم الانتقال للخطوة 2
+        const result = await addBatch(payload).unwrap();
+        console.log("addBatch result:", JSON.stringify(result, null, 2));
 
-      onClose?.();
+        // الـ API يرجع: { status: true, data: { batch: { id, name, ... } } }
+        const createdBatch = result?.data?.batch || result?.data;
+        const batchId = createdBatch?.id;
+        notify.success("تم إضافة الشعبة بنجاح");
+
+        console.log("Created batch ID:", batchId, "Name:", createdBatch?.name || form.name);
+
+        if (batchId) {
+          setNewBatchId(batchId);
+          setNewBatchName(createdBatch?.name || form.name);
+          setStep(2);
+        } else {
+          // إذا لم نحصل على ID — نغلق المودال
+          console.warn("Could not extract batch ID from response");
+          onClose?.();
+        }
+      }
     } catch (err) {
       const errors = err?.data?.errors;
       if (errors) {
@@ -180,6 +207,14 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
     }
   };
 
+  // ===== Close handler =====
+  const handleClose = () => {
+    setStep(1);
+    setNewBatchId(null);
+    setNewBatchName("");
+    onClose?.();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -190,10 +225,14 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
         <div className="sticky top-0 z-20 bg-white px-6 pt-6 pb-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[#6F013F] font-semibold">
-              {batch ? "تعديل شعبة" : "إضافة شعبة جديدة"}
+              {isEdit
+                ? "تعديل شعبة"
+                : step === 1
+                  ? "إضافة شعبة جديدة"
+                  : "إضافة طالب إلى دورة"}
             </h2>
 
-            <button onClick={onClose} type="button">
+            <button onClick={handleClose} type="button">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -203,108 +242,122 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
           </div>
         </div>
 
-        {/* ===== Body (السكرول هون فقط) ===== */}
+        {/* ===== Body ===== */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="space-y-5">
-            <FormInput
-              label="اسم الشعبة"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
+          {step === 1 ? (
+            /* ======= الخطوة 1: بيانات الدورة ======= */
+            <div className="space-y-5">
+              <FormInput
+                label="اسم الشعبة"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
 
-            <SearchableSelect
-              label="الفرع"
-              value={form.institute_branch_id}
-              onChange={(val) =>
-                setForm({
-                  ...form,
-                  institute_branch_id: val,
-                  class_room_id: "", // reset room
-                })
-              }
-              options={branchOptions}
-              placeholder="اختر الفرع..."
-              allowClear
-            />
+              <SearchableSelect
+                label="الفرع"
+                value={form.institute_branch_id}
+                onChange={(val) =>
+                  setForm({
+                    ...form,
+                    institute_branch_id: val,
+                    class_room_id: "", // reset room
+                  })
+                }
+                options={branchOptions}
+                placeholder="اختر الفرع..."
+                allowClear
+              />
 
-            <SearchableSelect
-              label="الفرع الأكاديمي"
-              value={form.academic_branch_id}
-              onChange={(val) => setForm({ ...form, academic_branch_id: val })}
-              options={academicOptions}
-              placeholder="اختر الفرع الأكاديمي..."
-              allowClear
-            />
+              <SearchableSelect
+                label="الفرع الأكاديمي"
+                value={form.academic_branch_id}
+                onChange={(val) =>
+                  setForm({ ...form, academic_branch_id: val })
+                }
+                options={academicOptions}
+                placeholder="اختر الفرع الأكاديمي..."
+                allowClear
+              />
 
-            <SearchableSelect
-              label="القاعة"
-              value={form.class_room_id}
-              onChange={(val) => setForm({ ...form, class_room_id: val })}
-              options={roomOptions}
-              placeholder="اختر القاعة..."
-              allowClear
-            />
+              <SearchableSelect
+                label="القاعة"
+                value={form.class_room_id}
+                onChange={(val) => setForm({ ...form, class_room_id: val })}
+                options={roomOptions}
+                placeholder="اختر القاعة..."
+                allowClear
+              />
 
-            <SearchableSelect
-              label="الجنس"
-              value={form.gender_type}
-              onChange={(val) => setForm({ ...form, gender_type: val })}
-              options={genderOptions}
-              placeholder="اختر الجنس..."
-              allowClear
-            />
+              <SearchableSelect
+                label="الجنس"
+                value={form.gender_type}
+                onChange={(val) => setForm({ ...form, gender_type: val })}
+                options={genderOptions}
+                placeholder="اختر الجنس..."
+                allowClear
+              />
 
-            <DatePickerSmart
-              label="تاريخ البداية"
-              value={form.start_date} // YYYY-MM-DD
-              onChange={(iso) => setForm({ ...form, start_date: iso })}
-            />
+              <DatePickerSmart
+                label="تاريخ البداية"
+                value={form.start_date}
+                onChange={(iso) => setForm({ ...form, start_date: iso })}
+              />
 
-            <DatePickerSmart
-              label="تاريخ النهاية"
-              value={form.end_date}
-              onChange={(iso) => setForm({ ...form, end_date: iso })}
-            />
+              <DatePickerSmart
+                label="تاريخ النهاية"
+                value={form.end_date}
+                onChange={(iso) => setForm({ ...form, end_date: iso })}
+              />
 
-            <SearchableSelect
-              label="مؤرشفة؟"
-              value={form.is_archived}
-              onChange={(val) => setForm({ ...form, is_archived: val })}
-              options={yesNoOptions}
-              placeholder="اختر..."
-              allowClear={false}
-            />
+              <SearchableSelect
+                label="مؤرشفة؟"
+                value={form.is_archived}
+                onChange={(val) => setForm({ ...form, is_archived: val })}
+                options={yesNoOptions}
+                placeholder="اختر..."
+                allowClear={false}
+              />
 
-            <SearchableSelect
-              label="مخفية؟"
-              value={form.is_hidden}
-              onChange={(val) => setForm({ ...form, is_hidden: val })}
-              options={yesNoOptions}
-              placeholder="اختر..."
-              allowClear={false}
-            />
+              <SearchableSelect
+                label="مخفية؟"
+                value={form.is_hidden}
+                onChange={(val) => setForm({ ...form, is_hidden: val })}
+                options={yesNoOptions}
+                placeholder="اختر..."
+                allowClear={false}
+              />
 
-            <SearchableSelect
-              label="مكتملة؟"
-              value={form.is_completed}
-              onChange={(val) => setForm({ ...form, is_completed: val })}
-              options={yesNoOptions}
-              placeholder="اختر..."
-              allowClear={false}
+              <SearchableSelect
+                label="مكتملة؟"
+                value={form.is_completed}
+                onChange={(val) => setForm({ ...form, is_completed: val })}
+                options={yesNoOptions}
+                placeholder="اختر..."
+                allowClear={false}
+              />
+            </div>
+          ) : (
+            /* ======= الخطوة 2: إضافة طلاب جماعياً ======= */
+            <BulkStudentAssignStep
+              batchId={newBatchId}
+              batchName={newBatchName}
+              onDone={handleClose}
+            />
+          )}
+        </div>
+
+        {/* ===== Footer ثابت (الأزرار) — فقط في الخطوة 1 ===== */}
+        {step === 1 && (
+          <div className="sticky bottom-0 z-20 bg-white px-6 py-4">
+            <StepButtonsSmart
+              step={step}
+              total={total}
+              isEdit={isEdit}
+              loading={loading}
+              onNext={handleSubmitStep1}
             />
           </div>
-        </div>
-
-        {/* ===== Footer ثابت (الأزرار) ===== */}
-        <div className="sticky bottom-0 z-20 bg-white px-6 py-4">
-          <StepButtonsSmart
-            step={step}
-            total={total}
-            isEdit={!!batch}
-            loading={loading}
-            onNext={handleSubmit}
-          />
-        </div>
+        )}
       </div>
     </div>
   );
