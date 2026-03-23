@@ -17,7 +17,7 @@ export const subjectsApi = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: "Subjects", id })),
+              ...(Array.isArray(result) ? result : Array.isArray(result?.data) ? result.data : []).map(({ id }) => ({ type: "Subjects", id })),
               { type: "Subjects", id: "LIST" },
             ]
           : [{ type: "Subjects", id: "LIST" }],

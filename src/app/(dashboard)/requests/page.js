@@ -3,10 +3,10 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { notify } from "@/lib/helpers/toastify";
-
 import Breadcrumb from "@/components/common/Breadcrumb";
 import ActionsRow from "@/components/common/ActionsRow";
-import Pagination from "@/components/common/Pagination";
+import DataTable from "@/components/common/DataTable";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 import {
   useGetPaymentEditRequestsQuery,
@@ -46,9 +46,9 @@ const paymentActionLabel = (a) => {
   return v || "—";
 };
 
-/* ====== GRADES format (based on your response) ====== */
+/* ====== GRADES format ====== */
 function gradeActionLabel(t) {
-  const v = String(t || "").toLowerCase(); // update | delete
+  const v = String(t || "").toLowerCase();
   if (v === "delete") return "حذف علامة";
   return "تعديل علامة";
 }
@@ -67,22 +67,12 @@ function examNameFromReq(r) {
 
 function formatGradeReqText(r) {
   const action = gradeActionLabel(r?.type);
-  const rid =
-    r?.exam_result_id ?? r?.exam_result?.id ?? r?.original_data?.id ?? "—";
-
+  const rid = r?.exam_result_id ?? r?.exam_result?.id ?? r?.original_data?.id ?? "—";
   const student = studentNameFromReq(r);
   const examName = examNameFromReq(r);
 
-  // diff: proposed_changes مقارنةً بـ original_data
-  const proposed =
-    r?.proposed_changes && typeof r.proposed_changes === "object"
-      ? r.proposed_changes
-      : {};
-
-  const original =
-    r?.original_data && typeof r.original_data === "object"
-      ? r.original_data
-      : {};
+  const proposed = r?.proposed_changes && typeof r.proposed_changes === "object" ? r.proposed_changes : {};
+  const original = r?.original_data && typeof r.original_data === "object" ? r.original_data : {};
 
   const changesKeys = Object.keys(proposed);
   const changesText =
@@ -92,7 +82,6 @@ function formatGradeReqText(r) {
           .map((k) => {
             const before = original?.[k];
             const after = proposed?.[k];
-            // مثال: obtained_marks: 50 → 58
             return `${k}: ${safe(before)} → ${safe(after)}`;
           })
           .join(" | ");
@@ -108,9 +97,9 @@ function formatGradeReqText(r) {
 
 export default function RequestsPage() {
   const search = useSelector((s) => s.search.values?.activity || "");
-  const [section, setSection] = useState("payments"); // payments | grades | attendance
+  const [section, setSection] = useState("payments");
 
-  // ====== Counts (pending) - Always fetch to show badges ======
+  // ====== Counts (pending) ======
   const {
     data: payPendingRes,
     isLoading: loadingPayPending,
@@ -133,17 +122,15 @@ export default function RequestsPage() {
 
   const payPendingCount = useMemo(() => {
     const arr = toArray(payPendingRes);
-    return arr.filter((x) => String(x?.status).toLowerCase() === "pending")
-      .length;
+    return arr.filter((x) => String(x?.status).toLowerCase() === "pending").length;
   }, [payPendingRes]);
 
   const gradesPendingCount = useMemo(() => {
     const arr = toArray(gradesPendingRes);
-    return arr.filter((x) => String(x?.status).toLowerCase() === "pending")
-      .length;
+    return arr.filter((x) => String(x?.status).toLowerCase() === "pending").length;
   }, [gradesPendingRes]);
 
-  // ====== Section list (fetch only when active) ======
+  // ====== Section list ======
   const {
     data: payAllRes,
     isLoading: loadingPayments,
@@ -167,61 +154,32 @@ export default function RequestsPage() {
     (section === "grades" && (loadingGrades || fetchingGrades));
 
   // ====== approve/reject mutations ======
-  const [approvePayment, { isLoading: approvingPayment }] =
-    useApprovePaymentEditRequestMutation();
-  const [rejectPayment, { isLoading: rejectingPayment }] =
-    useRejectPaymentEditRequestMutation();
-
-  const [approveGrade, { isLoading: approvingGrade }] =
-    useApproveExamResultEditRequestMutation();
-  const [rejectGrade, { isLoading: rejectingGrade }] =
-    useRejectExamResultEditRequestMutation();
+  const [approvePayment, { isLoading: approvingPayment }] = useApprovePaymentEditRequestMutation();
+  const [rejectPayment, { isLoading: rejectingPayment }] = useRejectPaymentEditRequestMutation();
+  const [approveGrade, { isLoading: approvingGrade }] = useApproveExamResultEditRequestMutation();
+  const [rejectGrade, { isLoading: rejectingGrade }] = useRejectExamResultEditRequestMutation();
 
   const approving = approvingPayment || approvingGrade;
   const rejecting = rejectingPayment || rejectingGrade;
 
-  // ====== items based on section ======
   const items = useMemo(() => {
-    const q = String(search || "")
-      .trim()
-      .toLowerCase();
-
-    const base =
-      section === "payments"
-        ? toArray(payAllRes)
-        : section === "grades"
-          ? toArray(gradesAllRes)
-          : [];
-
+    const q = String(search || "").trim().toLowerCase();
+    const base = section === "payments" ? toArray(payAllRes) : section === "grades" ? toArray(gradesAllRes) : [];
     if (!q) return base;
-
     return base.filter((x) => {
       if (section === "payments") {
-        const name =
-          `${x?.requester?.full_name ?? x?.requester_name ?? ""}`.toLowerCase();
+        const name = `${x?.requester?.full_name ?? x?.requester_name ?? ""}`.toLowerCase();
         const msg = `${x?.reason ?? ""} ${x?.action ?? ""}`.toLowerCase();
         return name.includes(q) || msg.includes(q);
       }
-
       if (section === "grades") {
-        // requester_name غير موجود بالـ response يلي بعته، ف منفلتر على نص الرسالة
         const msg = formatGradeReqText(x).toLowerCase();
         return msg.includes(q);
       }
-
       return false;
     });
   }, [section, payAllRes, gradesAllRes, search]);
 
-  // ====== pagination ======
-  const [page, setPage] = useState(1);
-  const pageSize = 7;
-  const totalPages = Math.ceil(items.length / pageSize) || 1;
-  const paginated = items.slice((page - 1) * pageSize, page * pageSize);
-
-  useEffect(() => setPage(1), [section, items.length]);
-
-  // ====== refresh ======
   const handleRefresh = () => {
     if (section === "payments") refetchPayments?.();
     if (section === "grades") refetchGrades?.();
@@ -230,14 +188,10 @@ export default function RequestsPage() {
     notify.success("تم التحديث");
   };
 
-  // ====== approve/reject handlers ======
   const handleApprove = async (row) => {
     try {
-      if (section === "payments") {
-        await approvePayment(row.id).unwrap();
-      } else if (section === "grades") {
-        await approveGrade(row.id).unwrap();
-      }
+      if (section === "payments") await approvePayment(row.id).unwrap();
+      else if (section === "grades") await approveGrade(row.id).unwrap();
       notify.success("تمت الموافقة على الطلب");
       handleRefresh();
     } catch (e) {
@@ -247,11 +201,8 @@ export default function RequestsPage() {
 
   const handleReject = async (row) => {
     try {
-      if (section === "payments") {
-        await rejectPayment(row.id).unwrap();
-      } else if (section === "grades") {
-        await rejectGrade(row.id).unwrap();
-      }
+      if (section === "payments") await rejectPayment(row.id).unwrap();
+      else if (section === "grades") await rejectGrade(row.id).unwrap();
       notify.success("تم رفض الطلب");
       handleRefresh();
     } catch (e) {
@@ -259,7 +210,12 @@ export default function RequestsPage() {
     }
   };
 
-  // ====== buttons with badges ======
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [section, search]);
+
   const extraButtons = [
     {
       key: "payments",
@@ -284,6 +240,96 @@ export default function RequestsPage() {
     },
   ];
 
+  const columns = useMemo(() => [
+    { 
+      header: "الاسم", 
+      key: "requester_id",
+      render: (_, row) => {
+        if (section === "payments") {
+          return row?.requester?.full_name ?? row?.requester_name ?? `مستخدم #${row?.requester_id ?? "—"}`;
+        }
+        return `مستخدم #${row?.requester_id ?? "—"}`;
+      }
+    },
+    { 
+      header: "التاريخ", 
+      key: "created_at",
+      render: (val, row) => val || row?.updated_at || "—"
+    },
+    { 
+      header: "تفاصيل الطلب", 
+      key: "id",
+      render: (_, row) => {
+        if (section === "payments") {
+          return `${paymentActionLabel(row?.action)} — ${row?.message ?? row?.reason ?? ""}`.trim();
+        }
+        return formatGradeReqText(row);
+      }
+    },
+    { 
+      header: "الحالة", 
+      key: "status",
+      className: "text-center",
+      render: (val) => {
+        const st = statusBadge(val);
+        return <span className={st.cls}>{st.text}</span>;
+      }
+    },
+  ], [section]);
+
+  const renderActions = (row) => {
+    const disabled = String(row?.status).toLowerCase() !== "pending";
+    return (
+      <div className="flex justify-center gap-3">
+        <button
+          type="button"
+          disabled={approving || rejecting || disabled}
+          onClick={() => handleApprove(row)}
+          className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"
+        >
+          موافقة
+        </button>
+        <button
+          type="button"
+          disabled={approving || rejecting || disabled}
+          onClick={() => handleReject(row)}
+          className="px-4 py-1.5 rounded-lg bg-rose-600 text-white text-xs disabled:opacity-50"
+        >
+          رفض
+        </button>
+      </div>
+    );
+  };
+
+  const exportColumns = useMemo(() => [
+    { 
+      header: "الاسم", 
+      key: "requester_id",
+      render: (_, row) => {
+        if (section === "payments") {
+          return row?.requester?.full_name ?? row?.requester_name ?? `مستخدم #${row?.requester_id ?? "—"}`;
+        }
+        return `مستخدم #${row?.requester_id ?? "—"}`;
+      }
+    },
+    { header: "التاريخ", key: "created_at" },
+    { 
+      header: "التفاصيل", 
+      key: "id",
+      render: (_, row) => {
+        if (section === "payments") {
+          return `${paymentActionLabel(row?.action)} — ${row?.message ?? row?.reason ?? ""}`.trim();
+        }
+        return formatGradeReqText(row);
+      }
+    },
+    { 
+      header: "الحالة", 
+      key: "status",
+      render: (val) => statusBadge(val).text
+    },
+  ], [section]);
+
   return (
     <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
       <div className="flex justify-between items-center">
@@ -301,168 +347,40 @@ export default function RequestsPage() {
           extraButtons={extraButtons}
           showViewAll
           viewAllLabel={
-            loadingPayPending ||
-            fetchingPayPending ||
-            loadingGradesPending ||
-            fetchingGradesPending
+            loadingPayPending || fetchingPayPending || loadingGradesPending || fetchingGradesPending
               ? "جارٍ التحديث..."
               : "تحديث"
           }
           onViewAll={handleRefresh}
         />
+        <div className="flex gap-2">
+          {section !== "attendance" && (
+            <PrintExportActions 
+              data={items}
+              selectedIds={selectedIds}
+              columns={exportColumns}
+              title={`سجل طلبات: ${section === "payments" ? "الدفعات" : "العلامات"}`}
+              filename={`سجل_الطلبات_${section}`}
+            />
+          )}
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
         {section === "attendance" ? (
-          <div className="py-10 text-center text-gray-400">
-            قسم الحضور والغياب لاحقاً.
-          </div>
-        ) : loading ? (
-          <div className="py-10 text-center text-gray-400">جارٍ التحميل...</div>
-        ) : !items.length ? (
-          <div className="py-10 text-center text-gray-400">لا توجد طلبات.</div>
+          <div className="py-10 text-center text-gray-400">قسم الحضور والغياب لاحقاً.</div>
         ) : (
-          <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-                <thead>
-                  <tr className="bg-pink-50 text-gray-700">
-                    <th className="p-3">الاسم</th>
-                    <th className="p-3">التاريخ</th>
-                    <th className="p-3">تفاصيل الطلب</th>
-                    <th className="p-3 text-center">الحالة</th>
-                    <th className="p-3 text-center">الإجراءات</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {paginated.map((row) => {
-                    const st = statusBadge(row?.status);
-                    const created = row?.created_at || row?.updated_at || "—";
-
-                    const name =
-                      section === "payments"
-                        ? (row?.requester?.full_name ??
-                          row?.requester_name ??
-                          `مستخدم #${row?.requester_id ?? "—"}`)
-                        : `مستخدم #${row?.requester_id ?? "—"}`;
-
-                    const msg =
-                      section === "payments"
-                        ? `${paymentActionLabel(row?.action)} — ${
-                            row?.message ?? row?.reason ?? ""
-                          }`.trim()
-                        : formatGradeReqText(row);
-
-                    const disabled =
-                      String(row?.status).toLowerCase() !== "pending";
-
-                    return (
-                      <tr
-                        key={`${section}-${row.id}`}
-                        className="bg-white hover:bg-pink-50 transition"
-                      >
-                        <td className="p-3 font-medium">{safe(name)}</td>
-                        <td className="p-3">{safe(created)}</td>
-                        <td className="p-3 text-gray-600">{safe(msg)}</td>
-                        <td className="p-3 text-center">
-                          <span className={st.cls}>{st.text}</span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <div className="flex justify-center gap-3">
-                            <button
-                              type="button"
-                              disabled={approving || rejecting || disabled}
-                              onClick={() => handleApprove(row)}
-                              className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"
-                            >
-                              موافقة
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={approving || rejecting || disabled}
-                              onClick={() => handleReject(row)}
-                              className="px-4 py-1.5 rounded-lg bg-rose-600 text-white text-xs disabled:opacity-50"
-                            >
-                              رفض
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile */}
-            <div className="md:hidden space-y-3 mt-3">
-              {paginated.map((row) => {
-                const st = statusBadge(row?.status);
-                const created = row?.created_at || row?.updated_at || "—";
-                const disabled =
-                  String(row?.status).toLowerCase() !== "pending";
-
-                const name =
-                  section === "payments"
-                    ? (row?.requester?.full_name ??
-                      row?.requester_name ??
-                      `مستخدم #${row?.requester_id ?? "—"}`)
-                    : `مستخدم #${row?.requester_id ?? "—"}`;
-
-                const msg =
-                  section === "payments"
-                    ? `${paymentActionLabel(row?.action)} — ${
-                        row?.message ?? row?.reason ?? ""
-                      }`.trim()
-                    : formatGradeReqText(row);
-
-                return (
-                  <div
-                    key={`${section}-${row.id}`}
-                    className="border border-gray-200 rounded-xl p-4"
-                  >
-                    <div className="flex justify-between mb-2">
-                      <div className="font-semibold">{safe(name)}</div>
-                      <div className={st.cls}>{st.text}</div>
-                    </div>
-
-                    <div className="text-xs text-gray-500 mb-2">
-                      {safe(created)}
-                    </div>
-                    <div className="text-sm text-gray-700">{safe(msg)}</div>
-
-                    <div className="flex justify-end gap-2 mt-3">
-                      <button
-                        type="button"
-                        disabled={approving || rejecting || disabled}
-                        onClick={() => handleApprove(row)}
-                        className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs disabled:opacity-50"
-                      >
-                        موافقة
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={approving || rejecting || disabled}
-                        onClick={() => handleReject(row)}
-                        className="px-4 py-2 rounded-lg bg-rose-600 text-white text-xs disabled:opacity-50"
-                      >
-                        رفض
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          </>
+          <DataTable
+            data={items}
+            columns={columns}
+            isLoading={loading}
+            showCheckbox={true}
+            selectedIds={selectedIds}
+            onSelectChange={setSelectedIds}
+            pageSize={7}
+            renderActions={renderActions}
+            emptyMessage="لا توجد طلبات."
+          />
         )}
       </div>
     </div>

@@ -3,8 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { notify } from "@/lib/helpers/toastify";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 import {
   useGetKnowWaysQuery,
@@ -12,10 +10,10 @@ import {
 } from "@/store/services/knowWaysApi";
 
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 import KnowWaysTable from "./components/KnowWaysTable";
 import AddKnowWayModal from "./components/AddKnowWayModal";
@@ -24,7 +22,6 @@ export default function KnowWaysPage() {
   // ===== Navbar filter =====
   const branchId = useSelector((state) => state.search.values.branch);
   const search = useSelector((state) => state.search.values.knowWays);
-  console.log("SEARCH:", search);
 
   // ===== Data =====
   const { data, isLoading } = useGetKnowWaysQuery();
@@ -38,6 +35,7 @@ export default function KnowWaysPage() {
       item.name?.toLowerCase().includes((search || "").toLowerCase()),
     );
   }, [knowWays, search]);
+
   useEffect(() => {
     setSelectedIds([]);
   }, [search]);
@@ -46,15 +44,26 @@ export default function KnowWaysPage() {
   const [selectedIds, setSelectedIds] = useState([]);
 
   const isAllSelected =
-    selectedIds.length > 0 && selectedIds.length === filtered.length;
+    filtered.length > 0 && selectedIds.length === filtered.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filtered.map((i) => i.id));
+    setSelectedIds(isAllSelected ? [] : filtered.map((i) => String(i.id)));
   };
 
   useEffect(() => {
     setSelectedIds([]);
   }, [branchId]);
+
+  // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = prev.filter((id) =>
+        filtered.some((r) => String(r.id) === id),
+      );
+      if (validIds.length === prev.length) return prev;
+      return validIds;
+    });
+  }, [filtered]);
 
   // ===== Modals =====
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,6 +71,11 @@ export default function KnowWaysPage() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  if (isLoading) {
+    const tableHeaders = ["#", "طريقة المعرفة", "الإجراءات"];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
 
   // ===== Actions =====
   const handleEdit = (item) => {
@@ -86,82 +100,6 @@ export default function KnowWaysPage() {
     }
   };
 
-  // ===== Print =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد عنصر واحد على الأقل للطباعة");
-      return;
-    }
-
-    const rows = filtered.filter((i) => selectedIds.includes(i.id));
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <style>
-            body { font-family: Arial; }
-            table { width:100%; border-collapse: collapse; }
-            th, td { border:1px solid #ccc; padding:6px; font-size:12px }
-            th { background:#f3f3f3 }
-          </style>
-        </head>
-        <body>
-          <h3>طرق المعرفة</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>طريقة المعرفة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map(
-                  (r, i) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>${r.name}</td>
-                </tr>
-              `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=900,height=700");
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد عنصر واحد على الأقل للتصدير");
-      return;
-    }
-
-    const rows = filtered.filter((i) => selectedIds.includes(i.id));
-
-    const excelRows = rows.map((r) => ({
-      "طريقة المعرفة": r.name,
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "KnowWays");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "طرق_المعرفة.xlsx",
-    );
-  };
-
   return (
     <div dir="rtl" className="p-6 flex flex-col gap-6">
       <Breadcrumb />
@@ -180,8 +118,15 @@ export default function KnowWaysPage() {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions 
+            data={filtered}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "طريقة المعرفة", key: "name" },
+            ]}
+            title="طرق المعرفة"
+            filename="طرق_المعرفة"
+          />
         </div>
       </div>
 

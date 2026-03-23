@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Breadcrumb from "@/components/common/Breadcrumb";
-import Pagination from "@/components/common/Pagination";
+import DataTable from "@/components/common/DataTable";
 import { useGetLogsQuery } from "@/store/services/logsApi";
+import dayjs from "dayjs";
 
 import FiltersBar from "./components/FiltersBar";
 import TimelineItem from "./components/TimelineItem";
@@ -53,23 +54,62 @@ export default function LogsPage() {
     return arr;
   }, [logs, eventFilter, userFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / perPage));
-
-  const pageItems = useMemo(() => {
-    const safePage = Math.min(page, totalPages);
-    const start = (safePage - 1) * perPage;
-    return filteredLogs.slice(start, start + perPage);
-  }, [filteredLogs, page, totalPages]);
-
-  // إذا تغيّرت الفلاتر → رجّع للصفحة الأولى
-  const onChangeEvent = (v) => {
-    setEventFilter(v);
-    setPage(1);
-  };
-  const onChangeUser = (v) => {
-    setUserFilter(v);
-    setPage(1);
-  };
+  const columns = useMemo(
+    () => [
+      {
+        header: "الوقت",
+        key: "created_at",
+        render: (val) => (
+          <div className="text-gray-500 whitespace-nowrap text-xs">
+            {dayjs(val).format("HH:mm  YYYY-MM-DD")}
+          </div>
+        ),
+      },
+      {
+        header: "المستخدم",
+        key: "user_name",
+        render: (val) => (
+          <span className="font-semibold text-gray-800">{val || "—"}</span>
+        ),
+      },
+      {
+        header: "نوع العملية",
+        key: "event",
+        render: (val) => {
+          const labels = { created: "إضافة", updated: "تعديل", deleted: "حذف" };
+          const colors = {
+            created: "bg-blue-100 text-blue-700 border-blue-200",
+            updated: "bg-green-100 text-green-700 border-green-200",
+            deleted: "bg-red-100 text-red-700 border-red-200",
+          };
+          return (
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] border ${
+                colors[val] || colors.updated
+              }`}
+            >
+              {labels[val] || val}
+            </span>
+          );
+        },
+      },
+      {
+        header: "العنصر",
+        key: "auditable_type",
+        render: (val, row) => {
+          const parts = (val || "").split("\\");
+          const model = parts[parts.length - 1] || val || "—";
+          return (
+            <div className="text-[12px]">
+              {model}{" "}
+              <span className="text-gray-400">(ID: {row.auditable_id})</span>
+            </div>
+          );
+        },
+      },
+    ],
+    [],
+  );
 
   if (isLoading) return <LogsSkeleton count={7} />;
   if (isError)
@@ -93,42 +133,40 @@ export default function LogsPage() {
     <div className="p-2">
       <Breadcrumb />
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold">سجل العمليات</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">سجل العمليات</h1>
+          <div className="text-sm text-gray-500 mt-1">
+            إجمالي السجلات:{" "}
+            <span className="text-gray-700 font-medium">{logs.length}</span>
+          </div>
+        </div>
         <FiltersBar
           eventValue={eventFilter}
-          onEventChange={onChangeEvent}
+          onEventChange={(v) => {
+            setEventFilter(v);
+            setPage(1);
+          }}
           eventOptions={eventOptions}
           userValue={userFilter}
-          onUserChange={onChangeUser}
+          onUserChange={(v) => {
+            setUserFilter(v);
+            setPage(1);
+          }}
           userOptions={usersOptions}
         />
       </div>
-      <div className="text-sm text-gray-500">
-        إجمالي السجلات: <span className="text-gray-700">{logs.length}</span>
-      </div>
 
-      {/* Timeline */}
-      <div className="relative">
-        {/* الخط */}
-        <div className="absolute right-[10px] top-0 bottom-0 w-[2px] bg-gray-100" />
-
-        <div className="space-y-4">
-          {pageItems.length === 0 ? (
-            <div className="p-5 rounded-xl  bg-white text-gray-600">
-              لا يوجد سجلات وفق الفلترة الحالية
-            </div>
-          ) : (
-            pageItems.map((log) => <TimelineItem key={log.id} log={log} />)
-          )}
-        </div>
-      </div>
-
-      <Pagination
-        page={page}
-        totalPages={totalPages}
+      <DataTable
+        data={filteredLogs}
+        columns={columns}
+        isLoading={isLoading}
+        showCheckbox={false}
+        pageSize={perPage}
+        currentPage={page}
         onPageChange={setPage}
-        hideIfSinglePage
+        emptyMessage="لا يوجد سجلات وفق الفلترة الحالية"
+        mobileRender={(row) => <TimelineItem log={row} />}
       />
     </div>
   );

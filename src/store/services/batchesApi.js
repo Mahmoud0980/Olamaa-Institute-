@@ -17,11 +17,17 @@ export const batchesApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Batches", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Batches", id })),
               { type: "Batches", id: "LIST" },
             ]
           : [{ type: "Batches", id: "LIST" }],
     }),
+
+    getBatchesStats: builder.query({
+      query: () => ({ url: `${ENDPOINTS.BATCHES}/stats`, method: "GET" }),
+      providesTags: ["Batches"],
+    }),
+
 
     getBatch: builder.query({
       query: (id) => ({ url: `${ENDPOINTS.BATCHES}/${id}`, method: "GET" }),
@@ -64,6 +70,7 @@ export const batchesApi = createApi({
 
 export const {
   useGetBatchesQuery,
+  useGetBatchesStatsQuery,
   useGetBatchQuery,
   useAddBatchMutation,
   useUpdateBatchMutation,

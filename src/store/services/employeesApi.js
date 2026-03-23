@@ -17,7 +17,7 @@ export const employeesApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Employees", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Employees", id })),
               { type: "Employees", id: "LIST" },
             ]
           : [{ type: "Employees", id: "LIST" }],

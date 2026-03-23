@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { notify } from "@/lib/helpers/toastify";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
+
 import Breadcrumb from "@/components/common/Breadcrumb";
 
 import TeachersTable from "./components/TeachersTable";
@@ -30,7 +27,8 @@ import {
 } from "@/store/services/teachersApi";
 
 import { useGetSubjectsQuery } from "@/store/services/subjectsApi";
-import TeachersPageSkeleton from "./components/TeachersPageSkeleton";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function TeachersPage({ openAddFromUrl }) {
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -70,7 +68,9 @@ export default function TeachersPage({ openAddFromUrl }) {
     selectedIds.length === filteredTeachers.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredTeachers.map((t) => t.id));
+    setSelectedIds(
+      isAllSelected ? [] : filteredTeachers.map((t) => String(t.id)),
+    );
   };
 
   useEffect(() => {
@@ -109,119 +109,6 @@ export default function TeachersPage({ openAddFromUrl }) {
     return normalizeArray(res);
   };
 
-  // ===== Print =====
-  const handlePrint = async () => {
-    const ids = selectedTeacher ? [selectedTeacher.id] : selectedIds;
-    if (!ids.length) return notify.error("حدد مدرس واحد على الأقل");
-
-    try {
-      setPrinting(true);
-
-      const teachersMap = new Map(teachers.map((t) => [t.id, t]));
-
-      const rows = await Promise.all(
-        ids.map(async (id) => {
-          const batches = await getTeacherAllRows(id); // type=all
-          return { teacher: teachersMap.get(id), batches };
-        }),
-      );
-
-      setPrintData(rows);
-
-      setTimeout(() => {
-        window.print();
-        setPrinting(false);
-      }, 50);
-    } catch (e) {
-      setPrinting(false);
-      notify.error(e?.data?.message || "فشلت الطباعة");
-    }
-  };
-
-  // ===== Excel =====
-  const handleExcel = async () => {
-    const ids = selectedTeacher ? [selectedTeacher.id] : selectedIds;
-    if (!ids.length) return notify.error("حدد مدرس واحد على الأقل");
-
-    try {
-      const wb = XLSX.utils.book_new();
-      const teachersMap = new Map(teachers.map((t) => [t.id, t]));
-
-      const teacherRows = ids
-        .map((id) => teachersMap.get(id))
-        .filter(Boolean)
-        .map((t) => ({
-          id: t.id,
-          name: t.name || "",
-          institute_branch:
-            t?.institute_branch?.name || t?.institute_branch_name || "",
-          specialization: t.specialization || "",
-          phone: t.phone || "",
-          hire_date: t.hire_date || "",
-        }));
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(teacherRows),
-        "Teachers",
-      );
-
-      const detailsRows = [];
-
-      for (const id of ids) {
-        const t = teachersMap.get(id);
-        if (!t) continue;
-
-        const branchName =
-          t?.institute_branch?.name || t?.institute_branch_name || "";
-
-        const batches = await getTeacherAllRows(id);
-
-        if (Array.isArray(batches) && batches.length > 0) {
-          batches.forEach((b) => {
-            const subjectsText =
-              b?.subjects?.length > 0
-                ? b.subjects.map((s) => s.subject_name).join("، ")
-                : "";
-
-            detailsRows.push({
-              teacher_id: t.id,
-              teacher_name: t.name || "",
-              institute_branch: branchName,
-              batch: b?.batch_name || b?.name || "",
-              classroom: b?.class_room?.name || "",
-              start_date: b?.start_date || "",
-              end_date: b?.end_date || "",
-              subjects: subjectsText,
-            });
-          });
-        } else {
-          detailsRows.push({
-            teacher_id: t.id,
-            teacher_name: t.name || "",
-            institute_branch: branchName,
-            batch: "",
-            classroom: "",
-            start_date: "",
-            end_date: "",
-            subjects: "",
-          });
-        }
-      }
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(detailsRows),
-        "Teacher_Details",
-      );
-
-      const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      saveAs(new Blob([buffer]), "teachers.xlsx");
-    } catch (e) {
-      notify.error(e?.data?.message || "فشل تصدير الاكسل");
-    }
-  };
-
   // ✅ فتح مودال الحذف (هاي اللي TeachersTable بتناديها)
   const handleAskDelete = (t) => {
     setTeacherToDelete(t);
@@ -237,7 +124,9 @@ export default function TeachersPage({ openAddFromUrl }) {
       await deleteTeacher(teacherToDelete.id).unwrap();
       notify.success("تم حذف المدرس بنجاح");
 
-      setSelectedIds((prev) => prev.filter((id) => id !== teacherToDelete.id));
+      setSelectedIds((prev) =>
+        prev.filter((id) => id !== String(teacherToDelete.id)),
+      );
       setDeleteOpen(false);
       setTeacherToDelete(null);
     } catch (err) {
@@ -256,7 +145,18 @@ export default function TeachersPage({ openAddFromUrl }) {
     setTeacherToDelete(null);
   };
 
-  if (isLoading) return <TeachersPageSkeleton />;
+  if (isLoading) {
+    const tableHeaders = [
+      "#",
+      "الاسم",
+      "الفرع",
+      "الاختصاص",
+      "الهاتف",
+      "تاريخ التعيين",
+      "الإجراءات",
+    ];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
 
   return (
     <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
@@ -280,8 +180,23 @@ export default function TeachersPage({ openAddFromUrl }) {
           selectAllLabel="تحديد الكل"
         />
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} disabled={printing} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions
+            data={filteredTeachers}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "الاسم", key: "name" },
+              {
+                header: "الفرع",
+                key: "institute_branch",
+                render: (val) => val?.name ?? "-",
+              },
+              { header: "الاختصاص", key: "specialization" },
+              { header: "الهاتف", key: "phone" },
+              { header: "تاريخ التعيين", key: "hire_date" },
+            ]}
+            title="قائمة المدرسين"
+            filename="المدرسين"
+          />
         </div>
       </div>
 

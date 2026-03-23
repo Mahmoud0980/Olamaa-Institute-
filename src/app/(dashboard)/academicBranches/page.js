@@ -16,10 +16,10 @@ import AcademicBranchesTable from "./components/AcademicBranchesTable";
 import AddAcademicBranchModal from "./components/AddAcademicBranchModal";
 
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function AcademicBranchesPage() {
   // ===== بحث + فلترة من Navbar =====
@@ -48,7 +48,6 @@ export default function AcademicBranchesPage() {
 
       const itemBranchId = row?.institute_branch_id ?? row?.branch_id ?? null;
 
-      // إذا ما في branch id بالـ rows أساساً: ما منطبق فلترة الفرع (حتى ما تصير الصفحة فاضية)
       const matchBranch =
         !branchId || itemBranchId == null
           ? true
@@ -65,7 +64,9 @@ export default function AcademicBranchesPage() {
     selectedIds.length > 0 && selectedIds.length === filteredBranches.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredBranches.map((r) => r.id));
+    setSelectedIds(
+      isAllSelected ? [] : filteredBranches.map((r) => String(r.id)),
+    );
   };
 
   // تفريغ التحديد عند تغيير البحث/الفرع
@@ -77,12 +78,10 @@ export default function AcademicBranchesPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredBranches.some((r) => r.id === id),
+        filteredBranches.some((r) => String(r.id) === String(id)),
       );
 
-      // ⛔ إذا ما في تغيير، لا نعمل setState
       if (validIds.length === prev.length) return prev;
-
       return validIds;
     });
   }, [filteredBranches]);
@@ -94,9 +93,16 @@ export default function AcademicBranchesPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [branchToDelete, setBranchToDelete] = useState(null);
 
+  if (isLoading) {
+    const tableHeaders = ["#", "اسم الفرع الأكاديمي", "الوصف", "الإجراءات"];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
+
   // ===== Actions =====
   const handleEdit = (id) => {
-    setSelectedBranch(filteredBranches.find((r) => r.id === id) || null);
+    setSelectedBranch(
+      filteredBranches.find((r) => String(r.id) === String(id)) || null,
+    );
     setIsModalOpen(true);
   };
 
@@ -113,122 +119,12 @@ export default function AcademicBranchesPage() {
       notify.success("تم حذف الفرع الأكاديمي بنجاح");
       setIsDeleteOpen(false);
       setBranchToDelete(null);
-      setSelectedIds([]);
+      setSelectedIds((prev) =>
+        prev.filter((id) => id !== String(branchToDelete.id)),
+      );
     } catch (err) {
       notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
-  };
-
-  // ===== Print (شرط: لازم تحديد) =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد فرع أكاديمي واحد على الأقل للطباعة");
-      return;
-    }
-
-    const rows = filteredBranches.filter((r) => selectedIds.includes(r.id));
-    if (!rows.length) {
-      notify.error("لا توجد بيانات للطباعة");
-      return;
-    }
-
-    const showBranchCol = rows.some(
-      (r) => r?.institute_branch_id != null || r?.branch_id != null,
-    );
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <meta charset="utf-8" />
-          <style>
-            body { font-family: Arial; padding: 16px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td {
-              border: 1px solid #ccc;
-              padding: 6px;
-              font-size: 12px;
-              text-align: right;
-              vertical-align: top;
-            }
-            th { background: #f3f3f3; }
-            h3 { margin: 0 0 12px; }
-          </style>
-        </head>
-        <body>
-          <h3>قائمة الفروع الأكاديمية</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>اسم الفرع الأكاديمي</th>
-                ${showBranchCol ? "<th>الفرع</th>" : ""}
-                <th>الوصف</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map((r, i) => {
-                  const instId = r?.institute_branch_id ?? r?.branch_id;
-                  return `
-                    <tr>
-                      <td>${i + 1}</td>
-                      <td>${r?.name ?? "-"}</td>
-                      ${
-                        showBranchCol
-                          ? `<td>${getInstituteBranchName(instId)}</td>`
-                          : ""
-                      }
-                      <td>${r?.description ?? "-"}</td>
-                    </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=1200,height=800");
-    if (!win) {
-      notify.error("المتصفح منع نافذة الطباعة");
-      return;
-    }
-
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel (شرط: لازم تحديد) =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد فرع أكاديمي واحد على الأقل للتصدير");
-      return;
-    }
-
-    const rows = filteredBranches.filter((r) => selectedIds.includes(r.id));
-    if (!rows.length) {
-      notify.error("لا توجد بيانات للتصدير");
-      return;
-    }
-
-    const excelRows = rows.map((r) => ({
-      "اسم الفرع الأكاديمي": r?.name ?? "-",
-      // الفرع: getInstituteBranchName(r?.institute_branch_id ?? r?.branch_id),
-      الوصف: r?.description ?? "-",
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "AcademicBranches");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_الفروع_الأكاديمية.xlsx",
-    );
   };
 
   return (
@@ -258,8 +154,21 @@ export default function AcademicBranchesPage() {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions
+            data={filteredBranches}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "اسم الفرع الأكاديمي", key: "name" },
+              // {
+              //   header: "الفرع المعهد",
+              //   key: "institute_branch_id",
+              //   render: (id) => getInstituteBranchName(id),
+              // },
+              { header: "الوصف", key: "description" },
+            ]}
+            title="قائمة الفروع الأكاديمية"
+            filename="الفروع_الأكاديمية"
+          />
         </div>
       </div>
 

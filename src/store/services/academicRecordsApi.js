@@ -17,7 +17,7 @@ export const academicRecordsApi = createApi({
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ id }) => ({
+              ...(Array.isArray(result?.data) ? result.data : Array.isArray(result?.data?.data) ? result.data.data : []).map(({ id }) => ({
                 type: "AcademicRecords",
                 id,
               })),

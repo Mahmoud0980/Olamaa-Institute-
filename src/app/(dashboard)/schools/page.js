@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 import {
   useGetSchoolsQuery,
@@ -15,10 +13,10 @@ import SchoolsTable from "./components/SchoolsTable";
 import AddSchoolModal from "./components/AddSchoolModal";
 
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 const typeLabel = (t) => {
   if (t === "public") return "حكومية";
@@ -61,10 +59,10 @@ export default function SchoolsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
 
   const isAllSelected =
-    selectedIds.length > 0 && selectedIds.length === filteredSchools.length;
+    filteredSchools.length > 0 && selectedIds.length === filteredSchools.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredSchools.map((r) => r.id));
+    setSelectedIds(isAllSelected ? [] : filteredSchools.map((r) => String(r.id)));
   };
 
   // تفريغ التحديد عند تغير البحث
@@ -76,7 +74,7 @@ export default function SchoolsPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredSchools.some((r) => r.id === id)
+        filteredSchools.some((r) => String(r.id) === id),
       );
       if (validIds.length === prev.length) return prev;
       return validIds;
@@ -90,9 +88,22 @@ export default function SchoolsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [schoolToDelete, setSchoolToDelete] = useState(null);
 
+  if (isLoading) {
+    const tableHeaders = [
+      "#",
+      "اسم المدرسة",
+      "النوع",
+      "المدينة",
+      "الملاحظات",
+      "الحالة",
+      "الإجراءات",
+    ];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
+
   // ===== Actions =====
   const handleEdit = (id) => {
-    setSelectedSchool(filteredSchools.find((r) => r.id === id) || null);
+    setSelectedSchool(filteredSchools.find((r) => String(r.id) === String(id)) || null);
     setIsModalOpen(true);
   };
 
@@ -113,115 +124,6 @@ export default function SchoolsPage() {
     } catch (err) {
       toast.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
-  };
-
-  // ===== Print (شرط: لازم تحديد) =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مدرسة واحدة على الأقل للطباعة");
-      return;
-    }
-
-    const rows = filteredSchools.filter((r) => selectedIds.includes(r.id));
-    if (!rows.length) {
-      toast.error("لا توجد بيانات للطباعة");
-      return;
-    }
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <meta charset="utf-8" />
-          <style>
-            body { font-family: Arial; padding: 16px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td {
-              border: 1px solid #ccc;
-              padding: 6px;
-              font-size: 12px;
-              text-align: right;
-              vertical-align: top;
-            }
-            th { background: #f3f3f3; }
-            h3 { margin: 0 0 12px; }
-          </style>
-        </head>
-        <body>
-          <h3>قائمة المدارس</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>اسم المدرسة</th>
-                <th>النوع</th>
-                <th>المدينة</th>
-                <th>الملاحظات</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map(
-                  (r, i) => `
-                    <tr>
-                      <td>${i + 1}</td>
-                      <td>${r?.name ?? "-"}</td>
-                      <td>${typeLabel(r?.type)}</td>
-                      <td>${r?.city ?? "-"}</td>
-                      <td>${r?.notes ?? "-"}</td>
-                      <td>${statusLabel(!!r?.is_active)}</td>
-                    </tr>
-                  `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=1200,height=800");
-    if (!win) {
-      toast.error("المتصفح منع نافذة الطباعة");
-      return;
-    }
-
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel (شرط: لازم تحديد) =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      toast.error("يرجى تحديد مدرسة واحدة على الأقل للتصدير");
-      return;
-    }
-
-    const rows = filteredSchools.filter((r) => selectedIds.includes(r.id));
-    if (!rows.length) {
-      toast.error("لا توجد بيانات للتصدير");
-      return;
-    }
-
-    const excelRows = rows.map((r) => ({
-      "اسم المدرسة": r?.name ?? "-",
-      النوع: typeLabel(r?.type),
-      المدينة: r?.city ?? "-",
-      الملاحظات: r?.notes ?? "-",
-      الحالة: statusLabel(!!r?.is_active),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Schools");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_المدارس.xlsx"
-    );
   };
 
   return (
@@ -251,8 +153,27 @@ export default function SchoolsPage() {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions 
+            data={filteredSchools}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "اسم المدرسة", key: "name" },
+              { 
+                header: "النوع", 
+                key: "type",
+                render: typeLabel
+              },
+              { header: "المدينة", key: "city" },
+              { header: "الملاحظات", key: "notes" },
+              { 
+                header: "الحالة", 
+                key: "is_active",
+                render: statusLabel
+              },
+            ]}
+            title="قائمة المدارس"
+            filename="المدارس"
+          />
         </div>
       </div>
 

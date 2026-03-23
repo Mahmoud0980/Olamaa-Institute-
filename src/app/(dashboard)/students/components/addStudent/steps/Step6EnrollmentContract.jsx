@@ -711,7 +711,6 @@ export default function Step6EnrollmentContract({
           <h3 className="text-[#6F013F] font-semibold text-sm">
             عقد التسجيل والأقساط
           </h3>
-          <span className="text-[11px] text-gray-400">الخطوة 6</span>
         </div>
       </div>
 

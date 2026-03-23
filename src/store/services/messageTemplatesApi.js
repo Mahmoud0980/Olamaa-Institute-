@@ -17,7 +17,7 @@ export const messageTemplatesApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "MessageTemplates", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "MessageTemplates", id })),
               { type: "MessageTemplates", id: "LIST" },
             ]
           : [{ type: "MessageTemplates", id: "LIST" }],

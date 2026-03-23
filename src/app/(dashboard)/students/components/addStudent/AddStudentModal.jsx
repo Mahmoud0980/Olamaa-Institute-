@@ -39,7 +39,13 @@ const clean = (v) => {
   return s === "" ? null : s;
 };
 
-export default function AddStudentModal({ isOpen, onClose, student, onAdded, onAssignToBatch }) {
+export default function AddStudentModal({
+  isOpen,
+  onClose,
+  student,
+  onAdded,
+  onAssignToBatch,
+}) {
   /* ================= meta ================= */
   const total = 7; //8
   const isEdit = !!student;
@@ -351,7 +357,10 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded, onA
           "مشكلة اتصال",
         );
       } else {
-        notify.error("فشل تسجيل الطالب", "خطأ");
+        notify.error(
+          e.data?.message || "فشل حفظ بيانات الطالب والعائلة",
+          "خطأ",
+        );
       }
     } finally {
       setLoadingStep3(false);
@@ -498,32 +507,41 @@ export default function AddStudentModal({ isOpen, onClose, student, onAdded, onA
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-[#6F013F] text-white px-5 py-4 font-bold flex justify-between items-center">
               <span>تأكيد بيانات الطالب والعائلة</span>
-              <button onClick={() => setShowConfirmSummary(false)} className="text-white hover:text-gray-200 transition">
+              <button
+                onClick={() => setShowConfirmSummary(false)}
+                className="text-white hover:text-gray-200 transition"
+              >
                 <X size={20} />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <p className="text-sm text-gray-600 mb-2 leading-relaxed">
-                يرجى مراجعة البيانات التالية بدقة. <strong className="text-red-500 font-semibold">تنبيه:</strong> بمجرد الحفظ، لن تتمكن من العودة لتعديل هذه البيانات من خلال هذه النافذة.
+                يرجى مراجعة البيانات التالية بدقة.{" "}
+                <strong className="text-red-500 font-semibold">تنبيه:</strong>{" "}
+                بمجرد الحفظ، لن تتمكن من العودة لتعديل هذه البيانات من خلال هذه
+                النافذة.
               </p>
 
               <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 text-sm space-y-3">
                 <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                   <span className="text-gray-500">اسم الطالب:</span>
                   <span className="font-semibold text-gray-800">
-                    {pendingEnrollment.student.first_name} {pendingEnrollment.student.last_name}
+                    {pendingEnrollment.student.first_name}{" "}
+                    {pendingEnrollment.student.last_name}
                   </span>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                   <span className="text-gray-500">اسم الأب:</span>
                   <span className="font-semibold text-gray-800">
-                    {pendingEnrollment.father.first_name} {pendingEnrollment.father.last_name}
+                    {pendingEnrollment.father.first_name}{" "}
+                    {pendingEnrollment.father.last_name}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">اسم الأم:</span>
                   <span className="font-semibold text-gray-800">
-                    {pendingEnrollment.mother.first_name} {pendingEnrollment.mother.last_name}
+                    {pendingEnrollment.mother.first_name}{" "}
+                    {pendingEnrollment.mother.last_name}
                   </span>
                 </div>
               </div>

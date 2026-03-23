@@ -101,7 +101,6 @@ export default function Step1Student({
                 const d = new Date(`${value}T00:00:00`);
                 if (Number.isNaN(d.getTime())) return "تاريخ الولادة غير صالح";
 
-                // اليوم (بـ 00:00) حتى المقارنة تكون دقيقة بدون ساعات
                 const today = new Date();
                 const today0 = new Date(
                   today.getFullYear(),
@@ -109,11 +108,18 @@ export default function Step1Student({
                   today.getDate(),
                 );
 
-                // ✅ لازم يكون قبل اليوم (strictly)
-                if (d >= today0) return "تاريخ الميلاد غير صالح";
+                // إذا كان نفس اليوم أو بعده
+                if (d.getTime() === today0.getTime()) {
+                  return "لا يجوز اختيار تاريخ اليوم كتاريخ ميلاد";
+                }
 
-                // (اختياري) منع تواريخ قديمة جدًا
-                if (d.getFullYear() < 1900) return "تاريخ الميلاد غير صالح";
+                if (d > today0) {
+                  return "تاريخ الميلاد غير صالح";
+                }
+
+                if (d.getFullYear() < 1900) {
+                  return "تاريخ الميلاد غير صالح";
+                }
 
                 return true;
               },

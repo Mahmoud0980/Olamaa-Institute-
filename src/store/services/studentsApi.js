@@ -45,7 +45,7 @@ export const studentsApi = createApi({
         result?.data
           ? [
               { type: "Students", id: "DETAILS_LIST" },
-              ...result.data.map((s) => ({
+              ...(Array.isArray(result?.data) ? result.data : Array.isArray(result?.data?.data) ? result.data.data : []).map((s) => ({
                 type: "Students",
                 id: s.id,
               })),

@@ -16,7 +16,7 @@ export const paymentInstallmentsApi = createApi({
       providesTags: (result) =>
         Array.isArray(result?.data)
           ? [
-              ...result.data.map((item) => ({
+              ...(Array.isArray(result?.data) ? result.data : Array.isArray(result?.data?.data) ? result.data.data : []).map((item) => ({
                 type: "PaymentInstallments",
                 id: item.id,
               })),
@@ -35,7 +35,7 @@ export const paymentInstallmentsApi = createApi({
       providesTags: (result, error, arg) =>
         Array.isArray(result?.data)
           ? [
-              ...result.data.map((item) => ({
+              ...(Array.isArray(result?.data) ? result.data : Array.isArray(result?.data?.data) ? result.data.data : []).map((item) => ({
                 type: "PaymentInstallments",
                 id: item.id,
               })),

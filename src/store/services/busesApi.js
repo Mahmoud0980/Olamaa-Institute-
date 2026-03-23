@@ -17,7 +17,7 @@ export const busesApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Buses", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Buses", id })),
               { type: "Buses", id: "LIST" },
             ]
           : [{ type: "Buses", id: "LIST" }],

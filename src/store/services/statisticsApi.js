@@ -44,7 +44,7 @@ export const statisticsApi = createApi({
         method: "GET",
       }),
       transformResponse: (response) =>
-        (response?.data || []).map((item) => ({
+        (Array.isArray(response?.data) ? response.data : Array.isArray(response?.data?.data) ? response.data.data : []).map((item) => ({
           id: item.batch_id,
           name: item.batch_name,
           value: item.percentage ?? 0,

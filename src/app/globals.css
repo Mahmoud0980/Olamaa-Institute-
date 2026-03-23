@@ -2,17 +2,18 @@
 
 :root {
   color-scheme: light;
-    --line: #5b5b5b;
-      /* لون الخط العمودي والوصلة الافتراضي */
-      --accent: #BD036B;
-      /* اللون الوردي الغامق */
-      --pill-start: #F9C7DC;
-      /* تدرج حبّة عند الهوفر - بداية */
-      --pill-end: #FDE9F3;
-      /* تدرج حبّة عند الهوفر - نهاية */
+  --line: #5b5b5b;
+  /* لون الخط العمودي والوصلة الافتراضي */
+  --accent: #BD036B;
+  /* اللون الوردي الغامق */
+  --pill-start: #F9C7DC;
+  /* تدرج حبّة عند الهوفر - بداية */
+  --pill-end: #FDE9F3;
+  /* تدرج حبّة عند الهوفر - نهاية */
   --background: #ffffff;
   --foreground: #171717;
 }
+
 @font-face {
   font-family: "Tajawal";
   src: url("/fonts/Tajawal-Regular.ttf") format("truetype");
@@ -20,12 +21,14 @@
   font-style: normal;
   font-display: swap;
 }
+
 @theme {
   /* يولّد لك class جاهزة: font-tajawal */
   --font-tajawal: "Tajawal", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
   /* (اختياري) خلّيها هي الخط الافتراضي للسنس */
   --font-sans: var(--font-tajawal);
 }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -42,14 +45,16 @@
 
 body {
   background: var(--background);
-  background: #fff;
+  background: #FBFBFB;
   font-family: Arial, Helvetica, sans-serif;
 }
+
 html[dir="rtl"] body {
   font-family: var(--font-tajawal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
 /* ====== Firefox ====== */
 * {
   /* حجم الشريط: auto | thin | none */
@@ -144,6 +149,7 @@ thead tr:first-child th:last-child {
 .animate-leave {
   animation: toastOut 180ms ease-in both;
 }
+
 /*_______________________________________________*/
 /* مخفي بالشاشة */
 .print-only {

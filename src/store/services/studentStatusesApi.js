@@ -17,7 +17,7 @@ export const studentStatusesApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "StudentStatuses", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "StudentStatuses", id })),
               { type: "StudentStatuses", id: "LIST" },
             ]
           : [{ type: "StudentStatuses", id: "LIST" }],

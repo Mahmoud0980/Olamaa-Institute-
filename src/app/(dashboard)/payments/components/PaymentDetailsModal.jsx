@@ -4,8 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
-
-import Pagination from "@/components/common/Pagination";
+import DataTable from "@/components/common/DataTable";
 import GradientButton from "@/components/common/GradientButton";
 import { useGetStudentPaymentsSummaryQuery } from "@/store/services/studentPaymentsApi";
 import * as XLSX from "xlsx";
@@ -80,6 +79,8 @@ const formatRowMoney = (row) => {
 const safe = (v) =>
   v === undefined || v === null || String(v) === "" ? "—" : v;
 
+/* ================= Component ================= */
+
 export default function PaymentDetailsModal({
   open,
   onClose,
@@ -138,12 +139,64 @@ export default function PaymentDetailsModal({
     payments?.[0]?.receipt_number ??
     "—";
 
-  /* ================= Pagination ================= */
-  const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const columns = useMemo(
+    () => [
+      {
+        header: "المبلغ",
+        key: "id",
+        render: (_, row) => formatRowMoney(row),
+      },
+      {
+        header: "الدفعة",
+        key: "id",
+        render: (_, row, idx, page, pageSize) =>
+          installmentName((page - 1) * pageSize + idx),
+      },
+      {
+        header: "تاريخ الدفع",
+        key: "payment_date",
+        render: (val, row) => safe(val ?? row?.paid_date),
+      },
+      {
+        header: "رقم الإيصال",
+        key: "receipt_number",
+        render: (val) => safe(val),
+      },
+    ],
+    [],
+  );
 
-  const totalPages = Math.ceil(payments.length / pageSize) || 1;
-  const paginated = payments.slice((page - 1) * pageSize, page * pageSize);
+  const handleEditClick = (row) => {
+    if (onEditPayment) return onEditPayment(row);
+    // ✅ fallback: على الأقل اعمل log لتعرف انه ما انبعت handler
+    console.warn("onEditPayment is not provided", row);
+  };
+
+  const renderActions = (row) => (
+    <div className="flex justify-center gap-4">
+      <button
+        type="button"
+        onClick={() => {
+          setRowToDelete(row);
+          setOpenDelete(true);
+        }}
+        className="hover:opacity-80"
+        title="حذف"
+      >
+        <Image src="/icons/Trash.png" alt="trash" width={18} height={18} />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => handleEditClick(row)}
+        className="hover:opacity-80"
+        title="تعديل"
+      >
+        <Image src="/icons/Edit.png" alt="edit" width={18} height={18} />
+      </button>
+    </div>
+  );
+
   const handlePrintTable = () => {
     if (!payments.length) return;
 
@@ -221,23 +274,6 @@ export default function PaymentDetailsModal({
     saveAs(new Blob([buf]), `دفعات_${studentName || "student"}.xlsx`);
   };
 
-  useEffect(() => {
-    if (!open) return;
-    setPage(1);
-  }, [open, payments.length, studentId]);
-
-  /* ================= actions (fallback) ================= */
-  const handleEditClick = (row) => {
-    if (onEditPayment) return onEditPayment(row);
-    // ✅ fallback: على الأقل اعمل log لتعرف انه ما انبعت handler
-    console.warn("onEditPayment is not provided", row);
-  };
-
-  const handleDeleteClick = (row) => {
-    if (onDeletePayment) return onDeletePayment(row);
-    console.warn("onDeletePayment is not provided", row);
-  };
-
   if (!mounted || !open) return null;
 
   const modal = (
@@ -270,7 +306,7 @@ export default function PaymentDetailsModal({
           </div>
         </div>
         {/* ================= BODY ================= */}
-        <div className="px-6 py-6">
+        <div className="px-6 py-6 h-[calc(100%-60px)] overflow-y-auto">
           {loading ? (
             <div className="py-10 text-center text-gray-400">
               جارٍ التحميل...
@@ -305,109 +341,15 @@ export default function PaymentDetailsModal({
 
               <div className="border-t my-6" />
 
-              {/* ================= Table area with its own scroll ================= */}
-              {!payments.length ? (
-                <div className="py-14 text-center text-gray-400">
-                  لا توجد دفعات.
-                </div>
-              ) : (
-                <>
-                  {/* ✅ scroll ONLY here */}
-                  <div className="max-h-[55vh] overflow-y-auto pr-1">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm text-left border-separate border-spacing-y-2">
-                        <thead className="sticky top-0 z-[1] bg-pink-50 text-gray-700">
-                          <tr>
-                            <th className="p-3 text-center rounded-r-xl">#</th>
-                            <th className="p-3">المبلغ</th>
-                            <th className="p-3">الدفعة</th>
-                            <th className="p-3">تاريخ الدفع</th>
-                            <th className="p-3">رقم الإيصال</th>
-                            <th className="p-3 text-center rounded-l-xl">
-                              الإجراءات
-                            </th>
-                          </tr>
-                        </thead>
-
-                        <tbody>
-                          {paginated.map((row, idx) => {
-                            const globalIndex = (page - 1) * pageSize + idx;
-                            const payDate = row?.payment_date ?? row?.paid_date;
-
-                            return (
-                              <tr
-                                key={String(
-                                  row?.id ?? row?.receipt_number ?? globalIndex
-                                )}
-                                className="bg-white hover:bg-pink-50 transition"
-                              >
-                                <td className="p-3 text-center rounded-r-xl">
-                                  {globalIndex + 1}
-                                </td>
-
-                                <td className="p-3">{formatRowMoney(row)}</td>
-
-                                <td className="p-3">
-                                  {installmentName(globalIndex)}
-                                </td>
-
-                                <td className="p-3">{safe(payDate)}</td>
-
-                                <td className="p-3">
-                                  {safe(row?.receipt_number)}
-                                </td>
-
-                                <td className="p-3 text-center rounded-l-xl">
-                                  <div className="flex justify-center gap-4">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setRowToDelete(row);
-                                        setOpenDelete(true);
-                                      }}
-                                      className="hover:opacity-80"
-                                      title="حذف"
-                                    >
-                                      <Image
-                                        src="/icons/Trash.png"
-                                        alt="trash"
-                                        width={18}
-                                        height={18}
-                                      />
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => handleEditClick(row)}
-                                      className="hover:opacity-80"
-                                      title="تعديل"
-                                    >
-                                      <Image
-                                        src="/icons/Edit.png"
-                                        alt="edit"
-                                        width={18}
-                                        height={18}
-                                      />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <Pagination
-                      page={page}
-                      totalPages={totalPages}
-                      onPageChange={setPage}
-                    />
-                  </div>
-                </>
-              )}
+              <DataTable
+                data={payments}
+                columns={columns}
+                isLoading={loading}
+                showCheckbox={false}
+                pageSize={5}
+                renderActions={renderActions}
+                emptyMessage="لا توجد دفعات."
+              />
 
               {/* Footer */}
               <div className="px-0 py-4 mt-4 flex justify-end gap-3">
@@ -428,32 +370,30 @@ export default function PaymentDetailsModal({
             </>
           )}
         </div>
-        {/* DeleteConfirmModal stays as is */}
-        ...
-      </div>
 
-      <DeleteConfirmModal
-        isOpen={openDelete}
-        loading={deleting}
-        description="هل أنت متأكد من إرسال طلب حذف هذه الدفعة؟"
-        onClose={() => {
-          if (deleting) return;
-          setOpenDelete(false);
-          setRowToDelete(null);
-        }}
-        onConfirm={async () => {
-          if (!rowToDelete) return;
-
-          setDeleting(true);
-          try {
-            await onDeletePayment?.(rowToDelete);
+        <DeleteConfirmModal
+          isOpen={openDelete}
+          loading={deleting}
+          description="هل أنت متأكد من إرسال طلب حذف هذه الدفعة؟"
+          onClose={() => {
+            if (deleting) return;
             setOpenDelete(false);
             setRowToDelete(null);
-          } finally {
-            setDeleting(false);
-          }
-        }}
-      />
+          }}
+          onConfirm={async () => {
+            if (!rowToDelete) return;
+
+            setDeleting(true);
+            try {
+              await onDeletePayment?.(rowToDelete);
+              setOpenDelete(false);
+              setRowToDelete(null);
+            } finally {
+              setDeleting(false);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 

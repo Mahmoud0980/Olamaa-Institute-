@@ -31,7 +31,7 @@ export const studentDetailsApi = createApi({
       transformResponse: (response) => {
         // response = { status, message, data }
         return Array.isArray(response.data)
-          ? response.data.map(normalizeStudentImage)
+          ? (Array.isArray(response?.data) ? response.data : Array.isArray(response?.data?.data) ? response.data.data : []).map(normalizeStudentImage)
           : [];
       },
       providesTags: ["StudentDetails"],

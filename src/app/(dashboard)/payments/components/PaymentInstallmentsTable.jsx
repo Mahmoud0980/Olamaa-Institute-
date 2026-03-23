@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Pagination from "@/components/common/Pagination";
+import { useMemo } from "react";
+import DataTable from "@/components/common/DataTable";
 
 /* ================= Helpers ================= */
 
@@ -48,8 +48,6 @@ const statusClass = (status) => {
   return "bg-yellow-100 text-yellow-700";
 };
 
-const studentNameLabel = (row) => row?.student_name ?? "—";
-
 /* ================= Component ================= */
 
 export default function PaymentInstallmentsTable({
@@ -58,161 +56,60 @@ export default function PaymentInstallmentsTable({
   selectedIds = [],
   onSelectChange,
 }) {
-  const safeRows = Array.isArray(rows) ? rows : [];
-
-  const [page, setPage] = useState(1);
-  const pageSize = 8;
-
-  const totalPages = Math.ceil(safeRows.length / pageSize) || 1;
-  const paginated = safeRows.slice((page - 1) * pageSize, page * pageSize);
-
-  useEffect(() => setPage(1), [safeRows.length]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(1);
-  }, [page, totalPages]);
-
-  const toggleSelect = (row) => {
-    if (!onSelectChange) return;
-
-    const id = rowId(row);
-    const updated = selectedIds.includes(id)
-      ? selectedIds.filter((x) => x !== id)
-      : [...selectedIds, id];
-
-    onSelectChange(updated);
-  };
+  const columns = useMemo(
+    () => [
+      {
+        header: "اسم الطالب",
+        key: "student_name",
+        render: (val) => val || "—",
+      },
+      {
+        header: "رقم القسط",
+        key: "installment_number",
+        render: (val) => val ?? "—",
+      },
+      {
+        header: "المبلغ",
+        key: "id",
+        render: (_, row) => moneyLabel(row),
+      },
+      {
+        header: "تاريخ الاستحقاق",
+        key: "due_date",
+        render: (val) => val ?? "—",
+      },
+      {
+        header: "سعر الصرف",
+        key: "exchange_rate_at_due_date",
+        render: (val) => val ?? "—",
+      },
+      {
+        header: "الحالة",
+        key: "status",
+        render: (val) => (
+          <span
+            className={`px-2 py-1 rounded-full text-xs ${statusClass(val)}`}
+          >
+            {statusLabel(val)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
-      {isLoading ? (
-        <div className="py-10 text-center text-gray-400">جارٍ التحميل...</div>
-      ) : !paginated.length ? (
-        <div className="py-10 text-center text-gray-400">لا يوجد أقساط.</div>
-      ) : (
-        <>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-              <thead>
-                <tr className="bg-pink-50 text-gray-700">
-                  <th className="p-3 text-center rounded-r-xl">#</th>
-                  <th className="p-3">اسم الطالب</th>
-                  <th className="p-3">رقم القسط</th>
-                  <th className="p-3">المبلغ</th>
-                  <th className="p-3">تاريخ الاستحقاق</th>
-                  <th className="p-3">سعر الصرف</th>
-                  <th className="p-3 rounded-l-xl">الحالة</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((row, index) => {
-                  const id = rowId(row);
-
-                  return (
-                    <tr
-                      key={id}
-                      className="bg-white hover:bg-pink-50 transition"
-                    >
-                      <td className="p-3 text-center rounded-r-xl">
-                        <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 accent-[#6F013F]"
-                            checked={selectedIds.includes(id)}
-                            onChange={() => toggleSelect(row)}
-                          />
-                          <span>{(page - 1) * pageSize + index + 1}</span>
-                        </div>
-                      </td>
-
-                      <td className="p-3 font-medium">
-                        {studentNameLabel(row)}
-                      </td>
-
-                      <td className="p-3">{row?.installment_number ?? "—"}</td>
-
-                      <td className="p-3">{moneyLabel(row)}</td>
-
-                      <td className="p-3">{row?.due_date ?? "—"}</td>
-
-                      <td className="p-3">
-                        {row?.exchange_rate_at_due_date ?? "—"}
-                      </td>
-
-                      <td className="p-3 rounded-l-xl">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${statusClass(
-                            row?.status,
-                          )}`}
-                        >
-                          {statusLabel(row?.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="md:hidden space-y-4 mt-4">
-            {paginated.map((row, index) => {
-              const id = rowId(row);
-
-              return (
-                <div
-                  key={id}
-                  className="border border-gray-200 rounded-xl p-4 shadow-sm"
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">#</span>
-                      <span className="font-semibold">
-                        {(page - 1) * pageSize + index + 1}
-                      </span>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-[#6F013F]"
-                        checked={selectedIds.includes(id)}
-                        onChange={() => toggleSelect(row)}
-                      />
-                    </div>
-                  </div>
-
-                  <Info label="اسم الطالب" value={studentNameLabel(row)} />
-                  <Info
-                    label="رقم القسط"
-                    value={row?.installment_number ?? "—"}
-                  />
-                  <Info label="المبلغ" value={moneyLabel(row)} />
-                  <Info label="تاريخ الاستحقاق" value={row?.due_date ?? "—"} />
-                  <Info
-                    label="سعر الصرف"
-                    value={row?.exchange_rate_at_due_date ?? "—"}
-                  />
-                  <Info label="الحالة" value={statusLabel(row?.status)} />
-                </div>
-              );
-            })}
-          </div>
-
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-function Info({ label, value }) {
-  return (
-    <div className="flex justify-between mb-2 gap-3">
-      <span className="text-gray-500">{label}:</span>
-      <span className="font-medium text-left">{value ?? "—"}</span>
+      <DataTable
+        data={rows}
+        columns={columns}
+        isLoading={isLoading}
+        selectedIds={selectedIds}
+        onSelectChange={onSelectChange}
+        getRowId={rowId}
+        pageSize={8}
+        emptyMessage="لا يوجد أقساط."
+      />
     </div>
   );
 }

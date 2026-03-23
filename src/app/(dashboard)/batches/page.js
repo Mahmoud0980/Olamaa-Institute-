@@ -4,12 +4,12 @@ import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { notify } from "@/lib/helpers/toastify";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+import useDebounce from "@/lib/hooks/useDebounce";
 
 // ===== APIs =====
 import {
   useGetBatchesQuery,
+  useGetBatchesStatsQuery,
   useDeleteBatchMutation,
 } from "@/store/services/batchesApi";
 
@@ -17,19 +17,47 @@ import {
 import BatchesTable from "./components/BatchesTable";
 import AddBatchModal from "./components/AddBatchModal";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
-import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
+import DashboardButton from "@/components/common/DashboardButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import { Users, BookOpen, Globe, Contact } from "lucide-react";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function BatchesPage() {
   // ===== Redux Filters =====
   const search = useSelector((state) => state.search.values.batches);
   const branchId = useSelector((state) => state.search.values.branch);
 
-  // ===== Data =====
-  const { data, isLoading } = useGetBatchesQuery();
-  const batches = data?.data || [];
+  // ===== State Filters =====
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+  
+  const [nameSearch, setNameSearch] = useState("");
+  const [studentNameSearch, setStudentNameSearch] = useState("");
+  
+  const debouncedNameSearch = useDebounce(nameSearch, 500);
+  const debouncedStudentNameSearch = useDebounce(studentNameSearch, 500);
+
+  const [includeHidden, setIncludeHidden] = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
+
+  // ===== Query Data =====
+  const { data, isLoading } = useGetBatchesQuery({
+    page,
+    per_page: perPage,
+    name: debouncedNameSearch || search || undefined,
+    student_name: debouncedStudentNameSearch || undefined,
+    institute_branch_id: branchId || undefined,
+    include_hidden: includeHidden,
+    include_archived: includeArchived,
+  });
+
+  const batches = data?.data?.batches || [];
+  const pagination = data?.data?.pagination || { current_page: 1, last_page: 1, total: 0 };
+
+  const { data: statsData } = useGetBatchesStatsQuery();
+  const stats = statsData?.data || { completed: 0, not_completed: 0, archived: 0, hidden: 0, total: 0 };
+  const firstBatch = batches[0] || {};
 
   const [deleteBatch, { isLoading: isDeleting }] = useDeleteBatchMutation();
 
@@ -46,33 +74,30 @@ export default function BatchesPage() {
           ? "مؤرشفة"
           : "نشطة";
 
-  // ===== Filtering =====
-  const filteredBatches = useMemo(() => {
-    return batches.filter((b) => {
-      const matchSearch = b.name
-        .toLowerCase()
-        .includes((search || "").toLowerCase());
-
-      const matchBranch =
-        !branchId || Number(branchId) === b.institute_branch?.id;
-
-      return matchSearch && matchBranch;
-    });
-  }, [batches, search, branchId]);
-
   // ===== Selection =====
   const [selectedIds, setSelectedIds] = useState([]);
 
   const isAllSelected =
-    selectedIds.length > 0 && selectedIds.length === filteredBatches.length;
+    batches.length > 0 && selectedIds.length === batches.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredBatches.map((b) => b.id));
+    setSelectedIds(isAllSelected ? [] : batches.map((b) => String(b.id)));
   };
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [search, branchId]);
+  }, [page, debouncedNameSearch, debouncedStudentNameSearch, search, branchId, includeHidden, includeArchived]);
+
+  // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = prev.filter((id) =>
+        batches.some((r) => String(r.id) === id),
+      );
+      if (validIds.length === prev.length) return prev;
+      return validIds;
+    });
+  }, [batches]);
 
   // ===== Modals =====
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,7 +108,7 @@ export default function BatchesPage() {
 
   // ===== Actions =====
   const handleEdit = (id) => {
-    setSelectedBatch(filteredBatches.find((b) => b.id === id) || null);
+    setSelectedBatch(batches.find((b) => String(b.id) === String(id)) || null);
     setIsModalOpen(true);
   };
 
@@ -106,139 +131,206 @@ export default function BatchesPage() {
     }
   };
 
-  // ===== Print =====
-  const handlePrint = () => {
-    if (!selectedIds.length)
-      return notify.error("يرجى تحديد شعبة واحدة على الأقل");
-
-    const rows = batches.filter((b) => selectedIds.includes(b.id));
-
-    const html = `
-    <html dir="rtl">
-      <head>
-        <style>
-          body { font-family: Arial; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td {
-            border: 1px solid #ccc;
-            padding: 6px;
-            font-size: 12px;
-          }
-          th { background: #f3f3f3; }
-        </style>
-      </head>
-      <body>
-        <h3>قائمة الشعب</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>اسم الشعبة</th>
-              <th>الجنس</th>
-              <th>الفرع</th>
-              <th>الفرع الأكاديمي</th>
-              <th>القاعة</th>
-              
-              <th>البداية</th>
-              <th>النهاية</th>
-              <th>الحالة</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows
-              .map(
-                (b, i) => `
-              <tr>
-                <td>${i + 1}</td>
-                <td>${b.name}</td>
-                <td>${getGenderLabel(b.gender_type)}</td>
-                <td>${b.institute_branch?.name || "-"}</td>
-                <td>${b.academic_branch?.name || "-"}</td>
-                <td>${b.class_room?.name || "-"}</td>
-                <td>${b.start_date}</td>
-                <td>${b.end_date}</td>
-                <td>${getStatusLabel(b)}</td>
-              </tr>
-            `,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </body>
-    </html>
-    `;
-
-    const win = window.open("", "", "width=1200,height=800");
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel =====
-  const handleExcel = () => {
-    if (!selectedIds.length)
-      return notify.error("يرجى تحديد شعبة واحدة على الأقل");
-
-    const rows = batches.filter((b) => selectedIds.includes(b.id));
-
-    const excelRows = rows.map((b) => ({
-      "اسم الشعبة": b.name,
-      الجنس: getGenderLabel(b.gender_type),
-      الفرع: b.institute_branch?.name || "-",
-      "الفرع الأكاديمي": b.academic_branch?.name || "-",
-      القاعة: b.class_room?.name || "-",
-      "تاريخ البداية": b.start_date,
-      "تاريخ النهاية": b.end_date,
-      الحالة: getStatusLabel(b),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Batches");
-
-    const buffer = XLSX.write(wb, {
-      bookType: "xlsx",
-      type: "array",
-    });
-
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "قائمة_الشعب.xlsx",
-    );
-  };
+  if (isLoading) {
+    const tableHeaders = [
+      "#",
+      "اسم الشعبة",
+      "الفرع",
+      "الفرع الأكاديمي",
+      "القاعة",
+      "تاريخ البداية",
+      "تاريخ النهاية",
+      "الجنس",
+      "الحالة",
+      "الإجراءات",
+    ];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
 
   return (
     <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
+      {/* 1. Header & Breadcrumb */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-lg font-semibold text-gray-700">
-            الجداول الرئيسية
-          </h1>
+          <h1 className="text-xl font-bold text-gray-800">الدورات</h1>
           <Breadcrumb />
         </div>
       </div>
 
-      <div className="flex justify-between items-center">
-        <ActionsRow
-          addLabel="إضافة شعبة"
-          showSelectAll
-          viewLabel=""
-          isAllSelected={isAllSelected}
-          onToggleSelectAll={toggleSelectAll}
-          onAdd={() => {
-            setSelectedBatch(null);
-            setIsModalOpen(true);
-          }}
-        />
+      {/* 2. Advanced Filters */}
+      <div className="flex flex-col md:flex-row gap-8 items-end w-full max-w-2xl bg-white p-2 rounded-xl">
+        <div className="flex flex-col gap-2 w-full md:w-1/2">
+          <label className="text-sm font-semibold text-gray-700">الدورة:</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="البحث باسم الدورة..."
+              className="w-full bg-[#f9f9f9] border border-gray-200 p-2.5 rounded-xl outline-none focus:border-[#6F013F] text-sm"
+              value={nameSearch}
+              onChange={(e) => setNameSearch(e.target.value)}
+            />
+          </div>
+        </div>
 
-        <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+        <div className="flex flex-col gap-2 w-full md:w-1/2">
+          <label className="text-sm font-semibold text-gray-700">اسم الطالب:</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="البحث باسم الطالب..."
+              className="w-full bg-[#f9f9f9] border border-gray-200 p-2.5 rounded-xl outline-none focus:border-[#6F013F] text-sm"
+              value={studentNameSearch}
+              onChange={(e) => setStudentNameSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
+      {/* 3. Action Buttons */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-200 pb-4">
+        <div className="flex gap-2">
+          <PrintExportActions 
+            data={batches}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "اسم الشعبة", key: "name" },
+              { 
+                header: "الجنس", 
+                key: "gender_type",
+                render: getGenderLabel
+              },
+              { 
+                header: "الفرع", 
+                key: "institute_branch",
+                render: (val) => val?.name || "-"
+              },
+              { 
+                header: "الفرع الأكاديمي", 
+                key: "academic_branch",
+                render: (val) => val?.name || "-"
+              },
+              { 
+                header: "القاعة", 
+                key: "class_room",
+                render: (val) => val?.name || "-"
+              },
+              { header: "البداية", key: "start_date" },
+              { header: "النهاية", key: "end_date" },
+              { 
+                header: "الحالة", 
+                key: "id", // any key, we use row in render
+                render: (_, row) => getStatusLabel(row)
+              },
+            ]}
+            title="قائمة الشعب"
+            filename="الشعب"
+          />
+        </div>
+
+        <div className="flex gap-2 flex-wrap items-center">
+          <button
+            onClick={() => setIncludeArchived(!includeArchived)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+              includeArchived ? 'bg-blue-200 text-blue-900 border border-blue-300' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100'
+            }`}
+          >
+            <img src="/icons/archive.svg" alt="أرشفة" width={16} height={16} className="opacity-70" />
+            عرض الدورات المؤرشفة
+          </button>
+          
+          <button
+            onClick={() => setIncludeHidden(!includeHidden)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+              includeHidden ? 'bg-green-200 text-green-900 border border-green-300' : 'bg-green-50 text-green-700 border border-green-100 hover:bg-green-100'
+            }`}
+          >
+            <img src="/icons/hidden.svg" alt="إخفاء" width={16} height={16} className="opacity-70" />
+            عرض الدورات المخفية
+          </button>
+
+          <DashboardButton
+            label="تحديد الكل"
+            icon={<input type="checkbox" checked={isAllSelected} readOnly className="accent-[#8A1654] w-4 h-4 cursor-pointer" />}
+            color="gray"
+            className="rounded-lg shadow-sm border border-gray-100 h-[38px]"
+            onClick={toggleSelectAll}
+          />
+          
+          <DashboardButton
+            label="إضافة دورة"
+            icon={<span className="text-lg leading-none">+</span>}
+            color="pink"
+            className="rounded-lg shadow-sm font-medium h-[38px] bg-[#FFF2F8] text-[#8A1654] border border-[#FBE3EE] hover:bg-[#FBE3EE]"
+            onClick={() => {
+              setSelectedBatch(null);
+              setIsModalOpen(true);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 4. Stats Cards Layer */}
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex flex-col gap-4 w-full md:w-1/4">
+          <div className="bg-white border text-center border-gray-200 p-6 rounded-2xl flex items-center justify-between shadow-sm cursor-default">
+             <div className="font-bold text-gray-800 flex items-center gap-2">
+                 <Globe className="text-[#03A3A3]" size={20} /> الدورة مكتملة 
+                 <span className="text-sm bg-gray-100 px-2 py-0.5 rounded-full">{stats.completed || 0}</span>
+             </div>
+          </div>
+          <div className="bg-white border text-center border-gray-200 p-6 rounded-2xl flex items-center justify-between shadow-sm cursor-default">
+             <div className="font-bold text-gray-800 flex items-center gap-2">
+                <Contact className="text-[#F294C6]" size={20} /> {firstBatch?.employees_count || 0} مدرس
+             </div>
+          </div>
+        </div>
+
+        <div className="flex gap-4 w-full md:w-3/4 flex-col md:flex-row">
+          <div className="bg-[#FAF5FD] border border-[#F0E6F6] p-6 rounded-2xl flex-1 flex flex-col justify-between shadow-sm relative overflow-hidden">
+             <div className="flex justify-between items-start mb-6">
+                <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-1">مواد الدورة</h3>
+                   <p className="text-sm text-gray-500 max-w-[200px]">عرض المواد الدراسية الخاصة بهذه الدورة</p>
+                </div>
+                <div className="bg-[#8A1654] text-white p-3 rounded-2xl">
+                   <BookOpen size={24} />
+                </div>
+             </div>
+             <div className="flex items-end justify-between">
+                <div className="bg-[#8A1654] w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-[#6e1143] transition">
+                    <span className="text-xl leading-none">↗</span>
+                </div>
+                <h2 className="text-4xl font-bold text-gray-800">{firstBatch?.subjects_count || 0}</h2>
+             </div>
+          </div>
+
+          <div className="bg-[#FAF5FD] border border-[#F0E6F6] p-6 rounded-2xl flex-1 flex flex-col justify-between shadow-sm relative overflow-hidden">
+             <div className="flex justify-between items-start mb-6">
+                <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-1">طلاب الدورة</h3>
+                   <p className="text-sm text-gray-500 max-w-[200px]">عرض الطلاب الذين ينتموا بهذه الدورة</p>
+                </div>
+                <div className="bg-[#8A1654] text-white p-3 rounded-2xl">
+                   <Users size={24} />
+                </div>
+             </div>
+             <div className="flex items-end justify-between">
+                <div className="bg-[#8A1654] w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-[#6e1143] transition">
+                    <span className="text-xl leading-none">↗</span>
+                </div>
+                <h2 className="text-4xl font-bold text-gray-800">{firstBatch?.students_count || 0}</h2>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Table */}
+      <h3 className="text-lg font-bold text-gray-700 mt-4 mb-2">معلومات الدورة ({pagination.total || 0})</h3>
       <BatchesTable
-        batches={filteredBatches}
+        batches={batches}
+        pagination={pagination}
+        page={page}
+        onPageChange={setPage}
         isLoading={isLoading}
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
@@ -256,7 +348,7 @@ export default function BatchesPage() {
         isOpen={isDeleteOpen}
         loading={isDeleting}
         title="حذف شعبة"
-        description={`هل أنت متأكد من حذف الشعبة ${batchToDelete?.name}؟`}
+        description={`هل أنت متأكد من حذف الدورة/الشعبة ${batchToDelete?.name}؟`}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={confirmDelete}
       />

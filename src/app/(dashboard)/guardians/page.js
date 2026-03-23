@@ -17,6 +17,8 @@ import GuardianDetailsModal from "./components/GuardianDetailsModal";
 import ActionsRow from "@/components/common/ActionsRow";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function GuardiansPage() {
     const { data, isLoading } = useGetGuardiansQuery();
@@ -47,15 +49,26 @@ export default function GuardiansPage() {
 
     const [selectedIds, setSelectedIds] = useState([]);
     const isAllSelected =
-        selectedIds.length > 0 && selectedIds.length === filteredGuardians.length;
+        filteredGuardians.length > 0 && selectedIds.length === filteredGuardians.length;
 
     const toggleSelectAll = () => {
-        setSelectedIds(isAllSelected ? [] : filteredGuardians.map((r) => r.id));
+        setSelectedIds(isAllSelected ? [] : filteredGuardians.map((r) => String(r.id)));
     };
 
     useEffect(() => {
         setSelectedIds([]);
     }, [search]);
+
+    // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
+    useEffect(() => {
+        setSelectedIds((prev) => {
+            const validIds = prev.filter((id) =>
+                filteredGuardians.some((r) => String(r.id) === id),
+            );
+            if (validIds.length === prev.length) return prev;
+            return validIds;
+        });
+    }, [filteredGuardians]);
 
     // Modals
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -96,8 +109,22 @@ export default function GuardiansPage() {
         }
     };
 
+  if (isLoading) {
     return (
-        <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
+      <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
+        <div className="w-full flex justify-between items-center">
+          <div className="flex flex-col text-right">
+            <h1 className="text-lg font-semibold text-gray-700">أولياء الأمور</h1>
+            <Breadcrumb />
+          </div>
+        </div>
+        <PageSkeleton tableHeaders={["#", "الاسم", "رقم الهاتف", "رقم الهوية", "الحالة", "الإجراءات"]} />
+      </div>
+    );
+  }
+
+  return (
+    <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
             <div className="w-full flex justify-between items-center">
                 <div className="flex flex-col text-right">
                     <h1 className="text-lg font-semibold text-gray-700">
@@ -119,10 +146,30 @@ export default function GuardiansPage() {
                         setIsAddOpen(true);
                     }}
                 />
-                <div className="flex items-center gap-4 text-sm">
-                    <div className="text-gray-400">
-                        يعرض {filteredGuardians.length} من أصل {totalCount}
-                    </div>
+                <div className="flex items-center gap-4">
+                  <PrintExportActions 
+                    data={filteredGuardians}
+                    selectedIds={selectedIds}
+                    columns={[
+                      { 
+                        header: "الاسم", 
+                        key: "first_name",
+                        render: (_, row) => `${row.first_name} ${row.last_name}`
+                      },
+                      { header: "رقم الهاتف", key: "phone" },
+                      { header: "رقم الهوية", key: "national_id" },
+                      { 
+                        header: "الحالة", 
+                        key: "is_active",
+                        render: (val) => (val ? "نشط" : "غير نشط")
+                      },
+                    ]}
+                    title="قائمة أولياء الأمور"
+                    filename="أولياء_الأمور"
+                  />
+                  <div className="text-gray-400 text-sm">
+                      يعرض {filteredGuardians.length} من أصل {totalCount}
+                  </div>
                 </div>
             </div>
 

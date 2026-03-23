@@ -19,7 +19,7 @@ export const familiesApi = createApi({
             providesTags: (r) =>
                 r?.data
                     ? [
-                        ...r.data.map(({ id }) => ({ type: "Families", id })),
+                        ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Families", id })),
                         { type: "Families", id: "LIST" },
                     ]
                     : [{ type: "Families", id: "LIST" }],

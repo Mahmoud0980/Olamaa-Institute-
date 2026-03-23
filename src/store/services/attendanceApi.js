@@ -21,7 +21,7 @@
 //       providesTags: (r) =>
 //         r?.data
 //           ? [
-//               ...r.data.map(({ id }) => ({ type: "Attendance", id })),
+//               ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Attendance", id })),
 //               { type: "Attendance", id: "LIST" },
 //             ]
 //           : [{ type: "Attendance", id: "LIST" }],
@@ -127,7 +127,7 @@ export const attendanceApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Attendance", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Attendance", id })),
               { type: "Attendance", id: "LIST" },
             ]
           : [{ type: "Attendance", id: "LIST" }],

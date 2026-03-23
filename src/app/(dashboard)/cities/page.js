@@ -18,9 +18,9 @@ import CitiesTable from "./components/CitiesTable";
 import AddCityModal from "./components/AddCityModal";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function CitiesPage() {
   // ===== Redux (بحث + فلترة فرع من Navbar) =====
@@ -30,7 +30,6 @@ export default function CitiesPage() {
   // ===== Data =====
   const { data, isLoading } = useGetCitiesQuery();
   const cities = data?.data || [];
-
   const [deleteCity, { isLoading: isDeleting }] = useDeleteCityMutation();
 
   // ===== Branches (للطباعة والاكسل) =====
@@ -73,7 +72,7 @@ export default function CitiesPage() {
     filteredCities.length > 0 && selectedIds.length === filteredCities.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredCities.map((c) => c.id));
+    setSelectedIds(isAllSelected ? [] : filteredCities.map((c) => String(c.id)));
   };
 
   // تفريغ التحديد عند تغيير البحث أو الفرع
@@ -85,14 +84,10 @@ export default function CitiesPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredCities.some((c) => c.id === id),
+        filteredCities.some((c) => String(c.id) === String(id)),
       );
 
-      // ✅ إذا ما تغير شي، لا تعمل setState
-      if (validIds.length === prev.length) {
-        return prev;
-      }
-
+      if (validIds.length === prev.length) return prev;
       return validIds;
     });
   }, [filteredCities]);
@@ -103,6 +98,11 @@ export default function CitiesPage() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [cityToDelete, setCityToDelete] = useState(null);
+
+  if (isLoading) {
+    const tableHeaders = ["#", "اسم المدينة", "الوصف", "الحالة", "الإجراءات"];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
 
   // ===== Actions =====
   const handleEdit = (id) => {
@@ -123,135 +123,10 @@ export default function CitiesPage() {
       notify.success("تم حذف المدينة بنجاح");
       setIsDeleteOpen(false);
       setCityToDelete(null);
-      setSelectedIds((prev) => prev.filter((id) => id !== cityToDelete.id));
+      setSelectedIds((prev) => prev.filter((id) => id !== String(cityToDelete.id)));
     } catch (err) {
       notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
-  };
-
-  // ===== Print =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد مدينة واحدة على الأقل للطباعة");
-      return;
-    }
-
-    const rows = filteredCities.filter((c) => selectedIds.includes(c.id));
-
-    if (!rows.length) {
-      notify.error("لا توجد بيانات للطباعة");
-      return;
-    }
-
-    const hasBranchColumn = rows.some((c) => getCityBranchId(c) != null);
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <style>
-            body { font-family: Arial; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td {
-              border: 1px solid #ccc;
-              padding: 6px;
-              font-size: 12px;
-              text-align: right;
-            }
-            th { background: #f3f3f3; }
-          </style>
-        </head>
-        <body>
-          <h3>قائمة المدن</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>اسم المدينة</th>
-                ${hasBranchColumn ? "<th>الفرع</th>" : ""}
-                <th>الوصف</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map((c, i) => {
-                  const branchCell = hasBranchColumn
-                    ? `<td>${getBranchName(getCityBranchId(c))}</td>`
-                    : "";
-
-                  return `
-                    <tr>
-                      <td>${i + 1}</td>
-                      <td>${c.name ?? "-"}</td>
-                      ${branchCell}
-                      <td>${c.description ?? "-"}</td>
-                      <td>${getStatusLabel(c)}</td>
-                    </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=1200,height=800");
-    if (!win) {
-      notify.error("المتصفح منع نافذة الطباعة");
-      return;
-    }
-
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد مدينة واحدة على الأقل للتصدير");
-      return;
-    }
-
-    const rows = filteredCities.filter((c) => selectedIds.includes(c.id));
-
-    if (!rows.length) {
-      notify.error("لا توجد بيانات للتصدير");
-      return;
-    }
-
-    const hasBranchColumn = rows.some((c) => getCityBranchId(c) != null);
-
-    const excelRows = rows.map((c) => {
-      const base = {
-        "اسم المدينة": c.name ?? "-",
-        الوصف: c.description ?? "-",
-        الحالة: getStatusLabel(c),
-      };
-
-      if (hasBranchColumn) {
-        base["الفرع"] = getBranchName(getCityBranchId(c));
-      }
-
-      return base;
-    });
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Cities");
-
-    const buffer = XLSX.write(wb, {
-      bookType: "xlsx",
-      type: "array",
-    });
-
-    saveAs(
-      new Blob([buffer], {
-        type: "application/octet-stream",
-      }),
-      "قائمة_المدن.xlsx",
-    );
   };
 
   return (
@@ -281,8 +156,21 @@ export default function CitiesPage() {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions 
+            data={filteredCities}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "اسم المدينة", key: "name" },
+              { header: "الوصف", key: "description" },
+              { 
+                header: "الحالة", 
+                key: "is_active", 
+                render: (val) => (val ? "نشط" : "غير نشط") 
+              },
+            ]}
+            title="قائمة المدن"
+            filename="المدن"
+          />
         </div>
       </div>
 

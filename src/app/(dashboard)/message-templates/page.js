@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { notify } from "@/lib/helpers/toastify";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 // ===== APIs =====
 import {
@@ -17,9 +15,9 @@ import MessageTemplatesTable from "./components/MessageTemplatesTable";
 import AddMessageTemplateModal from "./components/AddMessageTemplateModal";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function MessageTemplatesPage() {
   // ===== Redux (بحث) =====
@@ -55,7 +53,7 @@ export default function MessageTemplatesPage() {
     selectedIds.length === filteredTemplates.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredTemplates.map((t) => t.id));
+    setSelectedIds(isAllSelected ? [] : filteredTemplates.map((t) => String(t.id)));
   };
 
   useEffect(() => {
@@ -65,7 +63,7 @@ export default function MessageTemplatesPage() {
   useEffect(() => {
     setSelectedIds((prev) => {
       const validIds = prev.filter((id) =>
-        filteredTemplates.some((t) => t.id === id),
+        filteredTemplates.some((t) => String(t.id) === id),
       );
       if (validIds.length === prev.length) return prev;
       return validIds;
@@ -78,6 +76,19 @@ export default function MessageTemplatesPage() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null);
+
+  if (isLoading) {
+    const tableHeaders = [
+      "#",
+      "اسم النموذج",
+      "النوع",
+      "الفئة",
+      "الموضوع",
+      "الحالة",
+      "خيارات",
+    ];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
 
   // ===== Actions =====
   const handleEdit = (template) => {
@@ -98,97 +109,10 @@ export default function MessageTemplatesPage() {
       notify.success("تم حذف النموذج بنجاح");
       setIsDeleteOpen(false);
       setTemplateToDelete(null);
-      setSelectedIds((prev) => prev.filter((id) => id !== templateToDelete.id));
+      setSelectedIds([]);
     } catch (err) {
       notify.error(err?.data?.message || "حدث خطأ أثناء الحذف");
     }
-  };
-
-  // ===== Print =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد نموذج واحد على الأقل للطباعة");
-      return;
-    }
-
-    const rows = filteredTemplates.filter((t) => selectedIds.includes(t.id));
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <style>
-            body { font-family: Arial; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 6px; font-size: 12px; text-align: right; }
-            th { background: #f3f3f3; }
-          </style>
-        </head>
-        <body>
-          <h3>قائمة نماذج الرسائل</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>اسم النموذج</th>
-                <th>النوع</th>
-                <th>الفئة</th>
-                <th>الموضوع</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map(
-                  (t, i) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${t.name ?? "-"}</td>
-                    <td>${t.type ?? "-"}</td>
-                    <td>${t.category ?? "-"}</td>
-                    <td>${t.subject ?? "-"}</td>
-                    <td>${getStatusLabel(t)}</td>
-                  </tr>
-                `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=1200,height=800");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد نموذج واحد على الأقل للتصدير");
-      return;
-    }
-
-    const rows = filteredTemplates.filter((t) => selectedIds.includes(t.id));
-
-    const excelRows = rows.map((t) => ({
-      "اسم النموذج": t.name ?? "-",
-      النوع: t.type ?? "-",
-      الفئة: t.category ?? "-",
-      الموضوع: t.subject ?? "-",
-      الحالة: getStatusLabel(t),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "MessageTemplates");
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "نماذج_الرسائل.xlsx",
-    );
   };
 
   return (
@@ -213,8 +137,23 @@ export default function MessageTemplatesPage() {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions 
+            data={filteredTemplates}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "اسم النموذج", key: "name" },
+              { header: "النوع", key: "type" },
+              { header: "الفئة", key: "category" },
+              { header: "الموضوع", key: "subject" },
+              { 
+                header: "الحالة", 
+                key: "is_active",
+                render: (val) => (val ? "نشط" : "غير نشط")
+              },
+            ]}
+            title="نماذج الرسائل"
+            filename="نماذج_الرسائل"
+          />
         </div>
       </div>
 

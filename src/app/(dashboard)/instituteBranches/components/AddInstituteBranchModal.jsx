@@ -86,7 +86,7 @@ export default function AddInstituteBranchModal({
 
       onClose();
     } catch (err) {
-      toast.error("حدث خطأ أثناء الحفظ");
+      toast.error(err?.data?.message || "حدث خطأ أثناء الحفظ");
     } finally {
       setLoading(false);
     }

@@ -18,7 +18,7 @@ export const guardiansApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-            ...r.data.map(({ id }) => ({ type: "Guardians", id })),
+            ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Guardians", id })),
             { type: "Guardians", id: "LIST" },
           ]
           : [{ type: "Guardians", id: "LIST" }],

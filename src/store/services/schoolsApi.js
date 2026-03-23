@@ -21,7 +21,7 @@ export const schoolsApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Schools", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Schools", id })),
               { type: "Schools", id: "LIST" },
             ]
           : [{ type: "Schools", id: "LIST" }],

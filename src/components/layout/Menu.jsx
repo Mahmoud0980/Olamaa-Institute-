@@ -228,7 +228,7 @@ export default function Menu() {
       sub: [
         { name: "أفرع المعهد", href: "/instituteBranches", roles: ["admin"] },
         { name: "السجلات", href: "/logs", roles: ["admin"] },
-        { name: "الإعدادات", href: "", roles: ["admin"] },
+        { name: "الإعدادات", href: "/settings", roles: ["admin"] },
         { name: "الطلبات", href: "/requests", roles: ["admin"] },
       ],
     },

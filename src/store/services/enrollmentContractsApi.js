@@ -49,10 +49,56 @@ export const enrollmentContractsApi = createApi({
       }),
       invalidatesTags: ["EnrollmentContracts"],
     }),
+
+    // 📋 الحصول على كل العقود
+    getEnrollmentContracts: builder.query({
+      query: (params) => ({
+        url: "/enrollment-contracts",
+        method: "GET",
+        params,
+      }),
+      providesTags: ["EnrollmentContracts"],
+    }),
+
+    // 📄 الحصول على عقد بواسطة ID
+    getEnrollmentContractById: builder.query({
+      query: (id) => ({
+        url: `/enrollment-contracts/${id}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, id) => [{ type: "EnrollmentContracts", id }],
+    }),
+
+    // ✏️ تحديث عقد
+    updateEnrollmentContract: builder.mutation({
+      query: ({ id, ...payload }) => ({
+        url: `/enrollment-contracts/${id}`,
+        method: "PUT",
+        data: payload,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        "EnrollmentContracts",
+        { type: "EnrollmentContracts", id },
+      ],
+    }),
+
+    // 🗑️ حذف عقد
+    deleteEnrollmentContract: builder.mutation({
+      query: (id) => ({
+        url: `/enrollment-contracts/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["EnrollmentContracts"],
+    }),
   }),
 });
 
 export const {
   usePreviewInstallmentsMutation,
   useAddEnrollmentContractMutation,
+  useGetEnrollmentContractsQuery,
+  useGetEnrollmentContractByIdQuery,
+  useLazyGetEnrollmentContractByIdQuery,
+  useUpdateEnrollmentContractMutation,
+  useDeleteEnrollmentContractMutation,
 } = enrollmentContractsApi;

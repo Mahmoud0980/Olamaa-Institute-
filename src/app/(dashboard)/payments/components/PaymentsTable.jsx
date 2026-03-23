@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Pagination from "@/components/common/Pagination";
+import { useMemo, useState } from "react";
+import DataTable from "@/components/common/DataTable";
 import ActionsMenu from "@/components/common/ActionsMenu";
 
 /* ================= Helpers ================= */
 
-const rowId = (row) =>
+const getRowId = (row) =>
   String(
     row?.payment_id ??
       row?.id ??
       row?.installment_id ??
-      `${row?.student_id ?? "s"}-${row?.due_date ?? row?.paid_date ?? "d"}`,
+      `${row?.student_id ?? "s"}-${row?.due_date ?? row?.paid_date ?? "d"}`
   );
 
 const moneyLabel = (row) => {
@@ -56,290 +56,120 @@ export default function PaymentsTable({
   onViewDetails,
   onEdit,
   onDelete,
-
-  // للـ late mode
   onOpenStudentPaymentsFromLate,
 }) {
-  const safeRows = Array.isArray(rows) ? rows : [];
-
-  const [page, setPage] = useState(1);
-  const pageSize = 8;
-
-  const totalPages = Math.ceil(safeRows.length / pageSize) || 1;
-  const paginated = safeRows.slice((page - 1) * pageSize, page * pageSize);
-
-  useEffect(() => setPage(1), [safeRows.length, mode]);
-  useEffect(() => {
-    if (page > totalPages) setPage(1);
-  }, [page, totalPages]);
-
-  const toggleSelect = (row) => {
-    if (!onSelectChange) return;
-
-    const id = rowId(row);
-    const updated = selectedIds.includes(id)
-      ? selectedIds.filter((x) => x !== id)
-      : [...selectedIds, id];
-
-    onSelectChange(updated);
-  };
-
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  const columns = useMemo(() => {
+    const cols = [
+      {
+        header: "رقم الإيصال",
+        key: "receipt_number",
+        render: (_, row) => {
+          const pid = row?.payment_id ?? row?.id ?? row?.installment_id;
+          const pending = pendingMap?.[String(pid)];
+          return (
+            <div className="flex items-center gap-2 font-medium">
+              <span>{receiptLabel(row)}</span>
+              {pending && (
+                <span
+                  className={`px-2 py-0.5 text-xs rounded-full ${
+                    pending.type === "delete"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-orange-100 text-orange-700"
+                  }`}
+                >
+                  {pending.type === "delete"
+                    ? "طلب حذف معلّق"
+                    : "طلب تعديل معلّق"}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+    ];
+
+    if (mode === "late") {
+      cols.push({
+        header: "الاسم الكامل",
+        key: "student_name",
+        render: (_, row) => (
+          <span className="font-medium">{fullNameLabel(row, mode)}</span>
+        ),
+      });
+    } else {
+      cols.push(
+        {
+          header: "الاسم",
+          key: "first_name",
+          render: (val) => <span className="font-medium">{val || "—"}</span>,
+        },
+        { 
+          header: "الكنية", 
+          key: "last_name" 
+        }
+      );
+    }
+
+    cols.push(
+      {
+        header: mode === "latest" ? "الدفعة" : "القسط/المبلغ",
+        key: "amount",
+        render: (_, row) => moneyLabel(row),
+      },
+      {
+        header: mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق",
+        key: mode === "latest" ? "paid_date" : "due_date",
+        render: (val) => val || "—",
+      },
+      {
+        header: "ملاحظة",
+        key: "note",
+        render: (val, row) => val ?? row.description ?? "—",
+      }
+    );
+
+    return cols;
+  }, [mode, pendingMap]);
 
   const menuItems = useMemo(() => {
     return (row) => {
-      if (mode === "late") {
-        return [];
-      }
-
+      if (mode === "late") return [];
       return [
-        {
-          label: "عرض تفاصيل الدفعة",
-          onClick: () => onViewDetails?.(row),
-        },
-        {
-          label: "تعديل الدفعة",
-          onClick: () => onEdit?.(row),
-        },
-        {
-          label: "حذف",
-          danger: true,
-          onClick: () => onDelete?.(row),
-        },
+        { label: "عرض تفاصيل الدفعة", onClick: () => onViewDetails?.(row) },
+        { label: "تعديل الدفعة", onClick: () => onEdit?.(row) },
+        { label: "حذف", danger: true, onClick: () => onDelete?.(row) },
       ];
     };
-  }, [mode, onViewDetails, onEdit, onDelete, onOpenStudentPaymentsFromLate]);
+  }, [mode, onViewDetails, onEdit, onDelete]);
+
+  const renderActions = (row, isMobile) => {
+    if (mode === "late") return null;
+    const id = getRowId(row);
+    return (
+      <ActionsMenu
+        menuId={`payment-${isMobile ? "m-" : ""}${id}`}
+        openMenuId={openMenuId}
+        setOpenMenuId={setOpenMenuId}
+        items={menuItems(row)}
+      />
+    );
+  };
 
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-5 w-full">
-      {isLoading ? (
-        <div className="py-10 text-center text-gray-400">جارٍ التحميل...</div>
-      ) : !paginated.length ? (
-        <div className="py-10 text-center text-gray-400">
-          {mode === "latest" ? "لا يوجد دفعات." : "لا يوجد طلاب متأخرين."}
-        </div>
-      ) : (
-        <>
-          {/* ================= DESKTOP ================= */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-              <thead>
-                <tr className="bg-pink-50 text-gray-700">
-                  <th className="p-3 text-center rounded-r-xl">#</th>
-                  <th className="p-3">رقم الإيصال</th>
-
-                  {mode === "late" ? (
-                    <th className="p-3">الاسم الكامل</th>
-                  ) : (
-                    <>
-                      <th className="p-3">الاسم</th>
-                      <th className="p-3">الكنية</th>
-                    </>
-                  )}
-
-                  <th className="p-3">
-                    {mode === "latest" ? "الدفعة" : "القسط/المبلغ"}
-                  </th>
-                  <th className="p-3">
-                    {mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"}
-                  </th>
-                  <th className="p-3">ملاحظة</th>
-
-                  {mode !== "late" && (
-                    <th className="p-3 text-center rounded-l-xl">
-                      خيارات إضافية
-                    </th>
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginated.map((row, index) => {
-                  const id = rowId(row);
-                  const pid = row?.payment_id ?? row?.id ?? row?.installment_id;
-                  const pending = pendingMap?.[String(pid)];
-
-                  return (
-                    <tr
-                      key={id}
-                      className="bg-white hover:bg-pink-50 transition"
-                    >
-                      <td className="p-3 text-center rounded-r-xl">
-                        <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 accent-[#6F013F]"
-                            checked={selectedIds.includes(id)}
-                            onChange={() => toggleSelect(row)}
-                          />
-                          <span>{(page - 1) * pageSize + index + 1}</span>
-                        </div>
-                      </td>
-
-                      <td className="p-3 font-medium">
-                        <div className="flex items-center gap-2">
-                          <span>{receiptLabel(row)}</span>
-
-                          {pending && (
-                            <span
-                              className={`px-2 py-0.5 text-xs rounded-full ${
-                                pending.type === "delete"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-orange-100 text-orange-700"
-                              }`}
-                            >
-                              {pending.type === "delete"
-                                ? "طلب حذف معلّق"
-                                : "طلب تعديل معلّق"}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {mode === "late" ? (
-                        <td className="p-3 font-medium">
-                          {fullNameLabel(row, mode)}
-                        </td>
-                      ) : (
-                        <>
-                          <td className="p-3 font-medium">
-                            {row.first_name ?? "—"}
-                          </td>
-                          <td className="p-3">{row.last_name ?? "—"}</td>
-                        </>
-                      )}
-
-                      <td className="p-3">{moneyLabel(row)}</td>
-
-                      <td className="p-3">
-                        {mode === "latest"
-                          ? (row.paid_date ?? "—")
-                          : (row.due_date ?? "—")}
-                      </td>
-
-                      <td className="p-3">
-                        {row.note ?? row.description ?? "—"}
-                      </td>
-
-                      {mode !== "late" && (
-                        <td className="p-3 text-center rounded-l-xl">
-                          <div className="relative inline-block">
-                            <ActionsMenu
-                              menuId={`payment-${id}`}
-                              openMenuId={openMenuId}
-                              setOpenMenuId={setOpenMenuId}
-                              items={menuItems(row)}
-                            />
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ================= MOBILE ================= */}
-          <div className="md:hidden space-y-4 mt-4">
-            {paginated.map((row, index) => {
-              const id = rowId(row);
-              const pid = row?.payment_id ?? row?.id ?? row?.installment_id;
-              const pending = pendingMap?.[String(pid)];
-
-              return (
-                <div
-                  key={id}
-                  className="border border-gray-200 rounded-xl p-4 shadow-sm"
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">#</span>
-                      <span className="font-semibold">
-                        {(page - 1) * pageSize + index + 1}
-                      </span>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-[#6F013F]"
-                        checked={selectedIds.includes(id)}
-                        onChange={() => toggleSelect(row)}
-                      />
-                    </div>
-
-                    {mode !== "late" && (
-                      <ActionsMenu
-                        menuId={`payment-m-${id}`}
-                        openMenuId={openMenuId}
-                        setOpenMenuId={setOpenMenuId}
-                        items={menuItems(row)}
-                      />
-                    )}
-                  </div>
-
-                  <Info label="رقم الإيصال" value={receiptLabel(row)} />
-
-                  {pending && (
-                    <div className="mb-2">
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          pending.type === "delete"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-orange-100 text-orange-700"
-                        }`}
-                      >
-                        {pending.type === "delete"
-                          ? "طلب حذف معلّق"
-                          : "طلب تعديل معلّق"}
-                      </span>
-                    </div>
-                  )}
-
-                  {mode === "late" ? (
-                    <Info
-                      label="الاسم الكامل"
-                      value={fullNameLabel(row, mode)}
-                    />
-                  ) : (
-                    <>
-                      <Info label="الاسم" value={row.first_name ?? "—"} />
-                      <Info label="الكنية" value={row.last_name ?? "—"} />
-                    </>
-                  )}
-
-                  <Info
-                    label={mode === "latest" ? "الدفعة" : "القسط/المبلغ"}
-                    value={moneyLabel(row)}
-                  />
-                  <Info
-                    label={
-                      mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"
-                    }
-                    value={mode === "latest" ? row.paid_date : row.due_date}
-                  />
-                  <Info label="ملاحظة" value={row.note ?? row.description} />
-                </div>
-              );
-            })}
-          </div>
-
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ================= Small Component ================= */
-
-function Info({ label, value }) {
-  return (
-    <div className="flex justify-between mb-2 gap-3">
-      <span className="text-gray-500">{label}:</span>
-      <span className="font-medium text-left">{value ?? "—"}</span>
-    </div>
+    <DataTable
+      data={rows}
+      columns={columns}
+      isLoading={isLoading}
+      selectedIds={selectedIds}
+      onSelectChange={onSelectChange}
+      renderActions={mode === "late" ? null : renderActions}
+      getRowId={getRowId}
+      pageSize={8}
+      emptyMessage={
+        mode === "latest" ? "لا يوجد دفعات." : "لا يوجد طلاب متأخرين."
+      }
+    />
   );
 }

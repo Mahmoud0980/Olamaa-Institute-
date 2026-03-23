@@ -16,7 +16,7 @@ export const classRoomsApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({
                 type: "ClassRooms",
                 id,
               })),

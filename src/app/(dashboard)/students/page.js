@@ -8,8 +8,6 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
@@ -32,8 +30,10 @@ import {
   useLazyGetStudentDetailsByIdQuery,
   useDeleteStudentMutation,
 } from "@/store/services/studentsApi";
-import StudentsPageSkeleton from "./components/StudentsPageSkeleton";
+import PageSkeleton from "@/components/common/PageSkeleton";
 import AddStudentToBatchModal from "./components/AddStudentToBatchModal";
+import AddContractModal from "./components/AddContractModal";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 /* ================= helpers ================= */
 function esc(s) {
@@ -97,7 +97,17 @@ export default function StudentsPage() {
   const { data: batchesRes, isLoading: batchesLoading } = useGetBatchesQuery();
 
   const batchOptions = useMemo(() => {
-    return (batchesRes?.data || []).map((b) => ({
+    const arr = Array.isArray(batchesRes?.data)
+      ? batchesRes.data
+      : Array.isArray(batchesRes?.data?.data)
+        ? batchesRes.data.data
+        : Array.isArray(batchesRes?.data?.batches)
+          ? batchesRes.data.batches
+          : Array.isArray(batchesRes)
+            ? batchesRes
+            : [];
+
+    return arr.map((b) => ({
       key: b.id,
       value: String(b.id),
       label: b.name,
@@ -138,9 +148,16 @@ export default function StudentsPage() {
   const [openAcademic, setOpenAcademic] = useState(false);
   const [openPayments, setOpenPayments] = useState(false);
   const [openAddToBatch, setOpenAddToBatch] = useState(false);
+  const [openAddContract, setOpenAddContract] = useState(false);
   const onAddToBatch = async (row) => {
     closeAllModals();
     setOpenAddToBatch(true);
+    await ensureStudentDetails(row);
+  };
+
+  const onAddContract = async (row) => {
+    closeAllModals();
+    setOpenAddContract(true);
     await ensureStudentDetails(row);
   };
 
@@ -234,6 +251,7 @@ export default function StudentsPage() {
     setOpenContacts(false);
     setOpenAcademic(false);
     setOpenPayments(false);
+    setOpenAddContract(false);
   };
 
   const activeOrRowFallback = (row) => {
@@ -321,104 +339,21 @@ export default function StudentsPage() {
     await ensureStudentDetails(row);
   };
 
-  /* ================= Print ================= */
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد طالب واحد على الأقل");
-      return;
-    }
-
-    const rows = filteredStudents.filter((s) =>
-      selectedIds.includes(String(s.id)),
-    );
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <style>
-            body{font-family:Arial;padding:20px}
-            table{width:100%;border-collapse:collapse;font-size:12px}
-            th,td{border:1px solid #ccc;padding:6px;text-align:right}
-            th{background:#fbeaf3}
-          </style>
-        </head>
-        <body>
-          <h3>قائمة الطلاب</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>الاسم الكامل</th>
-                <th>الجنس</th>
-                <th>فرع المعهد</th>
-                <th>الشعبة</th>
-                <th>تاريخ الولادة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map(
-                  (s, i) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>${esc(
-                    s.full_name ?? `${s.first_name} ${s.last_name}`,
-                  )}</td>
-                  <td>${esc(s.gender)}</td>
-                  <td>${esc(s.institute_branch?.name)}</td>
-                  <td>${esc(s.batch?.name)}</td>
-                  <td>${esc(s.date_of_birth)}</td>
-                </tr>`,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const w = window.open("", "", "width=900,height=700");
-    w.document.write(html);
-    w.document.close();
-    w.print();
-  };
-
-  /* ================= Excel ================= */
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد طالب واحد على الأقل");
-      return;
-    }
-
-    const rows = filteredStudents
-      .filter((s) => selectedIds.includes(String(s.id)))
-      .map((s) => ({
-        "الاسم الكامل": s.full_name ?? `${s.first_name} ${s.last_name}`,
-        الجنس: s.gender,
-        "فرع المعهد": s.institute_branch?.name,
-        الشعبة: s.batch?.name,
-        "تاريخ الولادة": s.date_of_birth,
-        "تاريخ التسجيل": s.enrollment_date,
-        "بداية الحضور": s.start_attendance_date,
-        "الحالة الصحية": s.health_status,
-        "الحالة النفسية": s.psychological_status,
-        ملاحظات: s.notes,
-      }));
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "StudentsDetails");
-
-    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buf], { type: "application/octet-stream" }),
-      "students_details.xlsx",
-    );
-  };
-
   /* ================= Render ================= */
+  const tableHeaders = [
+    "#",
+    "الاسم",
+    "الكنية",
+    "اسم الأب",
+    "اسم الأم",
+    "الجنس",
+    "فرع المعهد",
+    "الشعبة",
+    "الإجراءات",
+  ];
+
   return loadingStudents ? (
-    <StudentsPageSkeleton />
+    <PageSkeleton tableHeaders={tableHeaders} />
   ) : (
     <div dir="rtl" className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center">
@@ -437,18 +372,37 @@ export default function StudentsPage() {
                 placeholder="كل الشعب"
                 options={[
                   { key: "all", value: "", label: "كل الشعب" },
-                  ...(batchesRes?.data || []).map((b) => ({
-                    key: b.id,
-                    value: String(b.id),
-                    label: b.name,
-                  })),
+                  ...batchOptions,
                 ]}
               />
             </div>
 
             <div className="flex gap-2">
-              <PrintButton onClick={handlePrint} />
-              <ExcelButton onClick={handleExcel} />
+              <PrintExportActions 
+                data={filteredStudents}
+                selectedIds={selectedIds}
+                columns={[
+                  { 
+                    header: "الاسم الكامل", 
+                    key: "full_name",
+                    render: (_, row) => row.full_name ?? `${row.first_name} ${row.last_name}`
+                  },
+                  { header: "الجنس", key: "gender" },
+                  { 
+                    header: "فرع المعهد", 
+                    key: "institute_branch",
+                    render: (val) => val?.name ?? "-"
+                  },
+                  { 
+                    header: "الشعبة", 
+                    key: "batch",
+                    render: (val) => val?.name ?? "-"
+                  },
+                  { header: "تاريخ الولادة", key: "date_of_birth" },
+                ]}
+                title="قائمة الطلاب"
+                filename="الطلاب"
+              />
             </div>
           </div>
         </div>
@@ -484,6 +438,7 @@ export default function StudentsPage() {
         onEditAcademic={onEditAcademic}
         onEditContacts={onEditContacts}
         onAddToBatch={onAddToBatch}
+        onAddContract={onAddContract}
         onDeleteStudent={handleDelete}
       />
 
@@ -598,6 +553,19 @@ export default function StudentsPage() {
         }}
         batchOptions={batchOptions}
         batchesLoading={batchesLoading}
+      />
+
+      <AddContractModal
+        open={openAddContract}
+        onClose={() => setOpenAddContract(false)}
+        student={activeStudent}
+        onSaved={async () => {
+          await refetchStudents();
+          if (activeStudentId) {
+            const res = await fetchStudentDetails(activeStudentId).unwrap();
+            setActiveStudent(res.data ?? res);
+          }
+        }}
       />
     </div>
   );

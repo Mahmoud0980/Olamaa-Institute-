@@ -3,8 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { notify } from "@/lib/helpers/toastify";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 import {
   useGetClassRoomsQuery,
@@ -12,10 +10,10 @@ import {
 } from "@/store/services/classRoomsApi";
 
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 import ClassRoomsTable from "./components/ClassRoomsTable";
 import AddClassRoomModal from "./components/AddClassRoomModal";
@@ -44,11 +42,22 @@ export default function ClassRoomsPage() {
   }, [search]);
 
   const isAllSelected =
-    selectedIds.length > 0 && selectedIds.length === filteredRooms.length;
+    filteredRooms.length > 0 && selectedIds.length === filteredRooms.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : filteredRooms.map((r) => r.id));
+    setSelectedIds(isAllSelected ? [] : filteredRooms.map((r) => String(r.id)));
   };
+
+  // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = prev.filter((id) =>
+        filteredRooms.some((r) => String(r.id) === id),
+      );
+      if (validIds.length === prev.length) return prev;
+      return validIds;
+    });
+  }, [filteredRooms]);
 
   // ===== Modals =====
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,6 +65,11 @@ export default function ClassRoomsPage() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  if (isLoading) {
+    const tableHeaders = ["#", "الاسم", "الكود", "السعة", "ملاحظات", "الإجراءات"];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
 
   const handleDelete = (item) => {
     setItemToDelete(item);
@@ -72,74 +86,6 @@ export default function ClassRoomsPage() {
     } catch (err) {
       notify.error(err?.data?.message || "فشل حذف القاعة");
     }
-  };
-
-  // ===== Print =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد قاعة واحدة على الأقل للطباعة");
-      return;
-    }
-
-    const rows = rooms.filter((r) => selectedIds.includes(r.id));
-
-    const html = `
-      <html dir="rtl">
-        <body>
-          <h3>القاعات</h3>
-          <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
-            <tr>
-              <th>#</th>
-              <th>الاسم</th>
-              <th>الكود</th>
-              <th>السعة</th>
-              <th>ملاحظات</th>
-            </tr>
-            ${rows
-              .map(
-                (r, i) => `
-              <tr>
-                <td>${i + 1}</td>
-                <td>${r.name}</td>
-                <td>${r.code}</td>
-                <td>${r.capacity}</td>
-                <td>${r.notes || "-"}</td>
-              </tr>`,
-              )
-              .join("")}
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=900,height=700");
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد قاعة واحدة على الأقل للتصدير");
-      return;
-    }
-
-    const rows = rooms.filter((r) => selectedIds.includes(r.id));
-
-    const excelRows = rows.map((r) => ({
-      الاسم: r.name,
-      الكود: r.code,
-      السعة: r.capacity,
-      ملاحظات: r.notes || "-",
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(excelRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "ClassRooms");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([buffer]), "القاعات.xlsx");
   };
 
   return (
@@ -160,8 +106,18 @@ export default function ClassRoomsPage() {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions 
+            data={filteredRooms}
+            selectedIds={selectedIds}
+            columns={[
+              { header: "الاسم", key: "name" },
+              { header: "الكود", key: "code" },
+              { header: "السعة", key: "capacity" },
+              { header: "ملاحظات", key: "notes" },
+            ]}
+            title="القاعات"
+            filename="القاعات"
+          />
         </div>
       </div>
 
@@ -181,7 +137,7 @@ export default function ClassRoomsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         item={editItem}
-        rooms={rooms} // ✅ مهم لتوليد الكود تلقائي
+        rooms={rooms}
       />
 
       <DeleteConfirmModal

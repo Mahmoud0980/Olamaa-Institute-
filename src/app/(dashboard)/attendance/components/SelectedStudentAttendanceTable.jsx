@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { X } from "lucide-react";
-import Pagination from "@/components/common/Pagination";
+import DataTable from "@/components/common/DataTable";
 
 function formatTime(val) {
   if (!val) return "-";
@@ -20,7 +20,6 @@ const badge = (status) => {
       return { text: "متأخر", className: "bg-orange-100 text-orange-700" };
     case "absent":
       return { text: "غائب", className: "bg-red-100 text-red-700" };
-
     default:
       return { text: status || "-", className: "bg-gray-100 text-gray-600" };
   }
@@ -31,26 +30,43 @@ export default function SelectedStudentAttendanceTable({
   records = [],
   onClose,
 }) {
-  const [page, setPage] = useState(1);
-  const pageSize = 6;
-
-  const safe = Array.isArray(records) ? records : [];
-  const totalPages = Math.ceil(safe.length / pageSize) || 1;
-
-  const paginated = useMemo(
-    () => safe.slice((page - 1) * pageSize, page * pageSize),
-    [safe, page],
-  );
-
-  useEffect(() => setPage(1), [student?.id, safe.length]);
-
   const stats = useMemo(() => {
     const c = { present: 0, late: 0, absent: 0, excused: 0 };
-    safe.forEach((r) => {
+    (records || []).forEach((r) => {
       if (c[r.status] !== undefined) c[r.status] += 1;
     });
     return c;
-  }, [safe]);
+  }, [records]);
+
+  const columns = useMemo(() => [
+    { 
+      header: "التاريخ", 
+      key: "attendance_date" 
+    },
+    { 
+      header: "التفقد", 
+      key: "status", 
+      className: "text-center",
+      render: (val) => {
+        const b = badge(val);
+        return (
+          <span className={`px-3 py-1 text-xs rounded-xl ${b.className}`}>
+            {b.text}
+          </span>
+        );
+      }
+    },
+    { 
+      header: "وقت الوصول", 
+      key: "recorded_at", 
+      render: (val) => formatTime(val) 
+    },
+    { 
+      header: "وقت الانصراف", 
+      key: "exit_at", 
+      render: (_, row) => formatTime(row.exit_at || row.exit_time || row.departure_time) 
+    },
+  ], []);
 
   if (!student) return null;
 
@@ -77,107 +93,13 @@ export default function SelectedStudentAttendanceTable({
         </button>
       </div>
 
-      {safe.length === 0 ? (
-        <div className="py-8 text-center text-gray-400">
-          لا يوجد سجلات لهذا الطالب.
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto hidden md:block">
-            <table className="min-w-full text-sm text-right border-separate border-spacing-y-2">
-              <thead>
-                <tr className="bg-pink-50 text-gray-700">
-                  <th className="p-3 rounded-r-xl">#</th>
-                  <th className="p-3">التاريخ</th>
-                  <th className="p-3 text-center">التفقد</th>
-                  <th className="p-3">وقت الوصول</th>
-                  <th className="p-3 rounded-l-xl">وقت الانصراف</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map((r, i) => {
-                  const b = badge(r.status);
-                  return (
-                    <tr
-                      key={r.id}
-                      className="bg-white hover:bg-pink-50 transition"
-                    >
-                      <td className="p-3 rounded-r-xl">
-                        {(page - 1) * pageSize + i + 1}
-                      </td>
-                      <td className="p-3">{r.attendance_date || "-"}</td>
-                      <td className="p-3 text-center">
-                        <span
-                          className={`px-3 py-1 text-xs rounded-xl ${b.className}`}
-                        >
-                          {b.text}
-                        </span>
-                      </td>
-                      <td className="p-3">{formatTime(r.recorded_at)}</td>
-                      <td className="p-3 rounded-l-xl">
-                        {formatTime(
-                          r.exit_at || r.exit_time || r.departure_time,
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile */}
-          <div className="md:hidden space-y-3">
-            {paginated.map((r, i) => {
-              const b = badge(r.status);
-              return (
-                <div
-                  key={r.id}
-                  className="border border-gray-200 rounded-xl p-4 shadow-sm"
-                >
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-500">#</span>
-                    <span className="font-semibold">
-                      {(page - 1) * pageSize + i + 1}
-                    </span>
-                  </div>
-                  <Row label="التاريخ" value={r.attendance_date || "-"} />
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-500">التفقد:</span>
-                    <span
-                      className={`px-3 py-1 text-xs rounded-xl ${b.className}`}
-                    >
-                      {b.text}
-                    </span>
-                  </div>
-                  <Row label="وقت الوصول" value={formatTime(r.recorded_at)} />
-                  <Row
-                    label="وقت الانصراف"
-                    value={formatTime(
-                      r.exit_at || r.exit_time || r.departure_time,
-                    )}
-                  />
-                </div>
-              );
-            })}
-          </div>
-
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="flex justify-between mb-2">
-      <span className="text-gray-500">{label}:</span>
-      <span>{value}</span>
+      <DataTable
+        data={records}
+        columns={columns}
+        showCheckbox={false}
+        pageSize={6}
+        emptyMessage="لا يوجد سجلات لهذا الطالب."
+      />
     </div>
   );
 }

@@ -8,14 +8,13 @@ import { saveAs } from "file-saver";
 import { notify } from "@/lib/helpers/toastify";
 
 import ActionsRow from "@/components/common/ActionsRow";
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 import PaymentsTable from "./components/PaymentsTable";
-import PaymentsTableSkeleton from "./components/PaymentsTableSkeleton";
+import PageSkeleton from "@/components/common/PageSkeleton";
 import PaymentAddModal from "./components/PaymentAddModal";
 import PaymentDetailsModal from "./components/PaymentDetailsModal";
 import PaymentInstallmentAddModal from "./components/PaymentInstallmentAddModal";
@@ -420,6 +419,53 @@ export default function PaymentsPage() {
     [installmentDetailsRes],
   );
 
+  const exportColumns = useMemo(() => {
+    if (viewType === "payments") {
+      return [
+        { 
+          header: "الاسم الكامل", 
+          key: "student_name",
+          render: (_, row) => paymentStudentFullName(row, mode)
+        },
+        { 
+          header: "رقم الإيصال", 
+          key: "receipt_number",
+          render: (_, row) => row.receipt_number ?? row.receipt_no ?? row.payment_id ?? "—"
+        },
+        { 
+          header: "المبلغ", 
+          key: "amount",
+          render: (_, row) => paymentMoneyLabel(row)
+        },
+        { 
+          header: mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق", 
+          key: "date",
+          render: (_, row) => row.paid_date ?? row.due_date ?? "—"
+        },
+      ];
+    } else {
+      return [
+        { 
+          header: "اسم الطالب", 
+          key: "student_name",
+          render: (_, row) => installmentStudentName(row)
+        },
+        { header: "رقم القسط", key: "installment_number" },
+        { 
+          header: "المبلغ", 
+          key: "amount",
+          render: (_, row) => installmentMoneyLabel(row)
+        },
+        { header: "تاريخ الاستحقاق", key: "due_date" },
+        { 
+          header: "الحالة", 
+          key: "status",
+          render: (val) => installmentStatusLabel(val)
+        },
+      ];
+    }
+  }, [viewType, mode]);
+
   /* ================= Modals ================= */
 
   const [openAdd, setOpenAdd] = useState(false);
@@ -571,164 +617,6 @@ export default function PaymentsPage() {
     }
   };
 
-  /* ================= Print ================= */
-
-  const handlePrint = () => {
-    if (!selectedIds.length) {
-      notify.error("يرجى تحديد عنصر واحد على الأقل");
-      return;
-    }
-
-    const selectedRows = rows.filter((r) =>
-      selectedIds.includes(currentRowId(r)),
-    );
-
-    let html = "";
-
-    if (viewType === "payments") {
-      html = `
-    <html dir="rtl">
-      <head>
-        <style>
-          body{font-family:Arial;padding:20px}
-          table{width:100%;border-collapse:collapse;font-size:12px}
-          th,td{border:1px solid #ccc;padding:6px;text-align:right}
-          th{background:#fbeaf3}
-        </style>
-      </head>
-      <body>
-        <h3>${
-          mode === "latest" ? "دفعات الطلاب" : "الطلاب المتأخرين في الدفع"
-        }</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>الاسم الكامل</th>
-              <th>رقم الإيصال</th>
-              <th>المبلغ</th>
-              <th>${mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${selectedRows
-              .map((r, i) => {
-                const receiptNumber =
-                  r.receipt_number ?? r.receipt_no ?? r.payment_id ?? "—";
-
-                return `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${esc(paymentStudentFullName(r, mode))}</td>
-                    <td>${esc(receiptNumber)}</td>
-                    <td>${esc(paymentMoneyLabel(r))}</td>
-                    <td>${esc(r.paid_date ?? r.due_date ?? "—")}</td>
-                  </tr>
-                `;
-              })
-              .join("")}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `;
-    } else {
-      html = `
-  <html dir="rtl">
-    <head>
-      <style>
-        body{font-family:Arial;padding:20px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{border:1px solid #ccc;padding:6px;text-align:right}
-        th{background:#fbeaf3}
-      </style>
-    </head>
-    <body>
-      <h3>الأقساط</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>اسم الطالب</th>
-            <th>رقم القسط</th>
-            <th>المبلغ</th>
-            <th>تاريخ الاستحقاق</th>
-            <th>الحالة</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${selectedRows
-            .map(
-              (r, i) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>${esc(installmentStudentName(r))}</td>
-                  <td>${esc(r.installment_number ?? "—")}</td>
-                  <td>${esc(installmentMoneyLabel(r))}</td>
-                  <td>${esc(r.due_date ?? "—")}</td>
-                  <td>${esc(installmentStatusLabel(r.status))}</td>
-                </tr>`,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </body>
-  </html>
-`;
-    }
-
-    const w = window.open("", "", "width=900,height=700");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    w.print();
-  };
-
-  /* ================= Excel ================= */
-
-  const handleExcel = () => {
-    if (!selectedIds.length) {
-      notify.error("يرجى تحديد عنصر واحد على الأقل");
-      return;
-    }
-
-    const selectedRows = rows.filter((r) =>
-      selectedIds.includes(currentRowId(r)),
-    );
-
-    const data =
-      viewType === "payments"
-        ? selectedRows.map((r) => ({
-            "الاسم الكامل": paymentStudentFullName(r, mode),
-            "رقم الإيصال":
-              r.receipt_number ?? r.receipt_no ?? r.payment_id ?? "—",
-            المبلغ: paymentMoneyLabel(r),
-            [mode === "latest" ? "تاريخ الدفع" : "تاريخ الاستحقاق"]:
-              r.paid_date ?? r.due_date ?? "—",
-          }))
-        : selectedRows.map((r) => ({
-            "اسم الطالب": installmentStudentName(r),
-            "رقم القسط": r.installment_number ?? "—",
-            المبلغ: installmentMoneyLabel(r),
-            "تاريخ الاستحقاق": r.due_date ?? "—",
-            الحالة: installmentStatusLabel(r.status),
-          }));
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      wb,
-      ws,
-      viewType === "payments" ? "Payments" : "Installments",
-    );
-
-    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buf]),
-      viewType === "payments" ? "payments.xlsx" : "installments.xlsx",
-    );
-    notify.success("تم تصدير الإكسل");
-  };
 
   /* ================= Add ================= */
 
@@ -825,6 +713,44 @@ export default function PaymentsPage() {
     }
   };
 
+  if (loading) {
+    let h = [];
+    if (viewType === "payments") {
+      if (mode === "latest") {
+        h = [
+          "#",
+          "رقم الإيصال",
+          "الاسم",
+          "الكنية",
+          "الدفعة",
+          "تاريخ الدفع",
+          "ملاحظة",
+          "خيارات إضافية",
+        ];
+      } else {
+        h = [
+          "#",
+          "رقم الإيصال",
+          "الاسم الكامل",
+          "القسط/المبلغ",
+          "تاريخ الاستحقاق",
+          "ملاحظة",
+        ];
+      }
+    } else {
+      h = [
+        "#",
+        "اسم الطالب",
+        "رقم القسط",
+        "المبلغ",
+        "تاريخ الاستحقاق",
+        "سعر الصرف",
+        "الحالة",
+      ];
+    }
+    return <PageSkeleton tableHeaders={h} />;
+  }
+
   return (
     <div dir="rtl" className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row gap-2 justify-between items-start">
@@ -867,8 +793,13 @@ export default function PaymentsPage() {
           </div>
 
           <div className="flex gap-2">
-            <PrintButton onClick={handlePrint} />
-            <ExcelButton onClick={handleExcel} />
+            <PrintExportActions 
+              data={rows}
+              selectedIds={selectedIds}
+              columns={exportColumns}
+              title={viewType === "payments" ? (mode === "latest" ? "دفعات الطلاب" : "الطلاب المتأخرين") : "الأقساط"}
+              filename={viewType === "payments" ? "الدفعات" : "الأقساط"}
+            />
           </div>
         </div>
       </div>
@@ -904,9 +835,7 @@ export default function PaymentsPage() {
         ]}
       />
 
-      {loading ? (
-        <PaymentsTableSkeleton />
-      ) : viewType === "payments" ? (
+      {viewType === "payments" ? (
         <PaymentsTable
           mode={mode}
           rows={paymentRows}

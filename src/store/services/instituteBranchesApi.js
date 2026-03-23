@@ -17,7 +17,7 @@ export const instituteBranchesApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "InstituteBranches", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "InstituteBranches", id })),
               { type: "InstituteBranches", id: "LIST" },
             ]
           : [{ type: "InstituteBranches", id: "LIST" }],

@@ -3,8 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { notify } from "@/lib/helpers/toastify";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 // API
 import {
@@ -19,10 +17,11 @@ import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import BatchesBox from "./components/BatchesBox";
 import AssignBatchModal from "./components/AssignBatchModal";
 
-import PrintButton from "@/components/common/PrintButton";
-import ExcelButton from "@/components/common/ExcelButton";
 import ActionsRow from "@/components/common/ActionsRow";
 import EditEmployeePhotoModal from "./components/EditEmployeePhotoModal";
+import Breadcrumb from "@/components/common/Breadcrumb";
+import PageSkeleton from "@/components/common/PageSkeleton";
+import PrintExportActions from "@/components/common/PrintExportActions";
 
 export default function EmployeesPage({ openAddFromUrl }) {
   // ===== API =====
@@ -74,6 +73,34 @@ export default function EmployeesPage({ openAddFromUrl }) {
     });
   }, [employees, search, branch]);
 
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [search, branch]);
+
+  // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = prev.filter((id) =>
+        filteredEmployees.some((r) => String(r.id) === id),
+      );
+      if (validIds.length === prev.length) return prev;
+      return validIds;
+    });
+  }, [filteredEmployees]);
+
+  if (isLoading) {
+    const tableHeaders = [
+      "#",
+      "الاسم",
+      "الوظيفة",
+      "رقم الهاتف",
+      "الفرع",
+      "الحالة",
+      "الإجراءات",
+    ];
+    return <PageSkeleton tableHeaders={tableHeaders} />;
+  }
+
   const isAllSelected =
     filteredEmployees.length > 0 &&
     selectedIds.length === filteredEmployees.length;
@@ -83,20 +110,20 @@ export default function EmployeesPage({ openAddFromUrl }) {
       setSelectedIds([]);
       setSelectedEmployeeForBatches(null);
     } else {
-      setSelectedIds(filteredEmployees.map((e) => e.id));
+      setSelectedIds(filteredEmployees.map((e) => String(e.id)));
       setSelectedEmployeeForBatches(null);
     }
   };
 
   // ===== Actions =====
   const handleEdit = (id) => {
-    setSelectedEmployee(employees.find((e) => e.id === id) || null);
+    setSelectedEmployee(employees.find((e) => String(e.id) === String(id)) || null);
     setIsModalOpen(true);
   };
 
   const handleEditBatches = (id) => {
     setSelectedEmployeeForBatchesModal(
-      employees.find((e) => e.id === id) || null,
+      employees.find((e) => String(e.id) === String(id)) || null,
     );
     setIsAssignModalOpen(true);
   };
@@ -113,108 +140,28 @@ export default function EmployeesPage({ openAddFromUrl }) {
       notify.success("تم حذف الموظف بنجاح");
       setIsDeleteOpen(false);
       setEmployeeToDelete(null);
+      setSelectedIds([]);
     } catch (err) {
       notify.error(err?.data?.message || "فشل في حذف الموظف");
     }
   };
 
   const handleEditPhoto = (id) => {
-    const found = employees.find((e) => e.id === id);
+    const found = employees.find((e) => String(e.id) === String(id));
     setSelectedEmployeeForPhoto(found || null);
     setIsPhotoModalOpen(true);
   };
 
-  // ===== Print =====
-  const handlePrint = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد موظف واحد على الأقل");
-      return;
-    }
-
-    const rows = filteredEmployees.filter((e) => selectedIds.includes(e.id));
-
-    const html = `
-      <html dir="rtl">
-        <head>
-          <style>
-            body { font-family: Arial; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-            th { background: #f3f3f3; }
-          </style>
-        </head>
-        <body>
-          <h3>قائمة الموظفين</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>الاسم</th>
-                <th>الكنية</th>
-                <th>الوظيفة</th>
-                <th>الهاتف</th>
-                <th>الفرع</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map(
-                  (e, i) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>${e.first_name}</td>
-                  <td>${e.last_name}</td>
-                  <td>${e.job_title}</td>
-                  <td>${e.phone}</td>
-                  <td>${e.institute_branch?.name || "-"}</td>
-                  <td>${e.is_active ? "نشط" : "غير نشط"}</td>
-                </tr>`,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const win = window.open("", "", "width=900,height=700");
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  };
-
-  // ===== Excel =====
-  const handleExcel = () => {
-    if (selectedIds.length === 0) {
-      notify.error("يرجى تحديد موظف واحد على الأقل");
-      return;
-    }
-
-    const rows = filteredEmployees
-      .filter((e) => selectedIds.includes(e.id))
-      .map((e) => ({
-        الاسم: e.first_name,
-        الكنية: e.last_name,
-        الوظيفة: e.job_title,
-        الهاتف: e.phone,
-        الفرع: e.institute_branch?.name || "-",
-        الحالة: e.is_active ? "نشط" : "غير نشط",
-      }));
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Employees");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(
-      new Blob([buffer], { type: "application/octet-stream" }),
-      "employees.xlsx",
-    );
-  };
-
   return (
     <div dir="rtl" className="w-full h-full p-6 flex flex-col items-center">
+      <div className="w-full flex justify-between items-center mb-6">
+        <div className="flex flex-col text-right">
+          <h1 className="text-lg font-semibold text-gray-700">
+            الموظفين
+          </h1>
+          <Breadcrumb />
+        </div>
+      </div>
       {/* ACTIONS */}
       <div className="w-full flex justify-between items-center gap-3">
         <ActionsRow
@@ -230,8 +177,34 @@ export default function EmployeesPage({ openAddFromUrl }) {
         />
 
         <div className="flex gap-2">
-          <PrintButton onClick={handlePrint} />
-          <ExcelButton onClick={handleExcel} />
+          <PrintExportActions 
+            data={filteredEmployees}
+            selectedIds={selectedIds}
+            columns={[
+              { 
+                header: "الاسم", 
+                key: "first_name",
+              },
+              { 
+                header: "الكنية", 
+                key: "last_name",
+              },
+              { header: "الوظيفة", key: "job_title" },
+              { header: "الهاتف", key: "phone" },
+              { 
+                header: "الفرع", 
+                key: "institute_branch",
+                render: (val) => val?.name || "-"
+              },
+              { 
+                header: "الحالة", 
+                key: "is_active",
+                render: (val) => (val ? "نشط" : "غير نشط")
+              },
+            ]}
+            title="قائمة الموظفين"
+            filename="الموظفين"
+          />
         </div>
       </div>
 

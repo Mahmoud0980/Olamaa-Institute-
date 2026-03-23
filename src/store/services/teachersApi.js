@@ -21,7 +21,7 @@ export const teachersApi = createApi({
       providesTags: (r) =>
         r?.data
           ? [
-              ...r.data.map(({ id }) => ({ type: "Teachers", id })),
+              ...(Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.data) ? r.data.data : []).map(({ id }) => ({ type: "Teachers", id })),
               { type: "Teachers", id: "LIST" },
             ]
           : [{ type: "Teachers", id: "LIST" }],
