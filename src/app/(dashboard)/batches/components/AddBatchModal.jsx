@@ -182,7 +182,12 @@ export default function AddBatchModal({ isOpen, onClose, batch }) {
         const batchId = createdBatch?.id;
         notify.success("تم إضافة الشعبة بنجاح");
 
-        console.log("Created batch ID:", batchId, "Name:", createdBatch?.name || form.name);
+        console.log(
+          "Created batch ID:",
+          batchId,
+          "Name:",
+          createdBatch?.name || form.name,
+        );
 
         if (batchId) {
           setNewBatchId(batchId);

@@ -1,356 +1,444 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useSelector } from "react-redux";
-
-import { notify } from "@/lib/helpers/toastify";
-import useDebounce from "@/lib/hooks/useDebounce";
-
-// ===== APIs =====
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
-  useGetBatchesQuery,
-  useGetBatchesStatsQuery,
-  useDeleteBatchMutation,
-} from "@/store/services/batchesApi";
+  BookOpen,
+  Users,
+  MoveLeft,
+  Archive,
+  EyeOff,
+  Layers3,
+  CheckCircle2,
+} from "lucide-react";
 
-// ===== Components =====
-import BatchesTable from "./components/BatchesTable";
-import AddBatchModal from "./components/AddBatchModal";
-import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
-import DashboardButton from "@/components/common/DashboardButton";
+import ActionsRow from "@/components/common/ActionsRow";
 import Breadcrumb from "@/components/common/Breadcrumb";
-import { Users, BookOpen, Globe, Contact } from "lucide-react";
-import PageSkeleton from "@/components/common/PageSkeleton";
 import PrintExportActions from "@/components/common/PrintExportActions";
+import DashboardButton from "@/components/common/DashboardButton";
+import SearchableSelect from "@/components/common/SearchableSelect";
+
+import BatchesTable from "./components/BatchesTable";
+
+/* ================= Mock Data ================= */
+
+const MOCK_BATCHES = [
+  {
+    id: 1,
+    name: "علمي بنات",
+    student_name: "أحمد السيد",
+    institute_branch: { name: "الفرع الرئيسي" },
+    academic_branch: { name: "بكالوريا علمي" },
+    class_room: { name: "قاعة 1" },
+    start_date: "2025-02-03",
+    end_date: "2025-06-20",
+    gender_type: "female",
+    employee_name: "سامر",
+    note: "سيتم بدء دوام الشعبة في بداية الشهر 9",
+    students_count: 334,
+    subjects_count: 12,
+    employees_count: 13,
+    is_completed: false,
+    is_hidden: false,
+    is_archived: false,
+  },
+  {
+    id: 2,
+    name: "علمي شباب",
+    student_name: "أحمد السيد",
+    institute_branch: { name: "الفرع الرئيسي" },
+    academic_branch: { name: "بكالوريا علمي" },
+    class_room: { name: "قاعة 2" },
+    start_date: "2025-03-03",
+    end_date: "2025-07-01",
+    gender_type: "male",
+    employee_name: "أحمد",
+    note: "سيتم بدء دوام الشعبة في بداية الشهر 9",
+    students_count: 280,
+    subjects_count: 11,
+    employees_count: 9,
+    is_completed: false,
+    is_hidden: true,
+    is_archived: false,
+  },
+  {
+    id: 3,
+    name: "تاسع بنات",
+    student_name: "لينا خالد",
+    institute_branch: { name: "فرع المزة" },
+    academic_branch: { name: "تاسع" },
+    class_room: { name: "قاعة 3" },
+    start_date: "2025-04-03",
+    end_date: "2025-08-15",
+    gender_type: "female",
+    employee_name: "آلاء",
+    note: "شعبة صباحية",
+    students_count: 198,
+    subjects_count: 8,
+    employees_count: 7,
+    is_completed: false,
+    is_hidden: false,
+    is_archived: true,
+  },
+  {
+    id: 4,
+    name: "تاسع شباب",
+    student_name: "محمد علي",
+    institute_branch: { name: "فرع المزة" },
+    academic_branch: { name: "تاسع" },
+    class_room: { name: "قاعة 4" },
+    start_date: "2025-05-03",
+    end_date: "2025-09-10",
+    gender_type: "male",
+    employee_name: "محمد",
+    note: "شعبة مسائية",
+    students_count: 150,
+    subjects_count: 7,
+    employees_count: 5,
+    is_completed: true,
+    is_hidden: false,
+    is_archived: false,
+  },
+  {
+    id: 5,
+    name: "أدبي بنات",
+    student_name: "سارة محمد",
+    institute_branch: { name: "الفرع الرئيسي" },
+    academic_branch: { name: "بكالوريا أدبي" },
+    class_room: { name: "قاعة 5" },
+    start_date: "2025-06-03",
+    end_date: "2025-10-12",
+    gender_type: "female",
+    employee_name: "علي",
+    note: "متابعة أسبوعية",
+    students_count: 175,
+    subjects_count: 9,
+    employees_count: 6,
+    is_completed: false,
+    is_hidden: false,
+    is_archived: false,
+  },
+];
+
+/* ================= Helpers ================= */
+
+const getStatusLabel = (b) => {
+  if (b.is_completed) return "مكتملة";
+  if (b.is_hidden) return "مخفية";
+  if (b.is_archived) return "مؤرشفة";
+  return "نشطة";
+};
 
 export default function BatchesPage() {
-  // ===== Redux Filters =====
-  const search = useSelector((state) => state.search.values.batches);
-  const branchId = useSelector((state) => state.search.values.branch);
-
-  // ===== State Filters =====
-  const [page, setPage] = useState(1);
-  const perPage = 10;
-  
-  const [nameSearch, setNameSearch] = useState("");
-  const [studentNameSearch, setStudentNameSearch] = useState("");
-  
-  const debouncedNameSearch = useDebounce(nameSearch, 500);
-  const debouncedStudentNameSearch = useDebounce(studentNameSearch, 500);
-
-  const [includeHidden, setIncludeHidden] = useState(false);
-  const [includeArchived, setIncludeArchived] = useState(false);
-
-  // ===== Query Data =====
-  const { data, isLoading } = useGetBatchesQuery({
-    page,
-    per_page: perPage,
-    name: debouncedNameSearch || search || undefined,
-    student_name: debouncedStudentNameSearch || undefined,
-    institute_branch_id: branchId || undefined,
-    include_hidden: includeHidden,
-    include_archived: includeArchived,
-  });
-
-  const batches = data?.data?.batches || [];
-  const pagination = data?.data?.pagination || { current_page: 1, last_page: 1, total: 0 };
-
-  const { data: statsData } = useGetBatchesStatsQuery();
-  const stats = statsData?.data || { completed: 0, not_completed: 0, archived: 0, hidden: 0, total: 0 };
-  const firstBatch = batches[0] || {};
-
-  const [deleteBatch, { isLoading: isDeleting }] = useDeleteBatchMutation();
-
-  // ===== Helpers =====
-  const getGenderLabel = (g) =>
-    g === "male" ? "ذكور" : g === "female" ? "إناث" : "-";
-
-  const getStatusLabel = (b) =>
-    b.is_completed
-      ? "مكتملة"
-      : b.is_hidden
-        ? "مخفية"
-        : b.is_archived
-          ? "مؤرشفة"
-          : "نشطة";
-
-  // ===== Selection =====
+  const router = useRouter();
+  const [selectedStudent, setSelectedStudent] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
+  const [activeView, setActiveView] = useState("all"); // all | hidden | archived | completed
 
-  const isAllSelected =
-    batches.length > 0 && selectedIds.length === batches.length;
+  const studentOptions = useMemo(() => {
+    const names = [
+      ...new Set(MOCK_BATCHES.map((b) => b.student_name).filter(Boolean)),
+    ];
+    return names.map((name) => ({
+      value: name,
+      label: name,
+    }));
+  }, []);
 
-  const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : batches.map((b) => String(b.id)));
-  };
+  const batchOptions = useMemo(() => {
+    const names = [...new Set(MOCK_BATCHES.map((b) => b.name).filter(Boolean))];
+    return names.map((name) => ({
+      value: name,
+      label: name,
+    }));
+  }, []);
+
+  const rows = useMemo(() => {
+    return MOCK_BATCHES.filter((row) => {
+      const matchStudent =
+        !selectedStudent ||
+        String(row.student_name) === String(selectedStudent);
+
+      const matchBatch =
+        !selectedBatch || String(row.name) === String(selectedBatch);
+
+      const matchView =
+        activeView === "all"
+          ? true
+          : activeView === "hidden"
+            ? row.is_hidden
+            : activeView === "archived"
+              ? row.is_archived
+              : activeView === "completed"
+                ? row.is_completed
+                : true;
+
+      return matchStudent && matchBatch && matchView;
+    });
+  }, [selectedStudent, selectedBatch, activeView]);
+
+  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [page, debouncedNameSearch, debouncedStudentNameSearch, search, branchId, includeHidden, includeArchived]);
+  }, [selectedStudent, selectedBatch, activeView]);
 
-  // تنظيف التحديد إذا انحذفت عناصر أو تغيرت الداتا
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      const validIds = prev.filter((id) =>
-        batches.some((r) => String(r.id) === id),
-      );
-      if (validIds.length === prev.length) return prev;
-      return validIds;
-    });
-  }, [batches]);
+  const stats = useMemo(() => {
+    return {
+      total: MOCK_BATCHES.length,
+      hidden: MOCK_BATCHES.filter((b) => b.is_hidden).length,
+      archived: MOCK_BATCHES.filter((b) => b.is_archived).length,
+      completed: MOCK_BATCHES.filter((b) => b.is_completed).length,
+    };
+  }, []);
 
-  // ===== Modals =====
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState(null);
-
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [batchToDelete, setBatchToDelete] = useState(null);
-
-  // ===== Actions =====
-  const handleEdit = (id) => {
-    setSelectedBatch(batches.find((b) => String(b.id) === String(id)) || null);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (batch) => {
-    setBatchToDelete(batch);
-    setIsDeleteOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!batchToDelete) return;
-
-    try {
-      await deleteBatch(batchToDelete.id).unwrap();
-      notify.success("تم حذف الشعبة بنجاح");
-      setIsDeleteOpen(false);
-      setBatchToDelete(null);
-      setSelectedIds([]);
-    } catch (err) {
-      notify.error(err?.data?.message || "فشل حذف الشعبة");
-    }
-  };
-
-  if (isLoading) {
-    const tableHeaders = [
-      "#",
-      "اسم الشعبة",
-      "الفرع",
-      "الفرع الأكاديمي",
-      "القاعة",
-      "تاريخ البداية",
-      "تاريخ النهاية",
-      "الجنس",
-      "الحالة",
-      "الإجراءات",
-    ];
-    return <PageSkeleton tableHeaders={tableHeaders} />;
-  }
+  const firstRow = rows[0] || MOCK_BATCHES[0] || {};
 
   return (
-    <div dir="rtl" className="w-full h-full p-6 flex flex-col gap-6">
-      {/* 1. Header & Breadcrumb */}
-      <div className="flex justify-between items-center">
-        <div>
+    <div
+      dir="rtl"
+      className="w-full min-h-screen p-4 md:p-6 flex flex-col gap-6 bg-[#fcfcfd]"
+    >
+      {/* Header */}
+      <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+        <div className="flex flex-col gap-1 shrink-0">
           <h1 className="text-xl font-bold text-gray-800">الدورات</h1>
           <Breadcrumb />
         </div>
-      </div>
 
-      {/* 2. Advanced Filters */}
-      <div className="flex flex-col md:flex-row gap-8 items-end w-full max-w-2xl bg-white p-2 rounded-xl">
-        <div className="flex flex-col gap-2 w-full md:w-1/2">
-          <label className="text-sm font-semibold text-gray-700">الدورة:</label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="البحث باسم الدورة..."
-              className="w-full bg-[#f9f9f9] border border-gray-200 p-2.5 rounded-xl outline-none focus:border-[#6F013F] text-sm"
-              value={nameSearch}
-              onChange={(e) => setNameSearch(e.target.value)}
+        <div className="w-full xl:w-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="min-w-0 sm:min-w-[230px]">
+            <SearchableSelect
+              label="اسم الطالب"
+              value={selectedStudent}
+              onChange={setSelectedStudent}
+              options={[{ value: "", label: "كل الطلاب" }, ...studentOptions]}
+              allowClear
+              placeholder="اختر الطالب"
             />
           </div>
-        </div>
 
-        <div className="flex flex-col gap-2 w-full md:w-1/2">
-          <label className="text-sm font-semibold text-gray-700">اسم الطالب:</label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="البحث باسم الطالب..."
-              className="w-full bg-[#f9f9f9] border border-gray-200 p-2.5 rounded-xl outline-none focus:border-[#6F013F] text-sm"
-              value={studentNameSearch}
-              onChange={(e) => setStudentNameSearch(e.target.value)}
+          <div className="min-w-0 sm:min-w-[230px]">
+            <SearchableSelect
+              label="الشعبة"
+              value={selectedBatch}
+              onChange={setSelectedBatch}
+              options={[{ value: "", label: "كل الشعب" }, ...batchOptions]}
+              allowClear
+              placeholder="اختر الشعبة"
             />
           </div>
         </div>
       </div>
 
-      {/* 3. Action Buttons */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-200 pb-4">
-        <div className="flex gap-2">
-          <PrintExportActions 
-            data={batches}
+      {/* Actions row */}
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div className="w-full xl:w-auto">
+          <ActionsRow
+            showSelectAll
+            viewLabel=""
+            addLabel="إضافة دورة"
+            isAllSelected={isAllSelected}
+            onToggleSelectAll={() =>
+              setSelectedIds(isAllSelected ? [] : rows.map((r) => String(r.id)))
+            }
+            onAdd={() => {}}
+            extraButtons={[
+              {
+                label: "عرض الدورات",
+                icon: <Layers3 size={15} />,
+                color: activeView === "all" ? "green" : "gray",
+                onClick: () => setActiveView("all"),
+              },
+              {
+                label: "عرض الدورات المخفية",
+                icon: <EyeOff size={15} />,
+                color: activeView === "hidden" ? "green" : "gray",
+                onClick: () => setActiveView("hidden"),
+              },
+              {
+                label: "عرض الدورات المؤرشفة",
+                icon: <Archive size={15} />,
+                color: activeView === "archived" ? "green" : "gray",
+                onClick: () => setActiveView("archived"),
+              },
+              {
+                label: "الدورات المكتملة",
+                icon: <CheckCircle2 size={15} />,
+                color: activeView === "completed" ? "green" : "gray",
+                onClick: () => setActiveView("completed"),
+              },
+            ]}
+          />
+        </div>
+
+        <div className="w-full xl:w-auto flex flex-wrap items-center gap-2">
+          <PrintExportActions
+            data={rows}
             selectedIds={selectedIds}
             columns={[
               { header: "اسم الشعبة", key: "name" },
-              { 
-                header: "الجنس", 
-                key: "gender_type",
-                render: getGenderLabel
-              },
-              { 
-                header: "الفرع", 
+              { header: "اسم الطالب", key: "student_name" },
+              {
+                header: "الفرع",
                 key: "institute_branch",
-                render: (val) => val?.name || "-"
+                render: (val) => val?.name || "—",
               },
-              { 
-                header: "الفرع الأكاديمي", 
+              {
+                header: "الفرع الأكاديمي",
                 key: "academic_branch",
-                render: (val) => val?.name || "-"
+                render: (val) => val?.name || "—",
               },
-              { 
-                header: "القاعة", 
-                key: "class_room",
-                render: (val) => val?.name || "-"
-              },
-              { header: "البداية", key: "start_date" },
-              { header: "النهاية", key: "end_date" },
-              { 
-                header: "الحالة", 
-                key: "id", // any key, we use row in render
-                render: (_, row) => getStatusLabel(row)
+              { header: "تاريخ البداية", key: "start_date" },
+              { header: "تاريخ النهاية", key: "end_date" },
+              {
+                header: "الحالة",
+                key: "id",
+                render: (_, row) => getStatusLabel(row),
               },
             ]}
             title="قائمة الشعب"
             filename="الشعب"
           />
+
+          <button
+            type="button"
+            onClick={() => {}}
+            className="h-[38px] px-4 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition inline-flex items-center gap-2"
+          >
+            <MoveLeft size={16} />
+            <span>نقل</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats + cards */}
+      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4">
+        <div className="2xl:col-span-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-[#FAF5FD] border border-[#F1E4F6] p-5 rounded-[24px] shadow-sm relative overflow-hidden min-h-[190px] flex">
+            {/* Bottom-left white curve & button */}
+            <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-white rounded-full"></div>
+            <button
+              onClick={() => router.push(`/batches/batch-subjects?batch=${firstRow?.name}`)}
+              className="absolute bottom-4 left-4 w-14 h-14 rounded-full bg-[#8A1654] text-white flex items-center justify-center hover:bg-[#741046] transition text-2xl shadow-md z-20"
+            >
+              ↗
+            </button>
+
+            {/* Right Group: Icon, Text, Avatars (Appears on Right in RTL) */}
+            <div className="relative z-10 flex-1 flex flex-col items-start text-right">
+              <div className="w-12 h-12 rounded-xl bg-[#8A1654] text-white flex items-center justify-center shrink-0 mb-3 shadow-[0_4px_10px_rgba(138,22,84,0.3)]">
+                <BookOpen size={22} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">
+                مواد الدورة
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-[200px] leading-relaxed">
+                عرض المواد الدراسية الخاصة بهذه الدورة
+              </p>
+            </div>
+
+            {/* Left Group: Number (Appears on Left in RTL) */}
+            <div className="relative z-10 flex flex-col justify-start items-center w-24 shrink-0">
+              <div className="text-3xl font-bold text-gray-900 mt-6">
+                {firstRow?.subjects_count || 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#FAF5FD] border border-[#F1E4F6] p-5 rounded-[24px] shadow-sm relative overflow-hidden min-h-[190px] flex">
+            {/* Bottom-left white curve & button */}
+            <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-white rounded-full"></div>
+            <button
+              onClick={() => router.push(`/batches/students?batch=${firstRow?.name}`)}
+              className="absolute bottom-4 left-4 w-14 h-14 rounded-full bg-[#8A1654] text-white flex items-center justify-center hover:bg-[#741046] transition text-2xl shadow-md z-20"
+            >
+              ↗
+            </button>
+
+            {/* Right Group: Icon, Text, Avatars (Appears on Right in RTL) */}
+            <div className="relative z-10 flex-1 flex flex-col items-start text-right">
+              <div className="w-12 h-12 rounded-xl bg-[#8A1654] text-white flex items-center justify-center shrink-0 mb-3 shadow-[0_4px_10px_rgba(138,22,84,0.3)]">
+                <Users size={22} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">
+                طلاب الدورة
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-[200px] leading-relaxed">
+                عرض الطلاب الذين ينتموا بهذه الدورة
+              </p>
+            </div>
+
+            {/* Left Group: Number (Appears on Left in RTL) */}
+            <div className="relative z-10 flex flex-col justify-start items-center w-24 shrink-0">
+              <div className="text-3xl font-bold text-gray-900 mt-6">
+                {firstRow?.students_count || 0}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap items-center">
-          <button
-            onClick={() => setIncludeArchived(!includeArchived)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-              includeArchived ? 'bg-blue-200 text-blue-900 border border-blue-300' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100'
-            }`}
-          >
-            <img src="/icons/archive.svg" alt="أرشفة" width={16} height={16} className="opacity-70" />
-            عرض الدورات المؤرشفة
-          </button>
-          
-          <button
-            onClick={() => setIncludeHidden(!includeHidden)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-              includeHidden ? 'bg-green-200 text-green-900 border border-green-300' : 'bg-green-50 text-green-700 border border-green-100 hover:bg-green-100'
-            }`}
-          >
-            <img src="/icons/hidden.svg" alt="إخفاء" width={16} height={16} className="opacity-70" />
-            عرض الدورات المخفية
-          </button>
-
-          <DashboardButton
-            label="تحديد الكل"
-            icon={<input type="checkbox" checked={isAllSelected} readOnly className="accent-[#8A1654] w-4 h-4 cursor-pointer" />}
-            color="gray"
-            className="rounded-lg shadow-sm border border-gray-100 h-[38px]"
-            onClick={toggleSelectAll}
-          />
-          
-          <DashboardButton
-            label="إضافة دورة"
-            icon={<span className="text-lg leading-none">+</span>}
-            color="pink"
-            className="rounded-lg shadow-sm font-medium h-[38px] bg-[#FFF2F8] text-[#8A1654] border border-[#FBE3EE] hover:bg-[#FBE3EE]"
-            onClick={() => {
-              setSelectedBatch(null);
-              setIsModalOpen(true);
+        {/* small stat cards */}
+        <div className="2xl:col-span-2 grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-1 gap-3">
+          <div
+            className="flex flex-col justify-between rounded-2xl bg-white px-5 py-4 shadow-sm relative overflow-hidden min-h-[95px]"
+            style={{
+              background:
+                "radial-gradient(120px 120px at 90% 10%, rgba(16,163,69,0.15), transparent 60%)",
             }}
-          />
-        </div>
-      </div>
-
-      {/* 4. Stats Cards Layer */}
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex flex-col gap-4 w-full md:w-1/4">
-          <div className="bg-white border text-center border-gray-200 p-6 rounded-2xl flex items-center justify-between shadow-sm cursor-default">
-             <div className="font-bold text-gray-800 flex items-center gap-2">
-                 <Globe className="text-[#03A3A3]" size={20} /> الدورة مكتملة 
-                 <span className="text-sm bg-gray-100 px-2 py-0.5 rounded-full">{stats.completed || 0}</span>
-             </div>
-          </div>
-          <div className="bg-white border text-center border-gray-200 p-6 rounded-2xl flex items-center justify-between shadow-sm cursor-default">
-             <div className="font-bold text-gray-800 flex items-center gap-2">
-                <Contact className="text-[#F294C6]" size={20} /> {firstBatch?.employees_count || 0} مدرس
-             </div>
-          </div>
-        </div>
-
-        <div className="flex gap-4 w-full md:w-3/4 flex-col md:flex-row">
-          <div className="bg-[#FAF5FD] border border-[#F0E6F6] p-6 rounded-2xl flex-1 flex flex-col justify-between shadow-sm relative overflow-hidden">
-             <div className="flex justify-between items-start mb-6">
-                <div>
-                   <h3 className="text-xl font-bold text-gray-800 mb-1">مواد الدورة</h3>
-                   <p className="text-sm text-gray-500 max-w-[200px]">عرض المواد الدراسية الخاصة بهذه الدورة</p>
-                </div>
-                <div className="bg-[#8A1654] text-white p-3 rounded-2xl">
-                   <BookOpen size={24} />
-                </div>
-             </div>
-             <div className="flex items-end justify-between">
-                <div className="bg-[#8A1654] w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-[#6e1143] transition">
-                    <span className="text-xl leading-none">↗</span>
-                </div>
-                <h2 className="text-4xl font-bold text-gray-800">{firstBatch?.subjects_count || 0}</h2>
-             </div>
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xl font-semibold text-gray-900">
+                {stats.completed}{" "}
+                <span className="text-base font-semibold">دورة</span>
+              </div>
+              <Image
+                src="/greenGlobe.svg"
+                alt="completed"
+                width={20}
+                height={20}
+              />
+            </div>
+            <div className="mt-2 text-sm text-gray-500">مكتملة</div>
           </div>
 
-          <div className="bg-[#FAF5FD] border border-[#F0E6F6] p-6 rounded-2xl flex-1 flex flex-col justify-between shadow-sm relative overflow-hidden">
-             <div className="flex justify-between items-start mb-6">
-                <div>
-                   <h3 className="text-xl font-bold text-gray-800 mb-1">طلاب الدورة</h3>
-                   <p className="text-sm text-gray-500 max-w-[200px]">عرض الطلاب الذين ينتموا بهذه الدورة</p>
-                </div>
-                <div className="bg-[#8A1654] text-white p-3 rounded-2xl">
-                   <Users size={24} />
-                </div>
-             </div>
-             <div className="flex items-end justify-between">
-                <div className="bg-[#8A1654] w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-[#6e1143] transition">
-                    <span className="text-xl leading-none">↗</span>
-                </div>
-                <h2 className="text-4xl font-bold text-gray-800">{firstBatch?.students_count || 0}</h2>
-             </div>
+          <div
+            className="flex flex-col justify-between rounded-2xl bg-white px-5 py-4 shadow-sm relative overflow-hidden min-h-[95px]"
+            style={{
+              background:
+                "radial-gradient(120px 120px at 90% 10%, rgba(244,114,182,0.14), transparent 60%)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xl font-semibold text-gray-900">
+                {firstRow?.employees_count || 0}{" "}
+                <span className="text-base font-semibold">مدرس</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-[#FCE7F3] flex items-center justify-center text-[#BE185D] font-bold text-sm">
+                +
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-500">المدرسين</div>
           </div>
         </div>
       </div>
 
-      {/* 5. Table */}
-      <h3 className="text-lg font-bold text-gray-700 mt-4 mb-2">معلومات الدورة ({pagination.total || 0})</h3>
+      {/* Table title */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-700">
+          معلومات الدورة ({rows.length})
+        </h3>
+      </div>
+
+      {/* Table */}
       <BatchesTable
-        batches={batches}
-        pagination={pagination}
-        page={page}
-        onPageChange={setPage}
-        isLoading={isLoading}
+        batches={rows}
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
-
-      <AddBatchModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        batch={selectedBatch}
-      />
-
-      <DeleteConfirmModal
-        isOpen={isDeleteOpen}
-        loading={isDeleting}
-        title="حذف شعبة"
-        description={`هل أنت متأكد من حذف الدورة/الشعبة ${batchToDelete?.name}؟`}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={confirmDelete}
+        onEdit={() => {}}
+        onDelete={() => {}}
       />
     </div>
   );
