@@ -122,6 +122,7 @@ export default function Menu() {
         { name: "القاعات الدراسية", href: "/classRooms", roles: ["admin"] },
         { name: "نماذج الرسائل", href: "/message-templates", roles: ["admin"] },
         { name: "المدارس", href: "/schools", roles: ["admin"] },
+        { name: "الدورات", href: "/batches", roles: ["admin"] },
       ],
     },
     {
@@ -151,7 +152,7 @@ export default function Menu() {
       ],
     },
     {
-      title: "الطلاب",
+      title: "الطلاب و اولياء الامور",
       icon: "/icons/Student.svg",
       roles: ["admin", "employee"],
       sub: [
@@ -161,17 +162,19 @@ export default function Menu() {
           roles: ["admin", "employee"],
         },
         { name: "إضافة طالب", href: "/students?add=1", roles: ["admin"] },
-      ],
-    },
-    {
-      title: "العائلات وأولياء الأمور",
-      icon: "/icons/UsersThree.svg",
-      roles: ["admin"],
-      sub: [
         { name: "قائمة العائلات", href: "/families", roles: ["admin"] },
         { name: "أولياء الأمور", href: "/guardians", roles: ["admin"] },
       ],
     },
+    // {
+    //   title: "العائلات وأولياء الأمور",
+    //   icon: "/icons/UsersThree.svg",
+    //   roles: ["admin"],
+    //   sub: [
+    //     { name: "قائمة العائلات", href: "/families", roles: ["admin"] },
+    //     { name: "أولياء الأمور", href: "/guardians", roles: ["admin"] },
+    //   ],
+    // },
     {
       title: "المذاكرات",
       icon: "/icons/EyeSlash.svg",
@@ -200,13 +203,8 @@ export default function Menu() {
           roles: ["admin", "employee_accountant", "accountant"],
         },
         { name: "إضافة دفعة", href: "/payments/add", roles: ["admin"] },
+        { name: "رسائل الاخطاء", href: "/debug-errors", roles: ["admin"] },
       ],
-    },
-    {
-      title: "الدورات",
-      icon: "/icons/Export.svg",
-      roles: ["admin"],
-      sub: [{ name: "قائمة الدورات", href: "/batches", roles: ["admin"] }],
     },
     {
       title: "التقارير",

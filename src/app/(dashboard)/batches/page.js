@@ -321,7 +321,9 @@ export default function BatchesPage() {
             {/* Bottom-left white curve & button */}
             <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-white rounded-full"></div>
             <button
-              onClick={() => router.push(`/batches/batch-subjects?batch=${firstRow?.name}`)}
+              onClick={() =>
+                router.push(`/batches/batch-subjects?batch=${firstRow?.name}`)
+              }
               className="absolute bottom-4 left-4 w-14 h-14 rounded-full bg-[#8A1654] text-white flex items-center justify-center hover:bg-[#741046] transition text-2xl shadow-md z-20"
             >
               ↗
@@ -352,7 +354,9 @@ export default function BatchesPage() {
             {/* Bottom-left white curve & button */}
             <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-white rounded-full"></div>
             <button
-              onClick={() => router.push(`/batches/students?batch=${firstRow?.name}`)}
+              onClick={() =>
+                router.push(`/batches/students?batch=${firstRow?.name}`)
+              }
               className="absolute bottom-4 left-4 w-14 h-14 rounded-full bg-[#8A1654] text-white flex items-center justify-center hover:bg-[#741046] transition text-2xl shadow-md z-20"
             >
               ↗

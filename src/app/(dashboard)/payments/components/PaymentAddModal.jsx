@@ -16,6 +16,7 @@ import { useGetMessageTemplatesQuery } from "@/store/services/messageTemplatesAp
 //import { useSendSingleMessageMutation } from "@/store/services/messagesApi";
 import { useSendSingleSmsMutation } from "@/store/services/messagesApi";
 import GradientButton from "@/components/common/GradientButton";
+import { debugLogger } from "@/lib/helpers/debugLogger";
 
 function toNumOrNull(v) {
   if (v === "" || v === null || v === undefined) return null;
@@ -376,7 +377,9 @@ export default function PaymentAddModal({
       setSavedPayment(saved || payload);
       setStep(2);
     } catch (e) {
-      // التوست من الأب
+      console.error(e);
+      debugLogger.error(e, "Payment Submission");
+      notify.error(e?.data?.message || e?.message || "فشل في حفظ الدفعة");
     }
   };
 
@@ -410,7 +413,14 @@ export default function PaymentAddModal({
       onClose?.();
     } catch (err) {
       console.error(err);
-      notify.error(err?.data?.message || "فشل في إرسال الرسالة");
+      debugLogger.error(err, "SMS Sending");
+      if (err?.data?.errors) {
+        Object.values(err.data.errors)
+          .flat()
+          .forEach((msg) => notify.error(msg));
+      } else {
+        notify.error(err?.data?.message || err?.message || "فشل في إرسال الرسالة");
+      }
     }
   };
   if (!open) return null;
